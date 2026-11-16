@@ -1,0 +1,111 @@
+{
+  "config": {
+    "abort": {
+      "single_instance_allowed": "Bereits eingerichtet. Es ist nur eine Einrichtung möglich."
+    },
+    "step": {
+      "user": {
+        "title": "Wärmeregie",
+        "description": "Heizungssteuerung für Pelletöfen. Sie startet im Schattenbetrieb: Sie rechnet nur und schaltet nichts. Räume, Fühler und Zeitpläne richtest du danach im Panel „Wärmeregie“ ein.",
+        "data": {
+          "stove": "Ofen-Thermostat (optional)"
+        },
+        "data_description": {
+          "stove": "Thermostat-Entität des Pelletofens, z. B. aus „MCZ Maestro lokal“ oder der Cloud-Integration."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "heating_block": {
+        "name": "Heizblock"
+      },
+      "opening_alert": {
+        "name": "Öffnung offen"
+      }
+    },
+    "select": {
+      "scene_select": {
+        "name": "Szene"
+      }
+    },
+    "sensor": {
+      "day_type": {
+        "name": "Tagesart"
+      },
+      "house_deficit": {
+        "name": "Wärmebedarf"
+      },
+      "phase": {
+        "name": "Phase",
+        "state": {
+          "block": "Heizblock",
+          "blocked": "Gesperrt",
+          "idle": "Bereit",
+          "pause": "Pause"
+        }
+      },
+      "scene": {
+        "name": "Aktive Szene"
+      },
+      "starts_today": {
+        "name": "Starts heute"
+      }
+    },
+    "switch": {
+      "active": {
+        "name": "Steuerung aktiv"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Die Wärmeregie ist nicht eingerichtet."
+    }
+  },
+  "services": {
+    "boost": {
+      "name": "Alle Ziele anpassen",
+      "description": "Alle Raumziele für eine Weile wärmer oder kühler.",
+      "fields": {
+        "delta": {
+          "name": "Änderung",
+          "description": "Kelvin, z. B. 1 oder -1."
+        },
+        "minutes": {
+          "name": "Dauer",
+          "description": "Minuten, 0 hebt auf."
+        }
+      }
+    },
+    "clear_scene": {
+      "name": "Zurück zum Zeitplan",
+      "description": "Beendet eine von Hand gewählte Szene."
+    },
+    "pause_stove": {
+      "name": "Ofen pausieren",
+      "description": "In dieser Zeit kein Ofenstart. Ein laufender Block endet.",
+      "fields": {
+        "minutes": {
+          "name": "Dauer",
+          "description": "Minuten, 0 hebt auf."
+        }
+      }
+    },
+    "set_scene": {
+      "name": "Szene wählen",
+      "description": "Szene von Hand wählen. Ohne Dauer gilt sie bis zum nächsten Zeitplan-Wechsel.",
+      "fields": {
+        "scene": {
+          "name": "Szene",
+          "description": "ID der Szene, z. B. komfort."
+        },
+        "minutes": {
+          "name": "Dauer",
+          "description": "Minuten (optional)."
+        }
+      }
+    }
+  }
+}

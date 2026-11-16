@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Version und Changelog lesen
+        id: v
+        run: |
+          V=$(python3 -c "import json;print(json.load(open('custom_components/waermeregie/manifest.json'))['version'])")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          awk -v v="$V" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
+          test -s notes.md
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=${{ steps.v.outputs.version }}
+          if gh release view "v$V" >/dev/null 2>&1; then echo "v$V gibt es schon"; exit 0; fi
+          gh release create "v$V" --target "$GITHUB_SHA" --title "v$V" --notes-file notes.md

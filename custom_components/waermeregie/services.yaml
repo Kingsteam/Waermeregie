@@ -1,0 +1,39 @@
+set_scene:
+  fields:
+    scene:
+      required: true
+      selector:
+        text:
+    minutes:
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: min
+clear_scene:
+pause_stove:
+  fields:
+    minutes:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 1440
+          unit_of_measurement: min
+boost:
+  fields:
+    delta:
+      required: true
+      selector:
+        number:
+          min: -3
+          max: 3
+          step: 0.5
+          unit_of_measurement: K
+    minutes:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 360
+          unit_of_measurement: min

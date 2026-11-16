@@ -1,0 +1,23 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "heating_block": {"default": "mdi:fire-off", "state": {"on": "mdi:fire"}},
+      "opening_alert": {"default": "mdi:door-closed", "state": {"on": "mdi:door-open"}}
+    },
+    "select": {"scene_select": {"default": "mdi:palette-outline"}},
+    "sensor": {
+      "day_type": {"default": "mdi:calendar-today"},
+      "house_deficit": {"default": "mdi:thermometer-minus"},
+      "phase": {"default": "mdi:fire-circle"},
+      "scene": {"default": "mdi:sofa"},
+      "starts_today": {"default": "mdi:counter"}
+    },
+    "switch": {"active": {"default": "mdi:robot-outline"}}
+  },
+  "services": {
+    "boost": {"service": "mdi:thermometer-plus"},
+    "clear_scene": {"service": "mdi:calendar-clock"},
+    "pause_stove": {"service": "mdi:pause-circle"},
+    "set_scene": {"service": "mdi:palette"}
+  }
+}

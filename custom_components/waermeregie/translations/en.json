@@ -1,0 +1,111 @@
+{
+  "config": {
+    "abort": {
+      "single_instance_allowed": "Already configured. Only a single configuration possible."
+    },
+    "step": {
+      "user": {
+        "title": "Wärmeregie",
+        "description": "Heating control for pellet stoves. It starts in shadow mode: it only calculates and switches nothing. Rooms, sensors and schedules are set up in the Wärmeregie panel.",
+        "data": {
+          "stove": "Stove thermostat (optional)"
+        },
+        "data_description": {
+          "stove": "Climate entity of the pellet stove, e.g. from MCZ Maestro local or the cloud integration."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "heating_block": {
+        "name": "Heating block"
+      },
+      "opening_alert": {
+        "name": "Opening alert"
+      }
+    },
+    "select": {
+      "scene_select": {
+        "name": "Scene"
+      }
+    },
+    "sensor": {
+      "day_type": {
+        "name": "Day type"
+      },
+      "house_deficit": {
+        "name": "Heat demand"
+      },
+      "phase": {
+        "name": "Phase",
+        "state": {
+          "block": "Heating block",
+          "blocked": "Blocked",
+          "idle": "Ready",
+          "pause": "Pause"
+        }
+      },
+      "scene": {
+        "name": "Active scene"
+      },
+      "starts_today": {
+        "name": "Starts today"
+      }
+    },
+    "switch": {
+      "active": {
+        "name": "Control active"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Wärmeregie is not set up."
+    }
+  },
+  "services": {
+    "boost": {
+      "name": "Adjust all targets",
+      "description": "Raise or lower all room targets for a while.",
+      "fields": {
+        "delta": {
+          "name": "Change",
+          "description": "Kelvin, e.g. 1 or -1."
+        },
+        "minutes": {
+          "name": "Duration",
+          "description": "Minutes, 0 cancels."
+        }
+      }
+    },
+    "clear_scene": {
+      "name": "Back to schedule",
+      "description": "Ends a manually chosen scene."
+    },
+    "pause_stove": {
+      "name": "Pause stove",
+      "description": "No stove start for this time. A running block ends.",
+      "fields": {
+        "minutes": {
+          "name": "Duration",
+          "description": "Minutes, 0 cancels."
+        }
+      }
+    },
+    "set_scene": {
+      "name": "Set scene",
+      "description": "Choose a scene manually. Without duration it lasts until the next schedule change.",
+      "fields": {
+        "scene": {
+          "name": "Scene",
+          "description": "Scene ID, e.g. komfort."
+        },
+        "minutes": {
+          "name": "Duration",
+          "description": "Minutes (optional)."
+        }
+      }
+    }
+  }
+}
