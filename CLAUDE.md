@@ -42,6 +42,7 @@ cd frontend && npm ci && npm run typecheck && npm test && npm run build
 - Panel nach dem Entladen entfernen; statische Pfade nur einmal je Laufzeit registrieren (`hass.data`-Merker), ebenso `add_extra_js_url`.
 - Schattenbetrieb: die Regel führt einen **gedachten** Block; beim Umschalten der Betriebsart wird er verworfen (kein gedachter Block wird real).
 - Im Aktivbetrieb übernimmt die Regel einen von Hand gestarteten Ofen als Block und erkennt, wenn er von außen ausgeht.
+- Ofen-Funktionen (`model.STOVE_FIELDS`): climate, power (select/number, Stufe 1-5; bei select Option = Ziffer, „… n“ oder Position), chrono_switch, eco_switch (beide im Aktivbetrieb aus), error_sensor (Störung = kein Start, Block endet), water_sensor, ignitions_sensor.
 - Ofenstart = `set_temperature` (Block-Sollwert, Standard 28 °C, damit der Ofen trotz zu hoch messendem Innenfühler brennt) + `set_hvac_mode heat`; Stopp = `set_hvac_mode off`.
 - Heizkörper werden nur bei Änderung ≥ 0,5 K neu gesetzt (schont Batterien).
 - Ruff: Zeilenlänge 100; keine typografischen Zeichen in Code-Strings, die RUF001 auslösen.

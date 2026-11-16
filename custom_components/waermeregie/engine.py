@@ -47,6 +47,11 @@ class StoveObs:
     available: bool = False
     on: bool = False  # eingeschaltet (hvac_mode != off)
     burning: bool = False  # brennt gerade (hvac_action heating)
+    error: bool = False  # Störung gemeldet
+    eco_on: bool | None = None  # Eco des Ofens (None = nicht zugeordnet)
+    has_power: bool = False  # Leistungsstufe zugeordnet
+    water_c: float | None = None
+    ignitions: int | None = None
 
 
 @dataclass
@@ -66,7 +71,9 @@ class Result:
     """Ergebnis einer Auswertung."""
 
     status: dict[str, Any]
-    actions: list[tuple]  # ("stove_start",), ("stove_stop",), ("radiator", entity, setpoint)
+    # ("stove_start",), ("stove_stop",), ("stove_power", stufe), ("chrono_off",),
+    # ("eco_off",), ("radiator", entity, sollwert)
+    actions: list[tuple]
     state: dict[str, Any]
     log: list[str]
 
@@ -81,6 +88,7 @@ def empty_state() -> dict[str, Any]:
         "last_stop": None,
         "starts": [],  # iso-Zeitpunkte der Starts (letzte 2 Tage)
         "radiators": {},  # zuletzt gesetzter Sollwert je Heizkörper
+        "power": None,  # zuletzt gesetzte Leistungsstufe
     }
 
 
@@ -281,7 +289,9 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         elapsed = (now - block_start).total_seconds() / 60
         reached = house_deficit is None or house_deficit <= -p["stop_above_k"]
         stop_reason = None
-        if policy == STOVE_DENY:
+        if obs.stove.error:
+            stop_reason = "Ofen meldet eine Störung"
+        elif policy == STOVE_DENY:
             stop_reason = f"Szene „{scene['name']}“: Ofen aus"
         elif manual_pause and manual_pause > now:
             stop_reason = "Ofen von Hand pausiert"
@@ -318,7 +328,9 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         want = want_comfort or (frost_need and policy != STOVE_DENY)
         blocker = None
         phase = "idle"
-        if policy == STOVE_DENY:
+        if obs.stove.error:
+            blocker, phase = "Ofen meldet eine Störung", "blocked"
+        elif policy == STOVE_DENY:
             blocker, phase = f"Szene „{scene['name']}“: Ofen aus", "idle"
         elif pause_end and pause_end > now:
             blocker, phase = (
@@ -353,8 +365,31 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             )
             reason = reason.strip(", ")
 
-    # Heizkörper: während eines Blocks öffnen, damit die Wärme ins Haus geht
     in_block_now = state["block_start"] is not None
+
+    # Leistungsstufe: klein anfangen, bei großem Bedarf oder Kälte mehr
+    power = None
+    if in_block_now and obs.stove.has_power:
+        lo, hi = int(p["power_min"]), int(p["power_max"])
+        # ab Startschwelle linear bis 2 K Bedarf: kleinste ... höchste Stufe
+        span = max(0.1, 2.0 - p["start_below_k"])
+        share = min(1.0, max(0.0, ((house_deficit or 0.0) - p["start_below_k"]) / span))
+        power = lo + round((hi - lo) * share)
+        if obs.outdoor_c is not None and obs.outdoor_c < p["power_cold_c"]:
+            power = hi
+        if long_opening:
+            power = lo
+        if power != state["power"]:
+            actions.append(("stove_power", power))
+    state["power"] = power
+
+    # Nur eine Stelle steuert: Zeitprogramm und Eco des Ofens aus (wirkt nur aktiv)
+    if obs.chrono_on:
+        actions.append(("chrono_off",))
+    if obs.stove.eco_on:
+        actions.append(("eco_off",))
+
+    # Heizkörper: während eines Blocks öffnen, damit die Wärme ins Haus geht
     for room, rs in zip(config["rooms"], room_status, strict=True):
         if rs["open"]:
             setpoint = p["frost_c"]
@@ -403,6 +438,11 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "starts_today": starts_today,
             "max_starts_per_day": int(p["max_starts_per_day"]),
             "chrono_warning": bool(obs.chrono_on),
+            "eco_warning": bool(obs.stove.eco_on),
+            "error": obs.stove.error,
+            "power_level": power,
+            "water_c": obs.stove.water_c,
+            "ignitions": obs.stove.ignitions,
         },
         "house": {"deficit_k": house_deficit, "outdoor_c": obs.outdoor_c},
         "rooms": room_status,

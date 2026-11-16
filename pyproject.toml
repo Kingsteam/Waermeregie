@@ -20,6 +20,7 @@ select = ["E", "F", "W", "I", "B", "UP", "RUF", "SIM", "ASYNC"]
 [tool.ruff.lint.per-file-ignores]
 # Tests warten mit echter Zeit auf Zustände des simulierten Ofens
 "tests/*" = ["ASYNC109", "ASYNC110"]
+"devtools/*" = ["RUF012"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["custom_components"]

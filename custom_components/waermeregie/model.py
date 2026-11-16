@@ -26,6 +26,19 @@ ID_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
+# Ofen-Funktionen: Schlüssel -> erlaubte Domains, Bezeichnung
+STOVE_FIELDS: dict[str, tuple[tuple[str, ...], str]] = {
+    "climate": (("climate",), "Ofen-Thermostat"),
+    "power": (("select", "number"), "Leistungsstufe"),
+    "chrono_switch": (("switch",), "Chrono des Ofens"),
+    "eco_switch": (("switch",), "Eco des Ofens"),
+    "error_sensor": (("binary_sensor",), "Störung des Ofens"),
+    "water_sensor": (("sensor",), "Wassertemperatur"),
+    "ignitions_sensor": (("sensor",), "Zündzähler"),
+}
+STOVE_KEYS = tuple(STOVE_FIELDS)
+
+
 class ConfigError(ValueError):
     """Einstellungen ungültig. Text ist für Menschen gedacht (Deutsch)."""
 
@@ -33,7 +46,7 @@ class ConfigError(ValueError):
 def default_config() -> dict[str, Any]:
     """Startzustand: Szenen und Tagesarten als Vorschlag, noch keine Räume."""
     return {
-        "stove": {"climate": None, "power_select": None, "chrono_switch": None},
+        "stove": dict.fromkeys(STOVE_KEYS),
         "weather": None,
         "outdoor_sensor": None,
         "workday": None,
@@ -196,10 +209,11 @@ def validate(raw: Any) -> dict[str, Any]:
     out: dict[str, Any] = {}
 
     stove = cfg.get("stove") or {}
+    if "power_select" in stove and "power" not in stove:  # älterer Name
+        stove = {**stove, "power": stove["power_select"]}
     out["stove"] = {
-        "climate": _entity(stove.get("climate"), ("climate",), "Ofen-Thermostat"),
-        "power_select": _entity(stove.get("power_select"), ("select", "number"), "Leistungsstufe"),
-        "chrono_switch": _entity(stove.get("chrono_switch"), ("switch",), "Chrono-Schalter"),
+        key: _entity(stove.get(key), domains, label)
+        for key, (domains, label) in STOVE_FIELDS.items()
     }
     out["weather"] = _entity(cfg.get("weather"), ("weather",), "Wetter")
     out["outdoor_sensor"] = _entity(cfg.get("outdoor_sensor"), ("sensor",), "Außenfühler")
@@ -349,6 +363,10 @@ def validate(raw: Any) -> dict[str, Any]:
         if not lo <= v <= hi:
             raise ConfigError(f"Parameter {key}: {v} liegt außerhalb {lo}-{hi}")
         params[key] = v
+    if params["power_max"] < params["power_min"]:
+        raise ConfigError("Höchste Leistungsstufe muss mindestens so groß wie die kleinste sein")
+    params["power_min"] = int(params["power_min"])
+    params["power_max"] = int(params["power_max"])
     if params["max_burn_min"] < params["min_burn_min"]:
         raise ConfigError("Längste Brenndauer muss mindestens so groß wie die kürzeste sein")
     out["parameters"] = params

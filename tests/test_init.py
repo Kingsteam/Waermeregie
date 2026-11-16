@@ -20,6 +20,11 @@ ENTITIES = {
     "sensor.temp_wohnzimmer": ("sensor", "t_wz"),
     "binary_sensor.terrassentuer": ("binary_sensor", "tuer"),
     "binary_sensor.belegung_wohnzimmer": ("binary_sensor", "belegung"),
+    "select.ofen_leistung": ("select", "leistung"),
+    "switch.ofen_chrono": ("switch", "chrono"),
+    "switch.ofen_eco": ("switch", "eco"),
+    "binary_sensor.ofen_stoerung": ("binary_sensor", "stoerung"),
+    "sensor.ofen_wasser": ("sensor", "wasser"),
 }
 
 
@@ -39,6 +44,13 @@ def house(hass: HomeAssistant) -> dict[str, str]:
     hass.states.async_set("sensor.temp_wohnzimmer", "19.0")
     hass.states.async_set("binary_sensor.terrassentuer", "off")
     hass.states.async_set("binary_sensor.belegung_wohnzimmer", "on")
+    hass.states.async_set(
+        "select.ofen_leistung", "Stufe 5", {"options": [f"Stufe {i}" for i in range(1, 6)]}
+    )
+    hass.states.async_set("switch.ofen_chrono", "on")
+    hass.states.async_set("switch.ofen_eco", "off")
+    hass.states.async_set("binary_sensor.ofen_stoerung", "off")
+    hass.states.async_set("sensor.ofen_wasser", "58.5")
     return ids
 
 
@@ -261,3 +273,35 @@ async def test_config_flow_creates_entry(hass: HomeAssistant, house) -> None:
         )
     assert result["type"] == "create_entry"
     assert result["data"] == {"stove": "climate.pelletofen"}
+
+
+async def test_active_mode_takes_over_stove_functions(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    """Im Aktivbetrieb: Leistungsstufe wählen, Chrono des Ofens aus."""
+    async_mock_service(hass, "climate", "set_hvac_mode")
+    async_mock_service(hass, "climate", "set_temperature")
+    select_calls = async_mock_service(hass, "select", "select_option")
+    switch_calls = async_mock_service(hass, "switch", "turn_off")
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    cfg = room_config((await client.receive_json())["result"]["config"])
+    cfg["stove"].update(
+        power="select.ofen_leistung",
+        chrono_switch="switch.ofen_chrono",
+        eco_switch="switch.ofen_eco",
+        error_sensor="binary_sensor.ofen_stoerung",
+        water_sensor="sensor.ofen_wasser",
+    )
+    cfg["mode"] = "active"
+    msg = await save(hass, client, cfg)
+    assert msg["success"], msg
+    await hass.async_block_till_done()
+    assert [c.data for c in select_calls] == [
+        {"entity_id": "select.ofen_leistung", "option": "Stufe 3"}  # 2 K Bedarf -> höchste
+    ]
+    assert {"entity_id": "switch.ofen_chrono"} in [c.data for c in switch_calls]
+    assert {"entity_id": "switch.ofen_eco"} not in [c.data for c in switch_calls]
+    status = hass.data[DOMAIN].status["stove"]
+    assert status["water_c"] == 58.5
+    assert status["power_level"] == 3

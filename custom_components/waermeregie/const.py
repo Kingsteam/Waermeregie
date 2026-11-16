@@ -51,6 +51,9 @@ PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "night_floor_c": (10.0, 20.0),
     "stove_block_setpoint_c": (16.0, 30.0),
     "presence_empty_min": (5, 240),
+    "power_min": (1, 5),
+    "power_max": (1, 5),
+    "power_cold_c": (-20.0, 15.0),
 }
 ROOM_TARGET_LIMITS: Final = (5.0, 28.0)  # Zieltemperatur Raum / Heizkörper
 MAX_OVERRIDE_MIN: Final = 24 * 60
@@ -74,4 +77,7 @@ DEFAULT_PARAMETERS: Final[dict[str, float]] = {
     "night_floor_c": 16.0,
     "stove_block_setpoint_c": 28.0,
     "presence_empty_min": 45,
+    "power_min": 1,
+    "power_max": 3,
+    "power_cold_c": 0.0,
 }

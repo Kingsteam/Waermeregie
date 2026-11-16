@@ -57,7 +57,7 @@ BAD_STATES = (STATE_UNAVAILABLE, STATE_UNKNOWN, None)
 def _paths(config: dict) -> list[tuple[Any, Any]]:
     """Alle Stellen in der Config, an denen eine Entität steht: (Container, Schlüssel)."""
     out: list[tuple[Any, Any]] = []
-    for key in ("climate", "power_select", "chrono_switch"):
+    for key in model.STOVE_KEYS:
         out.append((config["stove"], key))
     for key in ("weather", "outdoor_sensor", "workday", "pet"):
         out.append((config, key))
@@ -265,14 +265,23 @@ class WaermeregieManager:
                 empty_since=empty_since,
             )
 
+        sc = self.config["stove"]
         stove = engine.StoveObs()
-        st = self._state(self.config["stove"]["climate"])
+        st = self._state(sc["climate"])
         if st is not None:
             stove = engine.StoveObs(
                 available=True,
                 on=st.state != "off",
                 burning=st.attributes.get("hvac_action") == "heating",
             )
+        err = self._state(sc["error_sensor"])
+        stove.error = err is not None and err.state == STATE_ON
+        eco = self._state(sc["eco_switch"])
+        stove.eco_on = None if eco is None else eco.state == STATE_ON
+        stove.has_power = self._state(sc["power"]) is not None
+        stove.water_c = self._float(sc["water_sensor"])
+        ign = self._float(sc["ignitions_sensor"])
+        stove.ignitions = None if ign is None else int(ign)
         st = self._state(self.config["workday"])
         workday = None if st is None else st.state == STATE_ON
         outdoor = self._float(self.config["outdoor_sensor"])
@@ -318,6 +327,25 @@ class WaermeregieManager:
         except Exception as err:
             self._add_log(now, f"Befehl {domain}.{service} fehlgeschlagen: {err}", False)
 
+    async def _set_power(self, level: int, now: datetime) -> None:
+        entity_id = self.config["stove"]["power"]
+        st = self._state(entity_id)
+        if st is None:
+            return
+        if entity_id.startswith("number."):
+            await self._call("number", "set_value", {"entity_id": entity_id, "value": level}, now)
+            return
+        options = [str(o) for o in st.attributes.get("options", [])]
+        option = next((o for o in options if o.strip() == str(level)), None)
+        if option is None:  # z. B. "Stufe 1"…: nach Ziffer suchen, sonst nach Position
+            option = next((o for o in options if str(level) in o), None)
+        if option is None and options:
+            option = options[min(level, len(options)) - 1]
+        if option is not None:
+            await self._call(
+                "select", "select_option", {"entity_id": entity_id, "option": option}, now
+            )
+
     async def _execute(self, actions: list[tuple], now: datetime) -> None:
         stove = self.config["stove"]["climate"]
         setpoint = self.config["parameters"]["stove_block_setpoint_c"]
@@ -342,6 +370,17 @@ class WaermeregieManager:
                     {"entity_id": stove, "hvac_mode": "off"},
                     now,
                 )
+            elif action[0] == "stove_power":
+                await self._set_power(action[1], now)
+            elif action[0] in ("chrono_off", "eco_off"):
+                key = "chrono_switch" if action[0] == "chrono_off" else "eco_switch"
+                if entity_id := self.config["stove"][key]:
+                    await self._call("switch", "turn_off", {"entity_id": entity_id}, now)
+                    self._add_log(
+                        now,
+                        f"{'Chrono' if key == 'chrono_switch' else 'Eco'} des Ofens ausgeschaltet",
+                        False,
+                    )
             elif action[0] == "radiator":
                 await self._call(
                     "climate",

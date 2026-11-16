@@ -307,3 +307,70 @@ def test_missing_temperatures_no_start():
     r = run(cfg, engine.empty_state(), o)
     assert ("stove_start",) not in r.actions
     assert r.status["house"]["deficit_k"] is None
+
+
+# --- Ofen-Funktionen ---------------------------------------------------------------
+
+
+def test_power_level_follows_demand_and_cold():
+    cfg = sample_config()
+    now = at(16, "17:00")
+    stove = StoveObs(available=True, has_power=True)
+    # knapp über Startschwelle -> kleine Stufe
+    r = run(cfg, engine.empty_state(), obs(now, wz=20.4, sz=18.4, stove=stove))
+    assert ("stove_power", 1) in r.actions
+    # nächste Auswertung gleicher Bedarf: kein neuer Befehl
+    r2 = run(cfg, r.state, obs(now + timedelta(minutes=1), wz=20.4, sz=18.4, stove=stove))
+    assert not [a for a in r2.actions if a[0] == "stove_power"]
+    # großer Bedarf -> höchste Stufe (3)
+    r3 = run(cfg, engine.empty_state(), obs(now, wz=18.5, sz=17.0, stove=stove))
+    assert ("stove_power", 3) in r3.actions
+    # Frost draußen -> höchste Stufe auch bei kleinem Bedarf
+    r4 = run(cfg, engine.empty_state(), obs(now, wz=20.4, sz=18.4, stove=stove, outdoor_c=-5))
+    assert ("stove_power", 3) in r4.actions
+    assert r4.status["stove"]["power_level"] == 3
+
+
+def test_power_lowest_when_door_long_open():
+    cfg = sample_config()
+    now = at(16, "17:30")
+    state = {**engine.empty_state(), "block_start": (now - timedelta(minutes=20)).isoformat()}
+    stove = StoveObs(available=True, has_power=True)
+    r = run(
+        cfg, state, obs(now, wz=18.0, sz=17.0, stove=stove, open_since=now - timedelta(minutes=15))
+    )
+    assert ("stove_power", 1) in r.actions
+
+
+def test_no_power_without_entity_or_outside_block():
+    cfg = sample_config()
+    r = run(cfg, engine.empty_state(), obs(at(16, "17:00"), wz=19.0, sz=18.0))
+    assert not [a for a in r.actions if a[0] == "stove_power"]
+    r = run(
+        cfg,
+        engine.empty_state(),
+        obs(at(16, "17:00"), wz=22.0, stove=StoveObs(available=True, has_power=True)),
+    )
+    assert r.status["stove"]["power_level"] is None
+
+
+def test_stove_error_blocks_and_stops():
+    cfg = sample_config()
+    now = at(16, "17:00")
+    err = StoveObs(available=True, error=True)
+    r = run(cfg, engine.empty_state(), obs(now, wz=19.0, sz=17.0, stove=err))
+    assert ("stove_start",) not in r.actions
+    assert r.status["stove"]["error"] is True
+    assert "Störung" in r.status["stove"]["reason"]
+    state = {**engine.empty_state(), "block_start": (now - timedelta(minutes=10)).isoformat()}
+    r = run(cfg, state, obs(now, wz=19.0, sz=17.0, stove=err))
+    assert ("stove_stop",) in r.actions
+
+
+def test_chrono_and_eco_are_switched_off():
+    cfg = sample_config()
+    o = obs(at(16, "17:00"), wz=22.0, stove=StoveObs(available=True, eco_on=True), chrono_on=True)
+    r = run(cfg, engine.empty_state(), o)
+    assert ("chrono_off",) in r.actions
+    assert ("eco_off",) in r.actions
+    assert r.status["stove"]["chrono_warning"] and r.status["stove"]["eco_warning"]

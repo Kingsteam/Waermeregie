@@ -1,0 +1,17 @@
+# Zusätzliche Pakete nur für die Test-Instanz (nicht für die Integration).
+# Passend zu HA 2026.10.4 aus requirements_test.txt.
+home-assistant-frontend==20260930.5
+playwright
+PyTurboJPEG==1.8.3
+av==19.0.0
+gTTS==2.5.4
+gazetteer-matcher==1.1.0
+ha-ffmpeg==3.2.2
+hassil==3.12.1
+home-assistant-intents==2026.10.6
+infrared-protocols==10.1.0
+mutagen==1.48.1
+numpy==2.3.2
+pymicro-vad==1.0.1
+pyspeex-noise==1.0.2
+rf-protocols==4.3.0

@@ -21,9 +21,13 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
 ```jsonc
 {
   "stove": {
-    "climate": "climate.pelletofen",   // Pflicht: Thermostat-Entität des Ofens
-    "power_select": null,              // optional: select-Entität Leistungsstufe
-    "chrono_switch": null              // optional: switch des ofeneigenen Zeitprogramms (nur Warnung, wenn an)
+    "climate": "climate.pelletofen",   // Pflicht für aktiven Betrieb: Thermostat-Entität des Ofens (Ein/Aus, Sollwert)
+    "power": null,                     // optional: select ODER number für die Leistungsstufe (Stufen 1-5)
+    "chrono_switch": null,             // optional: switch Zeitprogramm des Ofens – wird im aktiven Betrieb ausgeschaltet
+    "eco_switch": null,                // optional: switch Eco des Ofens – wird im aktiven Betrieb ausgeschaltet
+    "error_sensor": null,              // optional: binary_sensor Störung (an = Störung → kein Start)
+    "water_sensor": null,              // optional: sensor Wassertemperatur (Anzeige)
+    "ignitions_sensor": null           // optional: sensor Zündzähler (Anzeige)
   },
   "weather": "weather.home",           // optional
   "outdoor_sensor": null,              // optional: sensor Außentemperatur
@@ -54,7 +58,9 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     "min_burn_min": 90, "max_burn_min": 300, "min_pause_min": 60, "max_starts_per_day": 4,
     "opening_grace_min": 2, "opening_stop_min": 10, "opening_empty_room_min": 1,
     "radiator_boost_k": 1.0, "frost_c": 12, "night_floor_c": 16, "stove_block_setpoint_c": 28,
-    "presence_empty_min": 45
+    "presence_empty_min": 45,
+    "power_min": 1, "power_max": 3,    // Leistungsstufen im Heizblock (1-5)
+    "power_cold_c": 0                  // Außentemperatur darunter → power_max
   },
   "mode": "shadow"                     // "shadow" (nur rechnen) | "active" (schaltet)
 }
@@ -76,7 +82,12 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
     "action": "start" | "stop" | "keep",    // was die Regelung gerade will
     "reason": "Wohnräume 0,7 K unter Ziel",
     "block_start": null, "pause_until": null, "starts_today": 2, "max_starts_per_day": 4,
-    "chrono_warning": false
+    "chrono_warning": false,           // Chrono des Ofens ist an (im Schattenbetrieb nur Hinweis)
+    "eco_warning": false,              // Eco des Ofens ist an
+    "error": false,                    // Ofen meldet Störung
+    "power_level": 2,                  // gewünschte Leistungsstufe (null außerhalb eines Blocks oder ohne Leistungs-Entität)
+    "water_c": 61.5,                   // Wassertemperatur (null ohne Fühler)
+    "ignitions": 9620                  // Zündzähler (null ohne Fühler)
   },
   "house": {"deficit_k": 0.7, "outdoor_c": 4.5},
   "rooms": [
