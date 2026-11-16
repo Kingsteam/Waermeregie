@@ -332,8 +332,9 @@ class WaermeregieManager:
         st = self._state(entity_id)
         if st is None:
             return
-        if entity_id.startswith("number."):
-            await self._call("number", "set_value", {"entity_id": entity_id, "value": level}, now)
+        domain = entity_id.split(".", 1)[0]
+        if domain in ("number", "input_number"):
+            await self._call(domain, "set_value", {"entity_id": entity_id, "value": level}, now)
             return
         options = [str(o) for o in st.attributes.get("options", [])]
         option = next((o for o in options if o.strip() == str(level)), None)
@@ -343,7 +344,7 @@ class WaermeregieManager:
             option = options[min(level, len(options)) - 1]
         if option is not None:
             await self._call(
-                "select", "select_option", {"entity_id": entity_id, "option": option}, now
+                domain, "select_option", {"entity_id": entity_id, "option": option}, now
             )
 
     async def _execute(self, actions: list[tuple], now: datetime) -> None:

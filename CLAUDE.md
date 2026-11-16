@@ -38,6 +38,10 @@ cd frontend && npm ci && npm run typecheck && npm test && npm run build
 `pytest-homeassistant-custom-component` in `requirements_test.txt` bestimmt die HA-Version (0.13.375 = HA 2026.10.4). `home-assistant-frontend` ist für Tests nötig (Panel braucht `frontend`).
 
 ## Stolperfallen
+- **Karte registriert sich erst nach dem HA-Start** (`whenDefined("home-assistant")`): HA 2026 ersetzt `window.customElements` beim Start durch eine Scoped-Registry; früh registrierte Elemente gehen verloren → „Konfigurationsfehler“. `window.customElements` immer erst beim Aufruf lesen.
+- Uhrzeitfelder als Text (HH:MM) mit `normalizeTimeInput`, nicht `type="time"` (zeigt je nach Browser AM/PM).
+- Test-Instanz: HA aus dem Konfigurationsordner starten; HTTP-Port-Änderung per WebSocket `http/config/promote` bestätigen (sonst nach 5 min zurück auf 8123); Standard-Dashboard ist in HA 2026 eine Strategie → für Karten-Fotos eigenes Dashboard anlegen (`lovelace/dashboards/create`).
+- Oberfläche: Build läuft zweimal (`--mode panel`/`--mode card`), Ausgabe ist reproduzierbar; nach jeder Änderung in `frontend/src` neu bauen und das JS mitcommitten (CI vergleicht).
 - Entitäten in der Config: nach außen entity_id, im Store Register-ID. Entitäten ohne Registereintrag (z. B. YAML ohne unique_id) werden abgelehnt.
 - Panel nach dem Entladen entfernen; statische Pfade nur einmal je Laufzeit registrieren (`hass.data`-Merker), ebenso `add_extra_js_url`.
 - Schattenbetrieb: die Regel führt einen **gedachten** Block; beim Umschalten der Betriebsart wird er verworfen (kein gedachter Block wird real).

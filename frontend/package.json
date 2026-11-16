@@ -1,0 +1,21 @@
+{
+  "name": "waermeregie-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Panel und Lovelace-Karte für die Home-Assistant-Integration Wärmeregie",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "vite build --mode panel && vite build --mode card",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "lit": "3.3.3"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vite": "8.3.8",
+    "vitest": "5.1.0"
+  }
+}

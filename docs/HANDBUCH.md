@@ -14,6 +14,14 @@ Ein Pelletofen ohne Pufferspeicher taktet leicht: Sind die Heizkörperventile zu
    - **Tagesablauf:** Tagesarten (Bürotag, Homeoffice, Wochenende) mit Uhrzeiten, ab wann welche Szene gilt, und welche Tagesart an welchem Wochentag und an Feiertagen gilt.
 3. **Speichern.** Fehler (z. B. eine Uhrzeit doppelt) zeigt das Panel direkt an.
 
+![Räume](bilder/raeume.png)
+
+![Tagesablauf](bilder/tagesablauf.png)
+
+![Szenen](bilder/szenen.png)
+
+![Ofen und Haus](bilder/ofen-haus.png)
+
 **Tipp zu Fühlern:** Heizkörperthermostate messen am Heizkörper und zeigen oft zu warm. Ein eigener Raumfühler bekommt deshalb ein höheres Gewicht (z. B. 2), das Thermostat ein niedriges (z. B. 0,5).
 
 ## Was die Wärmeregie tut
@@ -29,13 +37,23 @@ Ein Pelletofen ohne Pufferspeicher taktet leicht: Sind die Heizkörperventile zu
 Alle Zeiten und Schwellen lassen sich unter *Ofen & Haus* ändern, aber nur innerhalb fester Grenzen (z. B. nie weniger als 30 Minuten Pause).
 
 ## Bedienen
-- **Szene von Hand:** in der Übersicht antippen. Gilt bis zum nächsten Wechsel im Zeitplan, danach wieder automatisch.
+![Übersicht](bilder/uebersicht.png)
+
+- **Szene von Hand:** in der Übersicht antippen. Im Panel und in der Karte gilt sie 3 Stunden, über die Entität *Szene* bis zum nächsten Wechsel im Zeitplan. Danach wieder automatisch.
 - **+1 °C für 1 Stunde**, **Ofen 2 Stunden pausieren**, **Aufheben**.
 - Für Automationen und Sprachassistenten gibt es Entitäten (*Phase*, *Aktive Szene*, *Tagesart*, *Starts heute*, *Wärmebedarf*, *Heizblock*, *Öffnung offen*, *Szene*, *Steuerung aktiv*) und Dienste (`waermeregie.set_scene`, `clear_scene`, `pause_stove`, `boost`).
-- **Dashboard-Karte:** im Dashboard *Karte hinzufügen → Wärmeregie*.
+- **Dashboard-Karte:** im Dashboard *Karte hinzufügen → Wärmeregie* (oder im YAML `type: custom:waermeregie-card`, optional `rooms: [wohnzimmer]`, `title`, `show_actions: false`).
+
+![Karte](bilder/karte.png)
+
+Auf dem Handy:
+
+![Handy](bilder/handy.png)
 
 ## Schattenbetrieb und aktiver Betrieb
-- **Schattenbetrieb** (ab Werk): nichts wird geschaltet. Im **Protokoll** steht, was die Wärmeregie getan hätte. Empfehlung: 2–3 Wochen beobachten.
+- **Schattenbetrieb** (ab Werk): nichts wird geschaltet. Im **Protokoll** steht, was die Wärmeregie getan hätte (orange markiert). Empfehlung: 2–3 Wochen beobachten.
+
+![Protokoll](bilder/protokoll.png)
 - **Aktiver Betrieb:** im Panel umschalten (mit Bestätigung) oder Schalter *Steuerung aktiv*. Dann übernimmt die Wärmeregie die Steuerung: Ofen ein/aus mit Block-Sollwert, Leistungsstufe, Heizkörper-Sollwerte, und sie schaltet Chrono und Eco des Ofens aus, damit nur eine Stelle steuert.
 - Sind Chrono oder Eco des Ofens **nicht** zugeordnet, bitte am Ofen selbst ausschalten. Sind sie zugeordnet, zeigt das Panel im Schattenbetrieb einen Hinweis, wenn sie an sind.
 - Schaltet jemand den Ofen von Hand ein, übernimmt die Wärmeregie das als Heizblock. Geht er von selbst aus, merkt sie das und hält die Pause ein.

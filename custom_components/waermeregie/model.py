@@ -29,7 +29,7 @@ TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 # Ofen-Funktionen: Schlüssel -> erlaubte Domains, Bezeichnung
 STOVE_FIELDS: dict[str, tuple[tuple[str, ...], str]] = {
     "climate": (("climate",), "Ofen-Thermostat"),
-    "power": (("select", "number"), "Leistungsstufe"),
+    "power": (("select", "number", "input_select", "input_number"), "Leistungsstufe"),
     "chrono_switch": (("switch",), "Chrono des Ofens"),
     "eco_switch": (("switch",), "Eco des Ofens"),
     "error_sensor": (("binary_sensor",), "Störung des Ofens"),
