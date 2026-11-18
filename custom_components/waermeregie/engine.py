@@ -267,7 +267,9 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             state["last_stop"] = now.isoformat()
             in_block = False
             log.append("Ofen ist aus (von Hand oder vom Ofen selbst), Heizblock beendet")
-        elif not in_block and obs.stove.on:
+        elif not in_block and obs.stove.on and not obs.stove.error:
+            # Bei Störung nicht übernehmen: sonst Schleife aus „von Hand ein“ und
+            # „Block beendet: Störung“ mit einem Aus-Befehl je Runde (19.11.2026)
             state["block_start"] = now.isoformat()
             state["starts"].append(now.isoformat())
             in_block = True

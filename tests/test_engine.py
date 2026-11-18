@@ -374,3 +374,20 @@ def test_chrono_and_eco_are_switched_off():
     assert ("chrono_off",) in r.actions
     assert ("eco_off",) in r.actions
     assert r.status["stove"]["chrono_warning"] and r.status["stove"]["eco_warning"]
+
+
+def test_error_is_not_adopted_as_manual_start():
+    """Störung bei „Ein“ (Ofen leer): kein Block, kein Befehl, kein Start gezählt."""
+    cfg = sample_config(mode="active")
+    state = engine.empty_state()
+    for minute in ("06:30", "06:31", "06:32"):
+        r = run(
+            cfg,
+            state,
+            obs(at(16, minute), wz=21.0, stove=StoveObs(available=True, on=True, error=True)),
+        )
+        state = r.state
+        assert r.state["block_start"] is None
+        assert not [a for a in r.actions if a[0].startswith("stove")]
+    assert r.state["starts"] == []
+    assert not any("von Hand" in t for t in r.log)
