@@ -140,6 +140,14 @@ export interface Status {
     ignitions?: number | null;
   } | null;
   house: { deficit_k: number | null; outdoor_c: number | null } | null;
+  pellets?: {
+    stock_kg: number | null;
+    rate_kg_h: number;
+    rate_learned: boolean;
+    hours_left: number | null;
+    empty_at: string | null;
+    daily_burn_h: number;
+  } | null;
   rooms: RoomStatus[];
   alerts: Alert[];
   overrides: {

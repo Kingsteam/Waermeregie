@@ -18,7 +18,13 @@ from . import model, panel, websocket
 from .const import DOMAIN
 from .manager import WaermeregieManager
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.SELECT, Platform.SENSOR, Platform.SWITCH]
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 CONF_STOVE = "stove"
 
@@ -85,6 +91,31 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             }
         ),
     )
+
+    async def pellets_refill(call: ServiceCall) -> None:
+        await _guard(_manager(hass).async_pellets_refill(call.data.get("kg")))
+
+    async def pellets_set(call: ServiceCall) -> None:
+        await _guard(
+            _manager(hass).async_pellets_set(call.data["kg"], call.data.get("from_empty", False))
+        )
+
+    async def pellets_empty(call: ServiceCall) -> None:
+        await _guard(_manager(hass).async_pellets_empty())
+
+    hass.services.async_register(
+        DOMAIN,
+        "pellets_refill",
+        pellets_refill,
+        vol.Schema({vol.Optional("kg"): vol.Coerce(float)}),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "pellets_set",
+        pellets_set,
+        vol.Schema({vol.Required("kg"): vol.Coerce(float), vol.Optional("from_empty"): cv.boolean}),
+    )
+    hass.services.async_register(DOMAIN, "pellets_empty", pellets_empty)
     return True
 
 

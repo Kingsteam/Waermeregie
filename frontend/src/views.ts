@@ -148,6 +148,9 @@ export function renderStove(ctx: ViewCtx, opts: { timeline?: boolean; compact?: 
         ? html`<dt>${t("stove.ignitions")}</dt><dd>${st.ignitions.toLocaleString(lang.startsWith("de") ? "de-DE" : "en-US")}</dd>`
         : nothing}
       ${st.pause_until ? html`<dt>${t("stove.pause_until")}</dt><dd>${formatStamp(st.pause_until, status?.now, lang)}</dd>` : nothing}
+      ${status?.pellets && status.pellets.stock_kg !== null && status.pellets.stock_kg !== undefined
+        ? html`<dt>${t("stove.pellets")}</dt><dd>${status.pellets.stock_kg.toLocaleString(lang.startsWith("de") ? "de-DE" : "en-US", { maximumFractionDigits: 1 })} kg${status.pellets.empty_at ? html` · ${t("stove.pellets_empty")} ${formatStamp(status.pellets.empty_at, status.now, lang)}` : nothing}</dd>`
+        : nothing}
       ${!opts.compact && status?.house?.outdoor_c !== null && status?.house?.outdoor_c !== undefined
         ? html`<dt>${t("house.outdoor")}</dt><dd>${formatTemp(status.house.outdoor_c, lang)}</dd>`
         : nothing}

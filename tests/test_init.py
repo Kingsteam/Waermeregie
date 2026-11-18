@@ -305,3 +305,73 @@ async def test_active_mode_takes_over_stove_functions(
     status = hass.data[DOMAIN].status["stove"]
     assert status["water_c"] == 58.5
     assert status["power_level"] == 3
+
+
+async def test_pellets_services_buttons_and_reminder(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    """Vorrat setzen, Brennzeit zählen, Erinnerung einmal, Knöpfe."""
+    notify_calls = async_mock_service(hass, "notify", "handy")
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    cfg = room_config((await client.receive_json())["result"]["config"])
+    assert (await save(hass, client, cfg))["success"]
+    mgr = hass.data[DOMAIN]
+    registry = er.async_get(hass)
+    stock = registry.async_get_entity_id("sensor", DOMAIN, f"{setup.entry_id}_pellet_stock")
+    low = registry.async_get_entity_id("binary_sensor", DOMAIN, f"{setup.entry_id}_pellet_low")
+    refill = registry.async_get_entity_id("button", DOMAIN, f"{setup.entry_id}_pellet_refill")
+    empty = registry.async_get_entity_id("button", DOMAIN, f"{setup.entry_id}_pellet_empty")
+    assert stock and low and refill and empty
+
+    await hass.services.async_call(
+        DOMAIN, "pellets_set", {"kg": 6, "from_empty": True}, blocking=True
+    )
+    await hass.async_block_till_done()
+    assert float(hass.states.get(stock).state) == 6.0
+    # Ofen brennt 1 h: 1,5 kg weg → 4,5 kg, unter der Schwelle → eine Nachricht
+    hass.states.async_set("climate.pelletofen", "heat", {"hvac_action": "heating"})
+    await mgr.async_evaluate()  # ab hier brennt er
+    for _ in range(12):
+        freezer.tick(300)
+        await mgr.async_evaluate()
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert float(hass.states.get(stock).state) == 4.5
+    assert hass.states.get(low).state == "on"
+    pellet_msgs = [c for c in notify_calls if "Pellets" in c.data["message"]]
+    assert len(pellet_msgs) == 1
+
+    await hass.services.async_call("button", "press", {"entity_id": refill}, blocking=True)
+    await hass.async_block_till_done()
+    assert float(hass.states.get(stock).state) == 19.5
+    assert hass.states.get(low).state == "off"
+    # Daten überstehen das Neuladen
+    assert await hass.config_entries.async_reload(setup.entry_id)
+    await hass.async_block_till_done()
+    assert hass.data[DOMAIN].pellets["fill_kg"] == 21.0
+
+    await hass.services.async_call("button", "press", {"entity_id": empty}, blocking=True)
+    assert hass.data[DOMAIN].pellets["stock_kg"] == 0.0
+
+
+async def test_error_with_low_stock_counts_as_empty(
+    hass: HomeAssistant, setup, freezer: FrozenDateTimeFactory
+) -> None:
+    """Störung bei fast leerem Behälter: als „leer“ werten (so geschehen 18.11.2026)."""
+    client_cfg = room_config(hass.data[DOMAIN].config)
+    client_cfg["stove"] = {**client_cfg["stove"], "error_sensor": "binary_sensor.ofen_stoerung"}
+    await hass.data[DOMAIN].async_save_config(client_cfg)
+    mgr = hass.data[DOMAIN]
+    await mgr.async_pellets_set(4, from_empty=True)
+    hass.states.async_set("climate.pelletofen", "heat", {"hvac_action": "heating"})
+    await mgr.async_evaluate()  # ab hier brennt er
+    for _ in range(30):  # 2,5 h
+        freezer.tick(300)
+        await mgr.async_evaluate()
+    hass.states.async_set("climate.pelletofen", "off", {"hvac_action": "off"})
+    hass.states.async_set("binary_sensor.ofen_stoerung", "on")
+    await mgr.async_evaluate()
+    assert mgr.pellets["learned"] == 1
+    assert mgr.pellets["rate_kg_h"] == 1.6  # 4 kg / 2,5 h
+    assert any("fast leerem Behälter" in e["text"] for e in mgr.log)

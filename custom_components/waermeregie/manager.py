@@ -32,7 +32,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import engine, model
+from . import engine, model, pellets
 from .const import (
     DEBOUNCE_S,
     DOMAIN,
@@ -93,6 +93,8 @@ class WaermeregieManager:
         self._unsub_timer: CALLBACK_TYPE | None = None
         self._unsub_debounce: CALLBACK_TYPE | None = None
         self._notified: set[str] = set()
+        self.pellets: dict[str, Any] = pellets.empty()
+        self._was_error = False
 
     # --- Laden und Speichern ---------------------------------------------------
     async def async_load(self, initial_stove: str | None = None) -> None:
@@ -106,6 +108,7 @@ class WaermeregieManager:
             self.config = self._from_storage(stored)
         state = await self._state_store.async_load() or {}
         self.log = state.pop("log", [])
+        self.pellets = {**pellets.empty(), **(state.pop("pellets", None) or {})}
         self.state = {**engine.empty_state(), **state}
 
     def _to_storage(self, config: dict) -> dict:
@@ -164,7 +167,10 @@ class WaermeregieManager:
         return self.config
 
     def _save_state(self) -> None:
-        self._state_store.async_delay_save(lambda: {**self.state, "log": self.log}, 2)
+        self._state_store.async_delay_save(self._state_data, 2)
+
+    def _state_data(self) -> dict:
+        return {**self.state, "log": self.log, "pellets": self.pellets}
 
     # --- Start / Stop ------------------------------------------------------------
     async def async_start(self) -> None:
@@ -179,7 +185,7 @@ class WaermeregieManager:
             if unsub:
                 unsub()
         self._unsub_state = self._unsub_timer = self._unsub_debounce = None
-        await self._state_store.async_save({**self.state, "log": self.log})
+        await self._state_store.async_save(self._state_data())
 
     def _subscribe_entities(self) -> None:
         if self._unsub_state:
@@ -301,7 +307,8 @@ class WaermeregieManager:
     # --- Auswerten und Schalten ---------------------------------------------------
     async def async_evaluate(self) -> dict:
         now = dt_util.now()
-        result = engine.evaluate(self.config, self.state, self.observe(now))
+        obs = self.observe(now)
+        result = engine.evaluate(self.config, self.state, obs)
         self.state = result.state
         shadow = self.config["mode"] != MODE_ACTIVE
         for text in result.log:
@@ -309,7 +316,12 @@ class WaermeregieManager:
         if not shadow:
             await self._execute(result.actions, now)
         await self._notify_alerts(result.status["alerts"])
-        self.status = {**result.status, "log": list(reversed(self.log[-50:]))}
+        pellet_status = await self._track_pellets(now, obs)
+        self.status = {
+            **result.status,
+            "pellets": pellet_status,
+            "log": list(reversed(self.log[-50:])),
+        }
         self._save_state()
         async_dispatcher_send(self.hass, SIGNAL_UPDATE)
         for cb in list(self._subscribers):
@@ -500,3 +512,70 @@ class WaermeregieManager:
                 self._subscribers.remove(cb)
 
         return _remove
+
+    # --- Pelletvorrat -------------------------------------------------------------
+    async def _track_pellets(self, now: datetime, obs: engine.Observation) -> dict:
+        """Brennzeit mitzählen, Störung bei fast leerem Behälter als „leer“ werten,
+        Erinnerung schicken. Läuft auch im Schattenbetrieb (es wird nur gemessen)."""
+        params = self.config["parameters"]
+        self.pellets = pellets.update(self.pellets, now, obs.stove.burning)
+        error = bool(obs.stove.available and obs.stove.error)
+        if error and not self._was_error:
+            est = pellets.estimate(self.pellets, params)
+            if est is not None and est <= max(float(params["pellet_reminder_kg"]), 2.0):
+                self.pellets, text = pellets.mark_empty(self.pellets, now)
+                self._add_log(now, f"Störung bei fast leerem Behälter. {text}", False)
+        self._was_error = error
+        fc = pellets.forecast(self.pellets, params, now)
+        if fc["remind"]:
+            self.pellets["reminded"] = True
+            when = dt_util.parse_datetime(fc["empty_at"]) if fc["empty_at"] else None
+            msg = (
+                f"Pellets: noch etwa {fc['stock_kg']:g} kg im Behälter"
+                + (f", reicht bis ca. {when:%a %d.%m. %H:%M}" if when else "")
+                + ". Bitte einen Sack nachfüllen."
+            )
+            self._add_log(now, msg, False)
+            await self._send_notify(msg)
+        return fc
+
+    async def _send_notify(self, message: str) -> None:
+        for service in self.config["notify"]:
+            domain, name = service.split(".", 1)
+            try:
+                await self.hass.services.async_call(
+                    domain, name, {"title": "Wärmeregie", "message": message}, blocking=False
+                )
+            except Exception as err:
+                _LOGGER.warning("Benachrichtigung %s fehlgeschlagen: %s", service, err)
+
+    async def async_pellets_refill(self, kg: float | None = None) -> dict:
+        now = dt_util.now()
+        params = self.config["parameters"]
+        amount = float(kg if kg is not None else params["pellet_bag_kg"])
+        if not 0 < amount <= float(params["pellet_capacity_kg"]):
+            raise model.ConfigError("Nachfüllmenge muss größer 0 und höchstens der Behälter sein")
+        self.pellets = pellets.update(self.pellets, now, self.pellets["last_burning"])
+        self.pellets = pellets.refill(self.pellets, now, amount, params)
+        self._add_log(now, f"Pellets nachgefüllt: {amount:g} kg", False)
+        return await self.async_evaluate()
+
+    async def async_pellets_set(self, kg: float, from_empty: bool = False) -> dict:
+        now = dt_util.now()
+        if not 0 <= kg <= float(self.config["parameters"]["pellet_capacity_kg"]):
+            raise model.ConfigError("Vorrat muss zwischen 0 und dem Fassungsvermögen liegen")
+        self.pellets = pellets.update(self.pellets, now, self.pellets["last_burning"])
+        self.pellets = pellets.set_stock(self.pellets, now, kg, from_empty)
+        self._add_log(
+            now,
+            f"Pelletvorrat gesetzt: {kg:g} kg" + (" (Behälter war leer)" if from_empty else ""),
+            False,
+        )
+        return await self.async_evaluate()
+
+    async def async_pellets_empty(self) -> dict:
+        now = dt_util.now()
+        self.pellets = pellets.update(self.pellets, now, self.pellets["last_burning"])
+        self.pellets, text = pellets.mark_empty(self.pellets, now)
+        self._add_log(now, text, False)
+        return await self.async_evaluate()

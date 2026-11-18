@@ -5,14 +5,14 @@
     },
     "step": {
       "user": {
-        "title": "Wärmeregie",
-        "description": "Heizungssteuerung für Pelletöfen. Sie startet im Schattenbetrieb: Sie rechnet nur und schaltet nichts. Räume, Fühler und Zeitpläne richtest du danach im Panel „Wärmeregie“ ein.",
         "data": {
           "stove": "Ofen-Thermostat (optional)"
         },
         "data_description": {
           "stove": "Thermostat-Entität des Pelletofens, z. B. aus „MCZ Maestro lokal“ oder der Cloud-Integration."
-        }
+        },
+        "description": "Heizungssteuerung für Pelletöfen. Sie startet im Schattenbetrieb: Sie rechnet nur und schaltet nichts. Räume, Fühler und Zeitpläne richtest du danach im Panel „Wärmeregie“ ein.",
+        "title": "Wärmeregie"
       }
     }
   },
@@ -23,6 +23,17 @@
       },
       "opening_alert": {
         "name": "Öffnung offen"
+      },
+      "pellet_low": {
+        "name": "Pellets nachfüllen"
+      }
+    },
+    "button": {
+      "pellet_empty": {
+        "name": "Pelletbehälter war leer"
+      },
+      "pellet_refill": {
+        "name": "Sack Pellets nachgefüllt"
       }
     },
     "select": {
@@ -36,6 +47,37 @@
       },
       "house_deficit": {
         "name": "Wärmebedarf"
+      },
+      "pellet_empty_at": {
+        "name": "Pellets leer voraussichtlich"
+      },
+      "pellet_rate": {
+        "name": "Pelletverbrauch",
+        "state_attributes": {
+          "learned": {
+            "name": "Gelernt"
+          },
+          "times_learned": {
+            "name": "Wie oft gelernt"
+          }
+        }
+      },
+      "pellet_stock": {
+        "name": "Pelletvorrat",
+        "state_attributes": {
+          "burn_hours_since_refill": {
+            "name": "Brennstunden seit Nachfüllen"
+          },
+          "daily_burn_hours": {
+            "name": "Brennstunden pro Tag"
+          },
+          "hours_left": {
+            "name": "Brennstunden übrig"
+          },
+          "last_refill": {
+            "name": "Zuletzt nachgefüllt"
+          }
+        }
       },
       "phase": {
         "name": "Phase",
@@ -66,46 +108,74 @@
   },
   "services": {
     "boost": {
-      "name": "Alle Ziele anpassen",
       "description": "Alle Raumziele für eine Weile wärmer oder kühler.",
       "fields": {
         "delta": {
-          "name": "Änderung",
-          "description": "Kelvin, z. B. 1 oder -1."
+          "description": "Kelvin, z. B. 1 oder -1.",
+          "name": "Änderung"
         },
         "minutes": {
-          "name": "Dauer",
-          "description": "Minuten, 0 hebt auf."
+          "description": "Minuten, 0 hebt auf.",
+          "name": "Dauer"
         }
-      }
+      },
+      "name": "Alle Ziele anpassen"
     },
     "clear_scene": {
-      "name": "Zurück zum Zeitplan",
-      "description": "Beendet eine von Hand gewählte Szene."
+      "description": "Beendet eine von Hand gewählte Szene.",
+      "name": "Zurück zum Zeitplan"
     },
     "pause_stove": {
-      "name": "Ofen pausieren",
       "description": "In dieser Zeit kein Ofenstart. Ein laufender Block endet.",
       "fields": {
         "minutes": {
-          "name": "Dauer",
-          "description": "Minuten, 0 hebt auf."
+          "description": "Minuten, 0 hebt auf.",
+          "name": "Dauer"
         }
-      }
+      },
+      "name": "Ofen pausieren"
+    },
+    "pellets_empty": {
+      "description": "Meldet einen leeren Behälter. Daraus wird der Verbrauch pro Brennstunde gelernt.",
+      "name": "Pelletbehälter leer"
+    },
+    "pellets_refill": {
+      "description": "Zählt die nachgefüllte Menge zum geschätzten Vorrat dazu.",
+      "fields": {
+        "kg": {
+          "description": "Kilogramm; ohne Angabe ein Sack laut Einstellung.",
+          "name": "Menge"
+        }
+      },
+      "name": "Pellets nachgefüllt"
+    },
+    "pellets_set": {
+      "description": "Setzt den Pelletvorrat von Hand.",
+      "fields": {
+        "from_empty": {
+          "description": "Ein: Der Behälter war davor leer; aus dieser Füllung wird der Verbrauch gelernt.",
+          "name": "Behälter war leer"
+        },
+        "kg": {
+          "description": "Kilogramm, die jetzt im Behälter sind.",
+          "name": "Vorrat"
+        }
+      },
+      "name": "Pelletvorrat setzen"
     },
     "set_scene": {
-      "name": "Szene wählen",
       "description": "Szene von Hand wählen. Ohne Dauer gilt sie bis zum nächsten Zeitplan-Wechsel.",
       "fields": {
-        "scene": {
-          "name": "Szene",
-          "description": "ID der Szene, z. B. komfort."
-        },
         "minutes": {
-          "name": "Dauer",
-          "description": "Minuten (optional)."
+          "description": "Minuten (optional).",
+          "name": "Dauer"
+        },
+        "scene": {
+          "description": "ID der Szene, z. B. komfort.",
+          "name": "Szene"
         }
-      }
+      },
+      "name": "Szene wählen"
     }
   }
 }

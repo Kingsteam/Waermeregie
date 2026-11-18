@@ -54,6 +54,10 @@ PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "power_min": (1, 5),
     "power_max": (1, 5),
     "power_cold_c": (-20.0, 15.0),
+    "pellet_bag_kg": (5.0, 30.0),
+    "pellet_capacity_kg": (5.0, 100.0),
+    "pellet_rate_kg_h": (0.3, 5.0),  # Startwert, bis gelernt
+    "pellet_reminder_kg": (0.0, 30.0),
 }
 ROOM_TARGET_LIMITS: Final = (5.0, 28.0)  # Zieltemperatur Raum / Heizkörper
 MAX_OVERRIDE_MIN: Final = 24 * 60
@@ -80,4 +84,13 @@ DEFAULT_PARAMETERS: Final[dict[str, float]] = {
     "power_min": 1,
     "power_max": 3,
     "power_cold_c": 0.0,
+    "pellet_bag_kg": 15.0,
+    "pellet_capacity_kg": 26.0,
+    "pellet_rate_kg_h": 1.5,
+    "pellet_reminder_kg": 5.0,
 }
+
+# Pelletvorrat
+PELLET_MAX_GAP_S: Final = 15 * 60  # längere Lücken nicht als Brennzeit zählen
+PELLET_RATE_LIMITS: Final = (0.3, 5.0)  # gelernter Verbrauch kg/h, Plausibilität
+PELLET_DAYS_FOR_FORECAST: Final = 3

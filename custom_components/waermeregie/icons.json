@@ -1,23 +1,91 @@
 {
   "entity": {
     "binary_sensor": {
-      "heating_block": {"default": "mdi:fire-off", "state": {"on": "mdi:fire"}},
-      "opening_alert": {"default": "mdi:door-closed", "state": {"on": "mdi:door-open"}}
+      "heating_block": {
+        "default": "mdi:fire-off",
+        "state": {
+          "on": "mdi:fire"
+        }
+      },
+      "opening_alert": {
+        "default": "mdi:door-closed",
+        "state": {
+          "on": "mdi:door-open"
+        }
+      },
+      "pellet_low": {
+        "default": "mdi:grain",
+        "state": {
+          "on": "mdi:alert-circle"
+        }
+      }
     },
-    "select": {"scene_select": {"default": "mdi:palette-outline"}},
+    "select": {
+      "scene_select": {
+        "default": "mdi:palette-outline"
+      }
+    },
     "sensor": {
-      "day_type": {"default": "mdi:calendar-today"},
-      "house_deficit": {"default": "mdi:thermometer-minus"},
-      "phase": {"default": "mdi:fire-circle"},
-      "scene": {"default": "mdi:sofa"},
-      "starts_today": {"default": "mdi:counter"}
+      "day_type": {
+        "default": "mdi:calendar-today"
+      },
+      "house_deficit": {
+        "default": "mdi:thermometer-minus"
+      },
+      "phase": {
+        "default": "mdi:fire-circle"
+      },
+      "scene": {
+        "default": "mdi:sofa"
+      },
+      "starts_today": {
+        "default": "mdi:counter"
+      },
+      "pellet_stock": {
+        "default": "mdi:grain"
+      },
+      "pellet_empty_at": {
+        "default": "mdi:calendar-alert"
+      },
+      "pellet_rate": {
+        "default": "mdi:fire-circle"
+      }
     },
-    "switch": {"active": {"default": "mdi:robot-outline"}}
+    "switch": {
+      "active": {
+        "default": "mdi:robot-outline"
+      }
+    },
+    "button": {
+      "pellet_refill": {
+        "default": "mdi:sack"
+      },
+      "pellet_empty": {
+        "default": "mdi:sack-outline"
+      }
+    }
   },
   "services": {
-    "boost": {"service": "mdi:thermometer-plus"},
-    "clear_scene": {"service": "mdi:calendar-clock"},
-    "pause_stove": {"service": "mdi:pause-circle"},
-    "set_scene": {"service": "mdi:palette"}
+    "boost": {
+      "service": "mdi:thermometer-plus"
+    },
+    "clear_scene": {
+      "service": "mdi:calendar-clock"
+    },
+    "pause_stove": {
+      "service": "mdi:pause-circle"
+    },
+    "set_scene": {
+      "service": "mdi:palette"
+    },
+    "pellets_refill": {
+      "service": "mdi:sack"
+    },
+    "pellets_set": {
+      "service": "mdi:scale"
+    },
+    "pellets_empty": {
+      "service": "mdi:sack-outline"
+    }
   }
 }

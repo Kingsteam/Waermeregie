@@ -25,6 +25,7 @@ async def async_setup_entry(
         [
             HeatingBlock(mgr, entry.entry_id, "heating_block"),
             OpeningAlert(mgr, entry.entry_id, "opening_alert"),
+            PelletLow(mgr, entry.entry_id, "pellet_low"),
         ]
     )
 
@@ -47,3 +48,16 @@ class OpeningAlert(WaermeregieEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {"messages": [a["message"] for a in self._mgr.status.get("alerts", [])]}
+
+
+class PelletLow(WaermeregieEntity, BinarySensorEntity):
+    """An, wenn der geschätzte Vorrat an oder unter der Erinnerungsschwelle ist."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    @property
+    def is_on(self) -> bool | None:
+        stock = self._mgr.status.get("pellets", {}).get("stock_kg")
+        if stock is None:
+            return None
+        return stock <= float(self._mgr.config["parameters"]["pellet_reminder_kg"])

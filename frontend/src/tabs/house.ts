@@ -7,7 +7,7 @@ import type { Config, Defaults } from "../types";
 import { formatNumber, normalizeLimit, paramLimits, withinLimit } from "../util";
 import { EditorBase, readNumber } from "./editor-base";
 
-type Unit = "K" | "°C" | "min" | "";
+type Unit = "K" | "°C" | "min" | "kg" | "kg/h" | "";
 
 interface ParamDef {
   key: string;
@@ -53,6 +53,15 @@ const PARAM_GROUPS: { group: I18nKey; params: ParamDef[] }[] = [
     ],
   },
   { group: "pgroup.presence", params: [{ key: "presence_empty_min", unit: "min", step: 5 }] },
+  {
+    group: "pgroup.pellets",
+    params: [
+      { key: "pellet_bag_kg", unit: "kg", step: 0.5 },
+      { key: "pellet_capacity_kg", unit: "kg", step: 1 },
+      { key: "pellet_rate_kg_h", unit: "kg/h", step: 0.05 },
+      { key: "pellet_reminder_kg", unit: "kg", step: 0.5 },
+    ],
+  },
 ];
 
 const KNOWN = new Set(PARAM_GROUPS.flatMap((g) => g.params.map((p) => p.key)));

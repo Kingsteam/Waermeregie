@@ -5,14 +5,14 @@
     },
     "step": {
       "user": {
-        "title": "Wärmeregie",
-        "description": "Heating control for pellet stoves. It starts in shadow mode: it only calculates and switches nothing. Rooms, sensors and schedules are set up in the Wärmeregie panel.",
         "data": {
           "stove": "Stove thermostat (optional)"
         },
         "data_description": {
           "stove": "Climate entity of the pellet stove, e.g. from MCZ Maestro local or the cloud integration."
-        }
+        },
+        "description": "Heating control for pellet stoves. It starts in shadow mode: it only calculates and switches nothing. Rooms, sensors and schedules are set up in the Wärmeregie panel.",
+        "title": "Wärmeregie"
       }
     }
   },
@@ -23,6 +23,17 @@
       },
       "opening_alert": {
         "name": "Opening alert"
+      },
+      "pellet_low": {
+        "name": "Pellets low"
+      }
+    },
+    "button": {
+      "pellet_empty": {
+        "name": "Pellet hopper was empty"
+      },
+      "pellet_refill": {
+        "name": "Pellet bag refilled"
       }
     },
     "select": {
@@ -36,6 +47,37 @@
       },
       "house_deficit": {
         "name": "Heat demand"
+      },
+      "pellet_empty_at": {
+        "name": "Pellets empty at"
+      },
+      "pellet_rate": {
+        "name": "Pellet consumption",
+        "state_attributes": {
+          "learned": {
+            "name": "Learned"
+          },
+          "times_learned": {
+            "name": "Times learned"
+          }
+        }
+      },
+      "pellet_stock": {
+        "name": "Pellet stock",
+        "state_attributes": {
+          "burn_hours_since_refill": {
+            "name": "Burn hours since refill"
+          },
+          "daily_burn_hours": {
+            "name": "Burn hours per day"
+          },
+          "hours_left": {
+            "name": "Burn hours left"
+          },
+          "last_refill": {
+            "name": "Last refill"
+          }
+        }
       },
       "phase": {
         "name": "Phase",
@@ -66,46 +108,74 @@
   },
   "services": {
     "boost": {
-      "name": "Adjust all targets",
       "description": "Raise or lower all room targets for a while.",
       "fields": {
         "delta": {
-          "name": "Change",
-          "description": "Kelvin, e.g. 1 or -1."
+          "description": "Kelvin, e.g. 1 or -1.",
+          "name": "Change"
         },
         "minutes": {
-          "name": "Duration",
-          "description": "Minutes, 0 cancels."
+          "description": "Minutes, 0 cancels.",
+          "name": "Duration"
         }
-      }
+      },
+      "name": "Adjust all targets"
     },
     "clear_scene": {
-      "name": "Back to schedule",
-      "description": "Ends a manually chosen scene."
+      "description": "Ends a manually chosen scene.",
+      "name": "Back to schedule"
     },
     "pause_stove": {
-      "name": "Pause stove",
       "description": "No stove start for this time. A running block ends.",
       "fields": {
         "minutes": {
-          "name": "Duration",
-          "description": "Minutes, 0 cancels."
+          "description": "Minutes, 0 cancels.",
+          "name": "Duration"
         }
-      }
+      },
+      "name": "Pause stove"
+    },
+    "pellets_empty": {
+      "description": "Reports an empty hopper. The consumption per burn hour is learned from this.",
+      "name": "Pellet hopper empty"
+    },
+    "pellets_refill": {
+      "description": "Adds the refilled amount to the estimated stock.",
+      "fields": {
+        "kg": {
+          "description": "Kilograms; default is one bag as set in the parameters.",
+          "name": "Amount"
+        }
+      },
+      "name": "Pellets refilled"
+    },
+    "pellets_set": {
+      "description": "Sets the pellet stock by hand.",
+      "fields": {
+        "from_empty": {
+          "description": "On: the hopper was empty before; the consumption will be learned from this fill.",
+          "name": "Hopper was empty"
+        },
+        "kg": {
+          "description": "Kilograms in the hopper now.",
+          "name": "Stock"
+        }
+      },
+      "name": "Set pellet stock"
     },
     "set_scene": {
-      "name": "Set scene",
       "description": "Choose a scene manually. Without duration it lasts until the next schedule change.",
       "fields": {
-        "scene": {
-          "name": "Scene",
-          "description": "Scene ID, e.g. komfort."
-        },
         "minutes": {
-          "name": "Duration",
-          "description": "Minutes (optional)."
+          "description": "Minutes (optional).",
+          "name": "Duration"
+        },
+        "scene": {
+          "description": "Scene ID, e.g. komfort.",
+          "name": "Scene"
         }
-      }
+      },
+      "name": "Set scene"
     }
   }
 }
