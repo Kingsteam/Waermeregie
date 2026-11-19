@@ -60,3 +60,15 @@ pellets_set:
       selector:
         boolean:
 pellets_empty:
+warmup:
+  fields:
+    minutes:
+      selector:
+        number:
+          min: 30
+          max: 360
+          unit_of_measurement: min
+    arrive:
+      selector:
+        time:
+cancel_warmup:

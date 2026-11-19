@@ -75,6 +75,8 @@ def room_config(cfg: dict) -> dict:
         {"id": "immer", "name": "Immer", "slots": [{"start": "00:00", "scene": "komfort"}]}
     ]
     cfg["week"] = dict.fromkeys(cfg["week"], "immer")
+    # sanfter Start hat eigene Tests
+    cfg["parameters"] = {**cfg["parameters"], "soft_start_min": 0}
     return cfg
 
 
@@ -470,3 +472,143 @@ async def test_open_window_without_cooling_is_reported(
     assert len(msgs) == 1
     assert any(a["kind"] == "opening_check" for a in mgr.status["alerts"])
     assert mgr.status["rooms"][0]["open"] is True  # bleibt auf Frostschutz
+
+
+# --- 0.5.0 ---------------------------------------------------------------------------
+
+
+async def _configured(hass, hass_ws_client, **params):
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    cfg = room_config((await client.receive_json())["result"]["config"])
+    cfg["parameters"] = {**cfg["parameters"], **params}
+    msg = await save(hass, client, cfg)
+    assert msg["success"], msg
+    return client, cfg
+
+
+async def test_warmup_now_starts_warm_house(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    mode_calls = async_mock_service(hass, "climate", "set_hvac_mode")
+    async_mock_service(hass, "climate", "set_temperature")
+    hass.states.async_set("sensor.temp_wohnzimmer", "22.5")  # warm genug
+    client, _ = await _configured(hass, hass_ws_client)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/mode", "mode": "active"})
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    assert not any(c.data.get("hvac_mode") == "heat" for c in mode_calls)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/warmup", "minutes": 90})
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    assert msg["result"]["warmup"]["active"] is True
+    await hass.async_block_till_done()
+    assert any(
+        c.data == {"entity_id": "climate.pelletofen", "hvac_mode": "heat"} for c in mode_calls
+    )
+    await client.send_json_auto_id({"type": f"{DOMAIN}/warmup", "cancel": True})
+    msg = await client.receive_json()
+    assert msg["success"] and msg["result"]["warmup"] is None
+
+
+async def test_warmup_for_arrival_and_limits(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    client, _ = await _configured(hass, hass_ws_client, warmup_lead_min=45)
+    freezer.move_to("2026-11-19T16:00:00+01:00")  # erst nach der Anmeldung
+    await client.send_json_auto_id({"type": f"{DOMAIN}/warmup", "arrive": "18:30"})
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    w = msg["result"]["warmup"]
+    assert w["active"] is False
+    assert w["start_at"].startswith("2026-11-19T17:45")
+    assert w["arrive"].startswith("2026-11-19T18:30")
+    assert w["until"].startswith("2026-11-19T19:30")
+    # schon vorbei: morgen
+    await client.send_json_auto_id({"type": f"{DOMAIN}/warmup", "arrive": "07:00"})
+    w = (await client.receive_json())["result"]["warmup"]
+    assert w["arrive"].startswith("2026-11-20T07:00")
+    for bad in ({"minutes": 10}, {"minutes": 1000}, {"arrive": "25:99x"}):
+        await client.send_json_auto_id({"type": f"{DOMAIN}/warmup", **bad})
+        msg = await client.receive_json()
+        assert not msg["success"]
+        assert msg["error"]["code"] == "invalid_config"
+
+
+async def test_warmup_service_button_and_clears_pause(hass: HomeAssistant, setup) -> None:
+    mgr = hass.data[DOMAIN]
+    await mgr.async_pause(120)
+    assert mgr.state["pause_until"]
+    button = er.async_get(hass).async_get_entity_id("button", DOMAIN, f"{setup.entry_id}_warmup")
+    await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
+    assert mgr.state["warmup"] is not None
+    assert mgr.state["pause_until"] is None
+    await hass.services.async_call(DOMAIN, "cancel_warmup", {}, blocking=True)
+    assert mgr.state["warmup"] is None
+    await hass.services.async_call(DOMAIN, "warmup", {"arrive": "18:30:00"}, blocking=True)
+    assert mgr.state["warmup"]["arrive"] is not None
+    await hass.services.async_call(DOMAIN, "warmup", {"minutes": 60}, blocking=True)
+    assert mgr.state["warmup"]["arrive"] is None
+
+
+async def test_history_points_every_ten_minutes(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    client, _ = await _configured(hass, hass_ws_client)
+    freezer.move_to("2026-11-19T18:01:00+01:00")  # erst nach der Anmeldung
+    mgr = hass.data[DOMAIN]
+    mgr.history = []
+    hass.states.async_set("climate.pelletofen", "heat", {"hvac_action": "heating"})
+    for _ in range(25):  # 25 min, jede Minute
+        freezer.tick(60)
+        await mgr.async_evaluate()
+    await client.send_json_auto_id({"type": f"{DOMAIN}/history"})
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    points = msg["result"]["points"]
+    assert [p["t"][14:16] for p in points] == ["00", "10", "20"]  # Zeitzone der Testinstanz
+    assert points[-1]["house_c"] == 19.0
+    assert points[-1]["target_c"] == 21.0
+    assert points[-1]["burning"] is True
+    # übersteht das Neuladen
+    assert await hass.config_entries.async_reload(setup.entry_id)
+    await hass.async_block_till_done()
+    assert len(hass.data[DOMAIN].history) >= 3
+    await client.send_json_auto_id({"type": f"{DOMAIN}/history", "hours": 100})
+    assert not (await client.receive_json())["success"]
+
+
+async def test_sensor_offset_corrects_reading(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    cfg = room_config((await client.receive_json())["result"]["config"])
+    cfg["rooms"][0]["temperature_sensors"][0]["offset"] = -1.5
+    msg = await save(hass, client, cfg)
+    assert msg["success"], msg
+    assert msg["result"]["config"]["rooms"][0]["temperature_sensors"][0]["offset"] == -1.5
+    room = hass.data[DOMAIN].status["rooms"][0]
+    assert room["temperature"] == 17.5
+    cfg["rooms"][0]["temperature_sensors"][0]["offset"] = 7
+    assert not (await save(hass, client, cfg))["success"]
+
+
+async def test_soft_start_sets_radiators_before_stove(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    mode_calls = async_mock_service(hass, "climate", "set_hvac_mode")
+    temp_calls = async_mock_service(hass, "climate", "set_temperature")
+    client, _ = await _configured(hass, hass_ws_client, soft_start_min=5)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/mode", "mode": "active"})
+    msg = await client.receive_json()
+    assert msg["success"]
+    await hass.async_block_till_done()
+    mgr = hass.data[DOMAIN]
+    assert mgr.status["stove"]["phase"] == "prepare"
+    assert any(
+        c.data == {"entity_id": "climate.heizung_wohnzimmer", "temperature": 22.0}
+        for c in temp_calls
+    )
+    assert not any(c.data.get("hvac_mode") == "heat" for c in mode_calls)
+    freezer.tick(5 * 60)
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert any(c.data.get("hvac_mode") == "heat" for c in mode_calls)
+    assert mgr.status["stove"]["phase"] == "block"

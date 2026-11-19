@@ -115,13 +115,22 @@ def forecast(state: dict, params: dict, now: datetime) -> dict[str, Any]:
         "empty_at": None,
         "remind": False,
         "last_refill": state["refills"][-1]["time"] if state["refills"] else None,
+        "capacity_kg": float(params["pellet_capacity_kg"]),
+        "fill_pct": None,
     }
     if est is None:
         return out
     hours_left = est / kg_h
     out["hours_left"] = round(hours_left, 1)
     days_left = hours_left / out["daily_burn_h"]
-    out["empty_at"] = (now + timedelta(days=days_left)).isoformat()
+    out["fill_pct"] = round(min(100.0, max(0.0, est / float(params["pellet_capacity_kg"]) * 100)))
+    # auf die volle Stunde runden: sonst ändert sich der Zeitpunkt bei jeder Auswertung
+    # (19.11.2026: fast 5000 Änderungen am Tag im Verlauf)
+    empty = now + timedelta(days=days_left)
+    empty = empty.replace(minute=0, second=0, microsecond=0) + timedelta(
+        hours=1 if empty.minute >= 30 else 0
+    )
+    out["empty_at"] = empty.isoformat()
     out["remind"] = est <= float(params["pellet_reminder_kg"]) and not state["reminded"]
     return out
 

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 import copy
 from datetime import datetime, timedelta
@@ -37,17 +38,22 @@ from .const import (
     DEBOUNCE_S,
     DOMAIN,
     EVALUATE_INTERVAL_S,
+    HISTORY_HOURS,
+    HISTORY_STEP_MIN,
     LOG_LENGTH,
     MAX_BOOST_K,
     MAX_BOOST_MIN,
     MAX_OVERRIDE_MIN,
     MAX_PAUSE_MIN,
+    MAX_WARMUP_MIN,
+    MIN_WARMUP_MIN,
     MODE_ACTIVE,
     MODE_SHADOW,
     OPENING_CHECK_DROP_K,
     STORAGE_KEY_CONFIG,
     STORAGE_KEY_STATE,
     STORAGE_VERSION,
+    WARMUP_AFTER_ARRIVAL_MIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -124,6 +130,12 @@ class WaermeregieManager:
         # Sensorzustand (gespeichert) und Verlauf offener Fenster (nur im Speicher)
         self.health: dict[str, dict] = {}
         self._open_track: dict[str, dict] = {}
+        # Verlauf für die Grafik (gespeichert), Brennen seit dem letzten Punkt
+        self.history: list[dict[str, Any]] = []
+        self._burned_in_step = False
+        # Nur eine Auswertung zur selben Zeit (19.11.2026: Minutentakt lief mitten
+        # in den Startbefehl hinein und hielt den Ofen für "von Hand aus")
+        self._lock = asyncio.Lock()
 
     # --- Laden und Speichern ---------------------------------------------------
     async def async_load(self, initial_stove: str | None = None) -> None:
@@ -139,6 +151,7 @@ class WaermeregieManager:
         self.log = state.pop("log", [])
         self.pellets = {**pellets.empty(), **(state.pop("pellets", None) or {})}
         self.health = state.pop("health", None) or {}
+        self.history = state.pop("history", None) or []
         self.state = {**engine.empty_state(), **state}
 
     def _to_storage(self, config: dict) -> dict:
@@ -200,7 +213,13 @@ class WaermeregieManager:
         self._state_store.async_delay_save(self._state_data, 2)
 
     def _state_data(self) -> dict:
-        return {**self.state, "log": self.log, "pellets": self.pellets, "health": self.health}
+        return {
+            **self.state,
+            "log": self.log,
+            "pellets": self.pellets,
+            "health": self.health,
+            "history": self.history,
+        }
 
     # --- Start / Stop ------------------------------------------------------------
     async def async_start(self) -> None:
@@ -297,6 +316,7 @@ class WaermeregieManager:
                 if value is None:
                     missing += 1
                     continue
+                value += sensor.get("offset") or 0.0
                 total += value * sensor["weight"]
                 weight += sensor["weight"]
             temperature = round(total / weight, 2) if weight else None
@@ -381,6 +401,10 @@ class WaermeregieManager:
 
     # --- Auswerten und Schalten ---------------------------------------------------
     async def async_evaluate(self) -> dict:
+        async with self._lock:
+            return await self._evaluate()
+
+    async def _evaluate(self) -> dict:
         now = dt_util.now()
         config = effective_config(self.config)
         obs = self.observe(now, config)
@@ -394,6 +418,7 @@ class WaermeregieManager:
         await self._notify_alerts(result.status["alerts"])
         sensor_alerts = await self._check_sensors(now, config, obs, result.status)
         pellet_status = await self._track_pellets(now, obs)
+        self._track_history(now, result.status, obs, pellet_status)
         hold = self.config["parameters"]["sensor_hold_min"]
         self.status = {
             **result.status,
@@ -410,6 +435,37 @@ class WaermeregieManager:
         for cb in list(self._subscribers):
             cb(self.status)
         return self.status
+
+    def _track_history(
+        self, now: datetime, status: dict, obs: engine.Observation, pellet_status: dict
+    ) -> None:
+        """Alle HISTORY_STEP_MIN Minuten einen Punkt für die Grafik merken."""
+        self._burned_in_step = self._burned_in_step or obs.stove.burning
+        step = timedelta(minutes=HISTORY_STEP_MIN)
+        slot = now.replace(
+            minute=now.minute - now.minute % HISTORY_STEP_MIN, second=0, microsecond=0
+        )
+        if self.history and dt_util.parse_datetime(self.history[-1]["t"]) >= slot:
+            return
+        house = status.get("house") or {}
+        self.history.append(
+            {
+                "t": slot.isoformat(),
+                "house_c": house.get("temperature_c"),
+                "target_c": house.get("target_c"),
+                "outdoor_c": None if obs.outdoor_c is None else round(obs.outdoor_c, 1),
+                "burning": self._burned_in_step,
+                "pellets_kg": pellet_status.get("stock_kg"),
+            }
+        )
+        self._burned_in_step = obs.stove.burning
+        keep = int(HISTORY_HOURS * 60 / HISTORY_STEP_MIN)
+        cutoff = now - timedelta(hours=HISTORY_HOURS) - step
+        self.history = [p for p in self.history[-keep:] if dt_util.parse_datetime(p["t"]) > cutoff]
+
+    def history_points(self, hours: float = 24) -> list[dict[str, Any]]:
+        cutoff = dt_util.now() - timedelta(hours=hours)
+        return [p for p in self.history if dt_util.parse_datetime(p["t"]) >= cutoff]
 
     def _add_log(self, now: datetime, text: str, shadow: bool) -> None:
         self.log.append({"time": now.isoformat(), "text": text, "shadow": shadow})
@@ -648,6 +704,56 @@ class WaermeregieManager:
             )
         return await self.async_evaluate()
 
+    async def async_warmup(
+        self,
+        minutes: float | None = None,
+        arrive: str | None = None,
+        cancel: bool = False,
+    ) -> dict:
+        """Haus aufheizen: jetzt für minutes oder rechtzeitig vor der Ankunft (HH:MM)."""
+        now = dt_util.now()
+        shadow = self.config["mode"] != MODE_ACTIVE
+        if cancel:
+            if self.state.get("warmup"):
+                self._add_log(now, "Aufheizen abgebrochen", shadow)
+            self.state["warmup"] = None
+            return await self.async_evaluate()
+        lead = timedelta(minutes=self.config["parameters"]["warmup_lead_min"])
+        if arrive:
+            try:
+                hh, mm = (int(x) for x in str(arrive).split(":"))
+                when = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            except ValueError as err:
+                raise model.ConfigError("Ankunft im Format HH:MM") from err
+            if when <= now:
+                when += timedelta(days=1)
+            start = max(now, when - lead)
+            until = when + timedelta(minutes=WARMUP_AFTER_ARRIVAL_MIN)
+            text = f"Aufheizen für die Ankunft um {when.strftime('%H:%M')}" + (
+                f", Beginn {start.strftime('%H:%M')}" if start > now else ", Beginn jetzt"
+            )
+            arrive_iso = when.isoformat()
+        else:
+            minutes = float(minutes if minutes is not None else 90)
+            if not MIN_WARMUP_MIN <= minutes <= MAX_WARMUP_MIN:
+                raise model.ConfigError(
+                    f"Aufheizen zwischen {MIN_WARMUP_MIN} und {MAX_WARMUP_MIN} min"
+                )
+            start = now
+            until = now + timedelta(minutes=minutes)
+            text = f"Aufheizen jetzt bis {until.strftime('%H:%M')}"
+            arrive_iso = None
+        self.state["warmup"] = {
+            "start_at": start.isoformat(),
+            "until": until.isoformat(),
+            "arrive": arrive_iso,
+            "started": False,
+        }
+        # wer aufheizen will, will keine Pause von Hand mehr
+        self.state["pause_until"] = None
+        self._add_log(now, text, shadow)
+        return await self.async_evaluate()
+
     async def async_set_mode(self, mode: str) -> dict:
         if mode not in (MODE_SHADOW, MODE_ACTIVE):
             raise model.ConfigError("Betriebsart ungültig")
@@ -660,6 +766,9 @@ class WaermeregieManager:
         now = dt_util.now()
         self.state["block_start"] = None
         self.state["radiators"] = {}
+        self.state["prepare_since"] = None
+        self.state["start_cmd"] = None
+        self.state["self_off_since"] = None
         self._add_log(
             now,
             "Aktiver Betrieb: die Wärmeregie schaltet jetzt"

@@ -17,7 +17,7 @@ from homeassistant.util import dt as dt_util
 from . import WaermeregieConfigEntry
 from .entity import WaermeregieEntity
 
-PHASES = ["idle", "block", "pause", "blocked"]
+PHASES = ["idle", "prepare", "block", "pause", "blocked"]
 
 
 async def async_setup_entry(

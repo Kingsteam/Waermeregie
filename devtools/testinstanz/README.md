@@ -25,6 +25,9 @@ Dann <http://127.0.0.1:8126> öffnen, Benutzer `test`, Passwort in `~/.wr-testin
 
 **Beenden:** Strg+C im Fenster des Startskripts (beendet auch Home Assistant). Falls doch ein Prozess übrig bleibt: `pkill -f "homeassistant -c $HOME/.wr-testinstanz"`.
 
+## Verlauf für Bildschirmfotos
+Die Temperaturgrafik füllt sich erst mit der Zeit (ein Punkt je 10 Minuten). Für Fotos: Instanz beenden, `../venv-wr/bin/python devtools/testinstanz/beispielverlauf.py`, wieder starten. Das schreibt einen erfundenen 24-h-Verlauf in den Laufzustand.
+
 ## Stolperfallen
 - HA muss aus dem Konfigurationsordner gestartet werden (macht `start.py`), sonst fehlt der Simulator.
 - Seit HA 2026.11 muss eine geänderte HTTP-Einstellung bestätigt werden; `start.py` erledigt das.

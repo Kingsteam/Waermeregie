@@ -62,12 +62,22 @@ PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "pellet_capacity_kg": (5.0, 100.0),
     "pellet_rate_kg_h": (0.3, 5.0),  # Startwert, bis gelernt
     "pellet_reminder_kg": (0.0, 30.0),
+    "soft_start_min": (0, 15),  # Heizkörper vor dem Zünden öffnen; 0 = aus
+    "self_off_wait_min": (0, 60),  # Ofen schaltet selbst ab (Wasser heiß): warten
+    "warmup_extra_k": (0.0, 3.0),
+    "warmup_lead_min": (15, 240),
 }
 ROOM_TARGET_LIMITS: Final = (5.0, 28.0)  # Zieltemperatur Raum / Heizkörper
 MAX_OVERRIDE_MIN: Final = 24 * 60
 MAX_PAUSE_MIN: Final = 24 * 60
 MAX_BOOST_K: Final = 3.0
 MAX_BOOST_MIN: Final = 6 * 60
+MIN_WARMUP_MIN: Final = 30
+MAX_WARMUP_MIN: Final = 6 * 60
+WARMUP_AFTER_ARRIVAL_MIN: Final = 60  # nach der Ankunft noch so lange warm halten
+SENSOR_OFFSET_LIMIT_K: Final = 5.0  # Korrektur je Temperaturfühler höchstens ±5 K
+START_CONFIRM_MIN: Final = 3  # nach dem eigenen Startbefehl so lange auf "an" warten
+HOT_WATER_C: Final = 50.0  # Wasser so heiß: Ofen hat wegen Kesseltemperatur selbst abgeschaltet
 MIN_RADIATOR_STEP_K: Final = 0.5  # Heizkörper erst ab dieser Änderung neu setzen
 
 DEFAULT_PARAMETERS: Final[dict[str, float]] = {
@@ -96,6 +106,10 @@ DEFAULT_PARAMETERS: Final[dict[str, float]] = {
     "pellet_capacity_kg": 26.0,
     "pellet_rate_kg_h": 1.5,
     "pellet_reminder_kg": 5.0,
+    "soft_start_min": 5,
+    "self_off_wait_min": 30,
+    "warmup_extra_k": 1.0,
+    "warmup_lead_min": 60,
 }
 
 # Sensoren
@@ -105,3 +119,7 @@ OPENING_CHECK_DROP_K: Final = 0.3  # so viel sollte ein Raum bei offenem Fenster
 PELLET_MAX_GAP_S: Final = 15 * 60  # längere Lücken nicht als Brennzeit zählen
 PELLET_RATE_LIMITS: Final = (0.3, 5.0)  # gelernter Verbrauch kg/h, Plausibilität
 PELLET_DAYS_FOR_FORECAST: Final = 3
+
+# Verlauf für die Grafik
+HISTORY_STEP_MIN: Final = 10
+HISTORY_HOURS: Final = 48

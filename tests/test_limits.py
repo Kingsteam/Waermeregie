@@ -49,3 +49,26 @@ def test_room_target_limits():
 def test_default_mode_is_shadow():
     """Ab Werk wird nichts geschaltet."""
     assert model.default_config()["mode"] == C.MODE_SHADOW
+
+
+def test_new_limits_050():
+    """Aufheizen und Fühler-Korrektur bleiben begrenzt."""
+    assert C.MAX_WARMUP_MIN <= 6 * 60
+    assert C.MIN_WARMUP_MIN >= 30
+    assert C.SENSOR_OFFSET_LIMIT_K <= 5.0
+    assert C.PARAMETER_LIMITS["warmup_extra_k"][1] <= 3.0
+    assert C.PARAMETER_LIMITS["soft_start_min"][1] <= 15
+    assert C.PARAMETER_LIMITS["self_off_wait_min"][1] <= 60
+
+
+def test_sensor_offset_and_warmup_scene_checked():
+    cfg = sample_config()
+    cfg["rooms"][0]["temperature_sensors"][0]["offset"] = 5.5
+    with pytest.raises(model.ConfigError):
+        model.validate(cfg)
+    cfg = sample_config()
+    cfg["warmup_scene"] = "gibt_es_nicht"
+    with pytest.raises(model.ConfigError):
+        model.validate(cfg)
+    cfg["warmup_scene"] = "komfort"
+    assert model.validate(cfg)["warmup_scene"] == "komfort"

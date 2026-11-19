@@ -51,6 +51,8 @@ def sample_config(**overrides) -> dict:
             "targets": {"komfort": 19.0, "nacht": 17.0},
         },
     ]
+    # Die meisten Tests prüfen den Start ohne sanften Start (eigene Tests dafür)
+    cfg["parameters"]["soft_start_min"] = 0
     cfg = copy.deepcopy(cfg)
     for k, v in overrides.items():
         cfg[k] = v

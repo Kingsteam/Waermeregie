@@ -20,6 +20,7 @@ async def async_setup_entry(
         [
             PelletRefill(mgr, entry.entry_id, "pellet_refill"),
             PelletEmpty(mgr, entry.entry_id, "pellet_empty"),
+            Warmup(mgr, entry.entry_id, "warmup"),
         ]
     )
 
@@ -36,3 +37,10 @@ class PelletEmpty(WaermeregieEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         await self._mgr.async_pellets_empty()
+
+
+class Warmup(WaermeregieEntity, ButtonEntity):
+    """Haus jetzt aufheizen (90 min), z. B. auf dem Heimweg."""
+
+    async def async_press(self) -> None:
+        await self._mgr.async_warmup(90)

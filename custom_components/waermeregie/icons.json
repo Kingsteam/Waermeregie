@@ -62,6 +62,9 @@
       },
       "pellet_empty": {
         "default": "mdi:sack-outline"
+      },
+      "warmup": {
+        "default": "mdi:home-thermometer"
       }
     }
   },
@@ -86,6 +89,12 @@
     },
     "pellets_empty": {
       "service": "mdi:sack-outline"
+    },
+    "warmup": {
+      "service": "mdi:home-thermometer"
+    },
+    "cancel_warmup": {
+      "service": "mdi:home-remove-outline"
     }
   }
 }

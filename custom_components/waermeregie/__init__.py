@@ -62,6 +62,29 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def boost(call: ServiceCall) -> None:
         await _guard(_manager(hass).async_boost(call.data["delta"], call.data["minutes"]))
 
+    async def warmup(call: ServiceCall) -> None:
+        arrive = call.data.get("arrive")
+        if arrive is not None and not isinstance(arrive, str):
+            arrive = arrive.strftime("%H:%M")
+        elif arrive:
+            arrive = arrive[:5]
+        await _guard(_manager(hass).async_warmup(call.data.get("minutes"), arrive))
+
+    async def cancel_warmup(call: ServiceCall) -> None:
+        await _guard(_manager(hass).async_warmup(cancel=True))
+
+    hass.services.async_register(
+        DOMAIN,
+        "warmup",
+        warmup,
+        vol.Schema(
+            {
+                vol.Optional("minutes"): vol.Coerce(float),
+                vol.Optional("arrive"): vol.Any(cv.time, cv.string),
+            }
+        ),
+    )
+    hass.services.async_register(DOMAIN, "cancel_warmup", cancel_warmup)
     hass.services.async_register(
         DOMAIN,
         "set_scene",

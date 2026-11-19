@@ -433,3 +433,192 @@ def test_recovery_can_be_switched_off():
     o.rooms["wohnzimmer"].closed_at = now - timedelta(minutes=1)
     o.rooms["wohnzimmer"].last_open_minutes = 10
     assert ("stove_start",) in run(cfg, engine.empty_state(), o).actions
+
+
+# --- 0.5.0: sanfter Start, Selbstabschaltung, Aufheizen -------------------------------
+
+
+def soft_config(minutes=5, **kw):
+    cfg = sample_config(**kw)
+    cfg["parameters"]["soft_start_min"] = minutes
+    return cfg
+
+
+def test_soft_start_opens_radiators_before_ignition():
+    cfg = soft_config()
+    now = at(16, "06:30")
+    r = run(cfg, engine.empty_state(), obs(now, wz=20.0, sz=18.5))
+    assert ("stove_start",) not in r.actions
+    assert r.status["stove"]["phase"] == "prepare"
+    assert r.status["stove"]["start_at"] == (now + timedelta(minutes=5)).isoformat()
+    # Heizkörper schon auf Block-Sollwert (Ziel + 1 K)
+    assert ("radiator", "climate.heizung_wohnzimmer", 22.0) in r.actions
+    r = run(cfg, r.state, obs(now + timedelta(minutes=3), wz=20.0, sz=18.5))
+    assert ("stove_start",) not in r.actions
+    assert r.status["stove"]["phase"] == "prepare"
+    r = run(cfg, r.state, obs(now + timedelta(minutes=5), wz=20.0, sz=18.5))
+    assert ("stove_start",) in r.actions
+    assert r.status["stove"]["phase"] == "block"
+    assert r.status["stove"]["starts_today"] == 1
+    assert r.state["prepare_since"] is None
+
+
+def test_soft_start_dropped_when_no_longer_needed():
+    cfg = soft_config()
+    now = at(16, "06:30")
+    r = run(cfg, engine.empty_state(), obs(now, wz=20.0, sz=18.5))
+    r = run(cfg, r.state, obs(now + timedelta(minutes=2), wz=21.5, sz=19.5))
+    assert r.status["stove"]["phase"] == "idle"
+    assert r.state["prepare_since"] is None
+    # Heizkörper zurück auf Ziel
+    assert ("radiator", "climate.heizung_wohnzimmer", 21.0) in r.actions
+
+
+def test_own_start_is_not_mistaken_for_manual_stop():
+    """19.11.2026: kurz nach dem Startbefehl meldete der Ofen noch 'aus'."""
+    cfg = sample_config(mode="active")
+    now = at(16, "06:30")
+    r = run(cfg, engine.empty_state(), obs(now, wz=20.0, stove=StoveObs(available=True)))
+    assert ("stove_start",) in r.actions
+    r = run(cfg, r.state, obs(now + timedelta(seconds=5), wz=20.0, stove=StoveObs(available=True)))
+    assert r.state["block_start"] is not None
+    assert r.state["last_stop"] is None
+    assert not any("Heizblock beendet" in t for t in r.log)
+    r = run(
+        cfg,
+        r.state,
+        obs(now + timedelta(seconds=15), wz=20.0, stove=StoveObs(available=True, on=True)),
+    )
+    assert r.status["stove"]["starts_today"] == 1  # nicht doppelt gezählt
+    # bleibt er wirklich aus, endet der Block nach der Wartezeit
+    r = run(cfg, r.state, obs(now + timedelta(minutes=10), wz=20.0, stove=StoveObs(available=True)))
+    assert r.state["block_start"] is None
+
+
+def test_never_started_stove_ends_block_after_confirm_time():
+    cfg = sample_config(mode="active")
+    now = at(16, "06:30")
+    r = run(cfg, engine.empty_state(), obs(now, wz=20.0, stove=StoveObs(available=True)))
+    r = run(cfg, r.state, obs(now + timedelta(minutes=4), wz=20.0, stove=StoveObs(available=True)))
+    assert r.state["block_start"] is None
+
+
+def _burning(water=40.0, on=True):
+    return StoveObs(available=True, on=on, burning=on, water_c=water)
+
+
+def test_self_off_with_hot_water_keeps_block_and_waits():
+    """19.11.2026: Wasser in 6 min auf 61 °C, Ofen schaltet selbst ab und zündet neu."""
+    cfg = sample_config(mode="active")
+    start = at(16, "18:10")
+    state = {
+        **engine.empty_state(),
+        "block_start": start.isoformat(),
+        "starts": [start.isoformat()],
+    }
+    r = run(cfg, state, obs(start + timedelta(minutes=13), wz=20.0, stove=_burning(61.5, False)))
+    assert r.state["block_start"] is not None
+    assert r.status["stove"]["self_off"] is True
+    assert r.status["stove"]["phase"] == "block"
+    assert "wartet" in r.status["stove"]["reason"]
+    assert ("stove_stop",) not in r.actions
+    r = run(cfg, r.state, obs(start + timedelta(minutes=25), wz=20.5, stove=_burning(55.0)))
+    assert r.status["stove"]["self_off"] is False
+    assert r.status["stove"]["starts_today"] == 1
+    assert any("wieder gezündet" in t for t in r.log)
+
+
+def test_self_off_gives_up_after_wait():
+    cfg = sample_config(mode="active")
+    start = at(16, "18:10")
+    off = start + timedelta(minutes=13)
+    state = {**engine.empty_state(), "block_start": start.isoformat()}
+    r = run(cfg, state, obs(off, wz=20.0, stove=_burning(61.5, False)))
+    r = run(cfg, r.state, obs(off + timedelta(minutes=31), wz=20.0, stove=_burning(35.0, False)))
+    assert r.state["block_start"] is None
+    assert r.state["last_stop"] == off.isoformat()  # Pause zählt ab dem Abschalten
+
+
+def test_off_with_cold_water_ends_block_at_once():
+    cfg = sample_config(mode="active")
+    start = at(16, "18:10")
+    state = {**engine.empty_state(), "block_start": start.isoformat()}
+    r = run(cfg, state, obs(start + timedelta(minutes=30), wz=20.0, stove=_burning(35.0, False)))
+    assert r.state["block_start"] is None
+
+
+def test_self_off_wait_can_be_switched_off():
+    cfg = sample_config(mode="active")
+    cfg["parameters"]["self_off_wait_min"] = 0
+    start = at(16, "18:10")
+    state = {**engine.empty_state(), "block_start": start.isoformat()}
+    r = run(cfg, state, obs(start + timedelta(minutes=13), wz=20.0, stove=_burning(61.5, False)))
+    assert r.state["block_start"] is None
+
+
+def _warmup(now, minutes=90, start_offset=0):
+    return {
+        "start_at": (now + timedelta(minutes=start_offset)).isoformat(),
+        "until": (now + timedelta(minutes=start_offset + minutes)).isoformat(),
+        "arrive": None,
+        "started": False,
+    }
+
+
+def test_warmup_starts_even_when_warm_and_away():
+    cfg = sample_config()
+    now = at(16, "12:00")  # Bürotag: Abwesend (Ofen nur Frostschutz)
+    state = {**engine.empty_state(), "warmup": _warmup(now)}
+    r = run(cfg, state, obs(now, wz=21.5, sz=19.5, occupied=False))
+    assert ("stove_start",) in r.actions
+    assert r.status["warmup"]["active"] is True
+    assert "Aufheizen" in r.status["stove"]["reason"]
+    wz = next(x for x in r.status["rooms"] if x["id"] == "wohnzimmer")
+    assert wz["target"] == 22.0  # Komfort 21 + 1 K
+    # nach der Mindestbrenndauer warm genug: aus, und kein zweiter Start im Aufheizen
+    r = run(cfg, r.state, obs(now + timedelta(minutes=91), wz=22.5, sz=20.5))
+    assert ("stove_stop",) in r.actions
+    r = run(cfg, r.state, obs(now + timedelta(minutes=85 + 70), wz=22.5, sz=20.5))
+    assert ("stove_start",) not in r.actions
+
+
+def test_warmup_ends_and_returns_to_schedule():
+    cfg = sample_config()
+    now = at(16, "12:00")
+    state = {**engine.empty_state(), "warmup": _warmup(now, minutes=30)}
+    r = run(cfg, state, obs(now + timedelta(minutes=31), wz=21.5, sz=19.5))
+    assert r.state["warmup"] is None
+    assert r.status["warmup"] is None
+    assert any("Aufheizen beendet" in t for t in r.log)
+
+
+def test_warmup_for_arrival_waits_for_start_time():
+    cfg = sample_config()
+    now = at(16, "16:00")
+    state = {**engine.empty_state(), "warmup": _warmup(now, minutes=120, start_offset=30)}
+    r = run(cfg, state, obs(now, wz=21.5, sz=19.5))
+    assert ("stove_start",) not in r.actions
+    assert r.status["warmup"]["active"] is False
+    r = run(cfg, r.state, obs(now + timedelta(minutes=30), wz=21.5, sz=19.5))
+    assert ("stove_start",) in r.actions
+
+
+def test_warmup_respects_pause_and_open_door():
+    cfg = sample_config()
+    now = at(16, "12:00")
+    state = {
+        **engine.empty_state(),
+        "warmup": _warmup(now),
+        "last_stop": (now - timedelta(minutes=20)).isoformat(),
+    }
+    r = run(cfg, state, obs(now, wz=21.5, sz=19.5))
+    assert ("stove_start",) not in r.actions
+    assert r.status["stove"]["phase"] == "pause"
+
+
+def test_house_average_temperature_and_target():
+    cfg = sample_config()
+    r = run(cfg, engine.empty_state(), obs(at(16, "06:30"), wz=20.0, sz=18.0))
+    # Wichtigkeit 3 und 1: (3*20 + 18) / 4
+    assert r.status["house"]["temperature_c"] == 19.5
+    assert r.status["house"]["target_c"] == 20.5

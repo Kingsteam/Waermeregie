@@ -15,6 +15,8 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
 | `waermeregie/pause` | **admin** | `{minutes: number}` (0 = aufheben) | `Status` |
 | `waermeregie/boost` | **admin** | `{delta: number, minutes: number}` (0 = aufheben) | `Status` |
 | `waermeregie/mode` | **admin** | `{mode: "shadow"\|"active"}` | `Status` |
+| `waermeregie/warmup` | **admin** | `{minutes?: number}` (30-360, jetzt aufheizen) **oder** `{arrive: "HH:MM"}` (Ankunft, nächstes Vorkommen in 24 h) **oder** `{cancel: true}` | `Status` |
+| `waermeregie/history` | alle | `{hours?: number}` (1-48, Standard 24) | `{points: Point[]}`, ein Punkt je 10 min (siehe unten) |
 
 ## Config
 
@@ -39,7 +41,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     {
       "id": "wohnzimmer", "name": "Wohnzimmer", "importance": 3,          // 1 niedrig … 3 hoch
       "radiators": ["climate.heizung_wz"],
-      "temperature_sensors": [{"entity": "sensor.raum_wz", "weight": 1.0}],
+      "temperature_sensors": [{"entity": "sensor.raum_wz", "weight": 1.0, "offset": 0.0}],  // offset -5…+5 K wird zum Messwert addiert
       "openings": ["binary_sensor.terrassentuer"],
       "presence": ["binary_sensor.wz_belegt"],
       "paused": [],                                                       // eingetragen, aber nicht verwendet (Teilmenge der Geräte oben)
@@ -53,6 +55,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
   "day_types": [
     {"id": "buero", "name": "Bürotag", "slots": [{"start": "06:30", "scene": "komfort"}, {"start": "07:45", "scene": "sparen"}]}
   ],
+  "warmup_scene": null,               // Szene, deren Ziele beim Aufheizen gelten (null = erste Szene mit stove "allow")
   "week": {"mon": "buero", "tue": "buero", "wed": "homeoffice", "thu": "buero", "fri": "homeoffice", "sat": "wochenende", "sun": "wochenende", "holiday": "wochenende"},
   "parameters": {
     "start_below_k": 0.5, "stop_above_k": 0.3,
@@ -61,7 +64,11 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     "radiator_boost_k": 1.0, "frost_c": 12, "night_floor_c": 16, "stove_block_setpoint_c": 28,
     "presence_empty_min": 45,
     "power_min": 1, "power_max": 3,    // Leistungsstufen im Heizblock (1-5)
-    "power_cold_c": 0                  // Außentemperatur darunter → power_max
+    "power_cold_c": 0,                 // Außentemperatur darunter → power_max
+    "soft_start_min": 5,               // sanfter Start: Heizkörper so lange vor dem Zünden öffnen (0 = aus)
+    "self_off_wait_min": 30,           // Ofen schaltet im Block selbst ab (Wasser heiß): so lange auf Neustart warten (0 = Block endet sofort)
+    "warmup_extra_k": 1.0,             // Aufheizen: so viel über den Zielen der Aufheiz-Szene
+    "warmup_lead_min": 60              // „Ich komme um …“: so viel früher mit dem Aufheizen beginnen
   },
   "mode": "shadow"                     // "shadow" (nur rechnen) | "active" (schaltet)
 }
@@ -79,7 +86,9 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
   "scene": {"id": "komfort", "name": "Komfort", "source": "schedule" | "override", "until": "…" | null, "next_change": "07:45"},
   "stove": {
     "entity": "climate.pelletofen", "available": true, "burning": false, "on": false,
-    "phase": "idle" | "block" | "pause" | "blocked",
+    "phase": "idle" | "prepare" | "block" | "pause" | "blocked",   // prepare = sanfter Start, Heizkörper öffnen
+    "start_at": null,                  // bei prepare: Uhrzeit der Zündung
+    "self_off": false,                 // Ofen hat im Block selbst abgeschaltet (Wasser heiß), Regel wartet auf Neustart
     "action": "start" | "stop" | "keep",    // was die Regelung gerade will
     "reason": "Wohnräume 0,7 K unter Ziel",
     "block_start": null, "pause_until": null, "starts_today": 2, "max_starts_per_day": 4,
@@ -90,7 +99,8 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
     "water_c": 61.5,                   // Wassertemperatur (null ohne Fühler)
     "ignitions": 9620                  // Zündzähler (null ohne Fühler)
   },
-  "house": {"deficit_k": 0.7, "outdoor_c": 4.5},
+  "house": {"deficit_k": 0.7, "outdoor_c": 4.5, "temperature_c": 20.6, "target_c": 21.0},   // Mittel der Wohnräume (nach Wichtigkeit)
+  "warmup": null,                      // oder {"start_at": "…", "until": "…", "arrive": "…"|null, "active": true}
   "rooms": [
     {"id": "wohnzimmer", "name": "Wohnzimmer", "temperature": 20.3, "target": 21, "deficit_k": 0.7,
      "radiator_setpoint": 22, "open": false, "open_minutes": 0, "recover_until": null, "occupied": true, "sensors_missing": 0}
@@ -98,7 +108,17 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
   "alerts": [{"kind": "opening", "room": "wohnzimmer", "entity": "binary_sensor.terrassentuer", "minutes": 12, "message": "Terrassentür seit 12 min offen"}],
   // weitere kind: "sensor" (Gerät länger als sensor_alert_min weg), "opening_check" (offen, Raum kühlt nicht ab)
   "devices": {"binary_sensor.terrassentuer": {"drops_24h": 2, "down_since": null, "held": false}},  // je Raum-Gerät (ohne pausierte)
+  "pellets": {"stock_kg": 12.5, "capacity_kg": 26, "fill_pct": 48, "rate_kg_h": 1.5, "rate_learned": false, "hours_left": 8.3, "empty_at": "…", "daily_burn_h": 2.1},
   "overrides": {"scene": null, "pause_until": null, "boost": null},
   "log": [{"time": "…", "text": "Heizblock gestartet: Wohnräume 0,7 K unter Ziel", "shadow": true}]
 }
 ```
+
+## Verlauf (`waermeregie/history`)
+
+```jsonc
+{"points": [
+  {"t": "2026-11-19T18:10:00+01:00", "house_c": 22.1, "target_c": 22.5, "outdoor_c": 9.9, "burning": true, "pellets_kg": 13.6}
+]}
+```
+Ein Punkt je 10 Minuten, höchstens 48 Stunden, im Laufzustand gespeichert (übersteht Neustarts). Werte können `null` sein.

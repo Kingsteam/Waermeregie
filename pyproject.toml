@@ -1,6 +1,6 @@
 [project]
 name = "waermeregie"
-version = "0.1.0"
+version = "0.5.0"
 description = "Heizungssteuerung für Pelletöfen in Home Assistant"
 requires-python = ">=3.14"
 license = "Apache-2.0"

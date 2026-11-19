@@ -15,9 +15,11 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from .const import (
+    HOT_WATER_C,
     MIN_RADIATOR_STEP_K,
     MODE_ACTIVE,
     ROOM_TARGET_LIMITS,
+    START_CONFIRM_MIN,
     STOVE_ALLOW,
     STOVE_DENY,
     STOVE_FROST_ONLY,
@@ -91,6 +93,11 @@ def empty_state() -> dict[str, Any]:
         "starts": [],  # iso-Zeitpunkte der Starts (letzte 2 Tage)
         "radiators": {},  # zuletzt gesetzter Sollwert je Heizkörper
         "power": None,  # zuletzt gesetzte Leistungsstufe
+        # Aufheizen: {"start_at", "until", "arrive", "started"}
+        "warmup": None,
+        "prepare_since": None,  # sanfter Start: seit wann die Heizkörper vorlaufen
+        "start_cmd": None,  # eigener Startbefehl, noch nicht vom Ofen bestätigt
+        "self_off_since": None,  # Ofen hat im Block selbst abgeschaltet (Wasser heiß)
     }
 
 
@@ -193,6 +200,24 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     policy = scene["stove"]
     boost = state["boost"]["delta"] if state["boost"] else 0.0
 
+    # Aufheizen: Ofen darf (einmal) starten, auch wenn es warm genug ist;
+    # Ziele der Aufheiz-Szene plus warmup_extra_k
+    warmup = state["warmup"]
+    if warmup and _dt(warmup["until"]) <= now:
+        state["warmup"] = warmup = None
+        log.append("Aufheizen beendet, wieder nach Zeitplan")
+    warmup_active = bool(warmup) and _dt(warmup["start_at"]) <= now
+    target_scene = scene
+    if warmup_active:
+        if not warmup.get("announced"):
+            warmup["announced"] = True
+            log.append("Aufheizen beginnt")
+        target_scene = scenes.get(config.get("warmup_scene") or "") or next(
+            (s for s in config["scenes"] if s["stove"] == STOVE_ALLOW), scene
+        )
+        policy = STOVE_ALLOW
+        boost += p["warmup_extra_k"]
+
     # Räume
     room_status = []
     weighted_sum = 0.0
@@ -201,11 +226,13 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     floor = p["night_floor_c"] if policy == STOVE_FROST_ONLY else p["frost_c"]
     alerts = []
     long_opening = False
+    temp_sum = target_sum = temp_weight = 0.0
     for room in config["rooms"]:
         ro = obs.rooms.get(room["id"], RoomObs())
-        target = room["targets"].get(scene_id, scene["default_target"])
+        target = room["targets"].get(target_scene["id"], target_scene["default_target"])
         if (
-            ro.occupied is False
+            not warmup_active  # beim Aufheizen ist noch niemand da
+            and ro.occupied is False
             and ro.empty_since
             and (now - ro.empty_since >= timedelta(minutes=p["presence_empty_min"]))
         ):
@@ -257,6 +284,9 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             if not is_open and recover_until is None:
                 weighted_sum += room["importance"] * deficit
                 weight_total += room["importance"]
+            temp_sum += room["importance"] * ro.temperature
+            target_sum += room["importance"] * target
+            temp_weight += room["importance"]
         room_status.append(
             {
                 "id": room["id"],
@@ -276,12 +306,32 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
 
     # Ofen: externe Änderungen übernehmen (nur aktiv, im Schatten ist alles gedacht)
     in_block = state["block_start"] is not None
+    start_cmd = _dt(state["start_cmd"])
+    confirming = start_cmd is not None and now - start_cmd < timedelta(minutes=START_CONFIRM_MIN)
+    if obs.stove.on or not confirming:
+        state["start_cmd"] = None
+    self_off_since = _dt(state["self_off_since"])
     if active and obs.stove.available:
-        if in_block and not obs.stove.on:
-            state["block_start"] = None
-            state["last_stop"] = now.isoformat()
-            in_block = False
-            log.append("Ofen ist aus (von Hand oder vom Ofen selbst), Heizblock beendet")
+        hot = obs.stove.water_c is not None and obs.stove.water_c >= HOT_WATER_C
+        if in_block and not obs.stove.on and confirming:
+            pass  # eigener Start, der Ofen meldet sich gleich als "an"
+        elif in_block and not obs.stove.on:
+            wait = timedelta(minutes=p["self_off_wait_min"])
+            if self_off_since is None and hot and not obs.stove.error and wait:
+                # Ohne Puffer wird das Wasser schnell heiß, der Ofen schaltet selbst
+                # ab und zündet nach dem Abkühlen wieder: das ist kein Ende des Blocks
+                state["self_off_since"] = now.isoformat()
+                self_off_since = now
+                log.append("Ofen hat selbst abgeschaltet (Wasser heiß), Heizblock wartet")
+            elif self_off_since is None or now - self_off_since >= wait or obs.stove.error:
+                state["block_start"] = None
+                state["last_stop"] = (self_off_since or now).isoformat()
+                state["self_off_since"] = self_off_since = None
+                in_block = False
+                log.append("Ofen ist aus (von Hand oder vom Ofen selbst), Heizblock beendet")
+        elif in_block and obs.stove.on and self_off_since is not None:
+            state["self_off_since"] = self_off_since = None
+            log.append("Ofen hat wieder gezündet, Heizblock läuft weiter")
         elif not in_block and obs.stove.on and not obs.stove.error:
             # Bei Störung nicht übernehmen: sonst Schleife aus „von Hand ein“ und
             # „Block beendet: Störung“ mit einem Aus-Befehl je Runde (19.11.2026)
@@ -294,6 +344,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     last_stop = _dt(state["last_stop"])
     pause_end = last_stop + timedelta(minutes=p["min_pause_min"]) if last_stop else None
     manual_pause = _dt(state["pause_until"])
+    soft = timedelta(minutes=p["soft_start_min"])
     action = "keep"
     deficit_txt = (
         f"Wohnräume {_fmt_k(abs(house_deficit))} K {'unter' if house_deficit > 0 else 'über'} Ziel"
@@ -326,6 +377,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             phase = "pause"
             reason = f"Heizblock beendet: {stop_reason}"
             state["block_start"] = None
+            state["self_off_since"] = self_off_since = None
             state["last_stop"] = now.isoformat()
             pause_end = now + timedelta(minutes=p["min_pause_min"])
             actions.append(("stove_stop",))
@@ -336,13 +388,20 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             reason = f"Heizblock seit {int(elapsed)} min" + (
                 f", mindestens noch {rest} min" if rest else f", bis Ziel erreicht ({deficit_txt})"
             )
+            if self_off_since is not None:
+                until = self_off_since + timedelta(minutes=p["self_off_wait_min"])
+                reason = (
+                    "Ofen hat selbst abgeschaltet (Wasser heiß), "
+                    f"wartet bis {until.strftime('%H:%M')} auf Neustart"
+                )
     else:
         want_comfort = (
             policy == STOVE_ALLOW
             and house_deficit is not None
             and house_deficit >= p["start_below_k"]
         )
-        want = want_comfort or (frost_need and policy != STOVE_DENY)
+        warmup_start = warmup_active and not warmup.get("started")
+        want = want_comfort or warmup_start or (frost_need and policy != STOVE_DENY)
         blocker = None
         phase = "idle"
         if obs.stove.error:
@@ -365,24 +424,51 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             blocker, phase = "Tür oder Fenster lange offen", "blocked"
         elif starts_today >= p["max_starts_per_day"] and not frost_need:
             blocker, phase = f"schon {starts_today} Starts heute", "blocked"
-        if want and blocker is None:
+        if warmup_start:
+            why = f"Aufheizen ({deficit_txt})"
+        else:
+            why = deficit_txt if want_comfort else "Frostschutz"
+        prepare = _dt(state["prepare_since"])
+        if want and blocker is None and soft and (prepare is None or now - prepare < soft):
+            # Sanfter Start: erst die Heizkörper öffnen, damit das Wasser die
+            # Wärme gleich abgeben kann (ohne Puffer wird es sonst zu schnell heiß)
+            if prepare is None:
+                state["prepare_since"] = now.isoformat()
+                prepare = now
+                log.append(
+                    f"Sanfter Start: Heizkörper öffnen, Ofen zündet um "
+                    f"{(now + soft).strftime('%H:%M')} ({why})"
+                )
+            phase = "prepare"
+            start_at = prepare + soft
+            reason = f"Heizkörper öffnen, Ofen zündet um {start_at.strftime('%H:%M')} ({why})"
+        elif want and blocker is None:
             action = "start"
             phase = "block"
-            reason = "Heizblock gestartet: " + ("Frostschutz" if not want_comfort else deficit_txt)
+            reason = "Heizblock gestartet: " + why
             state["block_start"] = now.isoformat()
             state["starts"].append(now.isoformat())
+            state["prepare_since"] = None
+            state["start_cmd"] = now.isoformat()
+            if warmup_start:
+                warmup["started"] = True
             starts_today += 1
             actions.append(("stove_start",))
             log.append(reason)
         elif want:
-            reason = f"Wärme nötig ({deficit_txt}), aber {blocker}"
+            state["prepare_since"] = None
+            reason = f"Wärme nötig ({why}), aber {blocker}"
         else:
+            state["prepare_since"] = None
             reason = (blocker + ", " if blocker else "") + (
                 f"kein Bedarf ({deficit_txt})" if policy != STOVE_DENY else ""
             )
             reason = reason.strip(", ")
 
     in_block_now = state["block_start"] is not None
+    preparing = state["prepare_since"] is not None and not in_block_now
+    if in_block_now:
+        state["prepare_since"] = None
 
     # Leistungsstufe: klein anfangen, bei großem Bedarf oder Kälte mehr
     power = None
@@ -410,7 +496,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     for room, rs in zip(config["rooms"], room_status, strict=True):
         if rs["open"]:
             setpoint = p["frost_c"]
-        elif in_block_now:
+        elif in_block_now or preparing:
             setpoint = rs["target"] + p["radiator_boost_k"]
         else:
             setpoint = rs["target"]
@@ -458,10 +544,27 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "eco_warning": bool(obs.stove.eco_on),
             "error": obs.stove.error,
             "power_level": power,
+            "start_at": ((_dt(state["prepare_since"]) + soft).isoformat() if preparing else None),
+            "self_off": self_off_since is not None,
             "water_c": obs.stove.water_c,
             "ignitions": obs.stove.ignitions,
         },
-        "house": {"deficit_k": house_deficit, "outdoor_c": obs.outdoor_c},
+        "house": {
+            "deficit_k": house_deficit,
+            "outdoor_c": obs.outdoor_c,
+            "temperature_c": round(temp_sum / temp_weight, 1) if temp_weight else None,
+            "target_c": round(target_sum / temp_weight, 1) if temp_weight else None,
+        },
+        "warmup": (
+            {
+                "start_at": state["warmup"]["start_at"],
+                "until": state["warmup"]["until"],
+                "arrive": state["warmup"].get("arrive"),
+                "active": warmup_active,
+            }
+            if state["warmup"]
+            else None
+        ),
         "rooms": room_status,
         "alerts": alerts,
         "overrides": {

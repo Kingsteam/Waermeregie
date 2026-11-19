@@ -29,6 +29,8 @@ def async_register(hass: HomeAssistant) -> None:
         ws_pause,
         ws_boost,
         ws_mode,
+        ws_warmup,
+        ws_history,
     ):
         websocket_api.async_register_command(hass, handler)
 
@@ -154,3 +156,36 @@ async def ws_mode(hass: HomeAssistant, connection, msg: dict) -> None:
     if not (mgr := _manager(hass)):
         return _not_loaded(connection, msg)
     await _run(connection, msg, mgr.async_set_mode(msg["mode"]))
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/warmup",
+        vol.Optional("minutes"): vol.Coerce(float),
+        vol.Optional("arrive"): str,
+        vol.Optional("cancel", default=False): bool,
+    }
+)
+@websocket_api.async_response
+async def ws_warmup(hass: HomeAssistant, connection, msg: dict) -> None:
+    if not (mgr := _manager(hass)):
+        return _not_loaded(connection, msg)
+    await _run(
+        connection,
+        msg,
+        mgr.async_warmup(msg.get("minutes"), msg.get("arrive"), msg["cancel"]),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/history",
+        vol.Optional("hours", default=24): vol.All(vol.Coerce(float), vol.Range(min=1, max=48)),
+    }
+)
+@callback
+def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
+    if not (mgr := _manager(hass)):
+        return _not_loaded(connection, msg)
+    connection.send_result(msg["id"], {"points": mgr.history_points(msg["hours"])})

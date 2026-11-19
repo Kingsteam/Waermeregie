@@ -16,6 +16,7 @@ from .const import (
     MODE_SHADOW,
     PARAMETER_LIMITS,
     ROOM_TARGET_LIMITS,
+    SENSOR_OFFSET_LIMIT_K,
     STOVE_ALLOW,
     STOVE_DENY,
     STOVE_FROST_ONLY,
@@ -53,6 +54,7 @@ def default_config() -> dict[str, Any]:
         "persons": [],
         "pet": None,
         "notify": [],
+        "warmup_scene": None,
         "rooms": [],
         "scenes": [
             {
@@ -273,6 +275,12 @@ def validate(raw: Any) -> dict[str, Any]:
             weight = _num(s.get("weight", 1.0), f"{what} Gewicht")
             if not 0 < weight <= 10:
                 raise ConfigError(f"{what}: Gewicht zwischen 0 und 10")
+            offset = _num(s.get("offset", 0.0) or 0.0, f"{what} Korrektur")
+            if abs(offset) > SENSOR_OFFSET_LIMIT_K:
+                raise ConfigError(
+                    f"{what}: Korrektur zwischen -{SENSOR_OFFSET_LIMIT_K:g} und "
+                    f"+{SENSOR_OFFSET_LIMIT_K:g} K"
+                )
             sensors.append(
                 {
                     "entity": _entity(
@@ -282,6 +290,7 @@ def validate(raw: Any) -> dict[str, Any]:
                         optional=False,
                     ),
                     "weight": weight,
+                    "offset": round(offset, 1),
                 }
             )
         if len({s["entity"] for s in sensors}) != len(sensors):
@@ -356,6 +365,13 @@ def validate(raw: Any) -> dict[str, Any]:
     dt_ids = [d["id"] for d in out["day_types"]]
     if len(set(dt_ids)) != len(dt_ids):
         raise ConfigError("Tagesarten: ID doppelt")
+
+    warmup_scene = cfg.get("warmup_scene")
+    if warmup_scene in ("", None):
+        warmup_scene = None
+    elif warmup_scene not in scene_ids:
+        raise ConfigError("Aufheizen: unbekannte Szene")
+    out["warmup_scene"] = warmup_scene
 
     week = cfg.get("week") or {}
     out["week"] = {}
