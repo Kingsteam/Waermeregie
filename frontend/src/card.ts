@@ -1,19 +1,28 @@
-// <waermeregie-card>: kompakte Lovelace-Karte (Szene, Ofen mit Tageszeitleiste, Räume, Hinweise, Schnellaktionen).
+// <waermeregie-card>: kompakte Lovelace-Karte (Haus-Kopf, Knöpfe, Verlauf, Pellets, Räume).
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
-import { clearOverrides, loadConfig, setBoost, setOverride, setPause, subscribeStatus } from "./api";
+import { loadConfig, loadHistory, subscribeStatus } from "./api";
+import { defineControls } from "./controls";
+import { artStyles, chartStyles, renderTrendChart, tankStyles } from "./graphics";
+import { overviewStyles, renderAlertStrip, renderHeroHead, renderPellets, renderRoomTiles } from "./overview";
 import { translator, type Lang } from "./i18n";
 import { baseStyles } from "./styles";
-import type { Config, Hass, Status } from "./types";
+import type { Config, Hass, HistoryPoint, Status } from "./types";
 import { errorMessage, normalizeConfig, pickLang } from "./util";
-import { renderAlerts, renderQuickActions, renderRooms, renderSceneChips, renderShadowBanner, renderStove, type ViewCtx } from "./views";
+import { renderShadowBanner, type ViewCtx } from "./views";
 
 export interface CardConfig {
   type: string;
   title?: string;
   /** Raum-IDs, die gezeigt werden sollen (leer = alle) */
   rooms?: string[];
-  /** Schnellaktionen anzeigen (Standard: ja) */
+  /** Knöpfe Aufheizen/Szene/Pause anzeigen (Standard: ja) */
   show_actions?: boolean;
+  /** Temperaturverlauf anzeigen (Standard: ja) */
+  chart?: boolean;
+  /** Pellet-Füllstand anzeigen (Standard: ja) */
+  show_pellets?: boolean;
+  /** Räume anzeigen (Standard: ja) */
+  show_rooms?: boolean;
 }
 
 export class WaermeregieCard extends LitElement {
@@ -24,6 +33,7 @@ export class WaermeregieCard extends LitElement {
     _wrConfig: { state: true },
     _error: { state: true },
     _busy: { state: true },
+    _history: { state: true },
   };
 
   declare hass: Hass;
@@ -32,6 +42,8 @@ export class WaermeregieCard extends LitElement {
   declare _wrConfig: Config | null;
   declare _error: string | null;
   declare _busy: boolean;
+  declare _history: HistoryPoint[] | null;
+  private _historyTimer: number | undefined;
 
   private _unsub: (() => void) | null = null;
   private _connection: unknown = null;
@@ -44,6 +56,7 @@ export class WaermeregieCard extends LitElement {
     this._wrConfig = null;
     this._error = null;
     this._busy = false;
+    this._history = null;
   }
 
   static getStubConfig(): Partial<CardConfig> {
@@ -57,8 +70,8 @@ export class WaermeregieCard extends LitElement {
   }
 
   getCardSize(): number {
-    const rooms = this._config?.rooms?.length ?? this._status?.rooms?.length ?? 2;
-    return 4 + Math.ceil(rooms / 2);
+    const rooms = this._config?.show_rooms === false ? 0 : (this._config?.rooms?.length ?? this._status?.rooms?.length ?? 2);
+    return 5 + (this._config?.chart === false ? 0 : 2) + Math.ceil(rooms / 2);
   }
 
   private get _lang(): Lang {
@@ -68,10 +81,12 @@ export class WaermeregieCard extends LitElement {
   override connectedCallback() {
     super.connectedCallback();
     if (this.hass) this._ensure();
+    this._historyTimer = window.setInterval(() => void this._loadHistory(), 10 * 60 * 1000);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    window.clearInterval(this._historyTimer);
     this._unsub?.();
     this._unsub = null;
     this._connection = null;
@@ -94,6 +109,7 @@ export class WaermeregieCard extends LitElement {
         },
         (e) => (this._error = errorMessage(e)),
       );
+      void this._loadHistory();
     }
     if (!this._wrConfig && !this._configLoading) {
       this._configLoading = true;
@@ -104,16 +120,12 @@ export class WaermeregieCard extends LitElement {
     }
   }
 
-  private async _action(fn: () => Promise<Status | null>) {
-    this._busy = true;
+  private async _loadHistory() {
+    if (this._config?.chart === false || !this.hass?.connection) return;
     try {
-      const s = await fn();
-      if (s && typeof s === "object" && "mode" in s) this._status = s;
-      this._error = null;
-    } catch (e) {
-      this._error = errorMessage(e);
-    } finally {
-      this._busy = false;
+      this._history = await loadHistory(this.hass, 24);
+    } catch {
+      this._history = null;
     }
   }
 
@@ -127,13 +139,10 @@ export class WaermeregieCard extends LitElement {
       isAdmin: this.hass?.user?.is_admin !== false,
       busy: this._busy,
     };
-    const title = this._config.title ?? t("card.name");
+    const c = this._config;
     return html`<ha-card>
       <div class="wrap">
-        <div class="row head">
-          <ha-icon icon="mdi:fireplace" style="color:var(--wr-heat)"></ha-icon>
-          <span class="title">${title}</span>
-        </div>
+        ${c.title ? html`<div class="head">${c.title}</div>` : nothing}
         ${this._error ? html`<div class="banner error"><ha-icon icon="mdi:alert-circle-outline"></ha-icon><div>${this._error}</div></div>` : nothing}
         ${!this._status
           ? this._error
@@ -141,21 +150,21 @@ export class WaermeregieCard extends LitElement {
             : html`<div class="muted">${t("loading")}</div>`
           : html`
               ${renderShadowBanner(ctx, true)}
-              ${this._wrConfig ? renderSceneChips(ctx, (id) => this._action(() => setOverride(this.hass, id, 180))) : nothing}
-              ${renderAlerts(ctx)}
-              ${renderStove(ctx, { timeline: true, compact: true })}
-              ${renderRooms(ctx, this._config.rooms)}
-              ${this._config.show_actions === false
+              ${renderHeroHead(ctx, { size: 64 })}
+              ${renderAlertStrip(ctx)}
+              ${c.show_actions === false
                 ? nothing
-                : renderQuickActions(
-                    ctx,
-                    {
-                      boost: () => this._action(() => setBoost(this.hass, 1, 60)),
-                      pause: () => this._action(() => setPause(this.hass, 120)),
-                      clear: () => this._action(() => clearOverrides(this.hass, this._status)),
-                    },
-                    true,
-                  )}
+                : html`<wr-controls
+                    compact
+                    .hass=${this.hass}
+                    .status=${this._status}
+                    .config=${this._wrConfig}
+                    .lang=${this._lang}
+                    @wr-status=${(e: CustomEvent<Status>) => (this._status = e.detail)}
+                  ></wr-controls>`}
+              ${c.chart !== false && this._history?.length ? renderTrendChart(this._history, t, this._lang, { height: 90, legend: false }) : nothing}
+              ${c.show_pellets === false ? nothing : renderPellets(ctx, null, { compact: true })}
+              ${c.show_rooms === false ? nothing : renderRoomTiles(ctx, c.rooms)}
             `}
       </div>
     </ha-card>`;
@@ -163,6 +172,10 @@ export class WaermeregieCard extends LitElement {
 
   static override styles = [
     baseStyles,
+    artStyles,
+    chartStyles,
+    tankStyles,
+    overviewStyles,
     css`
       :host {
         display: block;
@@ -177,22 +190,21 @@ export class WaermeregieCard extends LitElement {
         flex-direction: column;
         gap: 12px;
       }
-      .head .title {
+      .head {
         font-size: 18px;
         font-weight: 500;
       }
-      .card {
-        padding: 12px;
+      .hero-temp {
+        font-size: 34px;
       }
-      .grid {
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
-        gap: 8px;
+      .tiles {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 110px), 1fr));
       }
-      .room .temp {
-        font-size: 20px;
+      .tile {
+        padding: 6px 8px;
       }
-      .stove .phase {
-        font-size: 16px;
+      .ttemp {
+        font-size: 18px;
       }
       .banner {
         padding: 8px 12px;
@@ -208,6 +220,7 @@ export class WaermeregieCard extends LitElement {
  * `window.customElements` wird deshalb erst beim Aufruf gelesen.
  */
 function defineCard(): void {
+  defineControls();
   const registry = window.customElements;
   if (!registry.get("waermeregie-card")) registry.define("waermeregie-card", WaermeregieCard);
 }

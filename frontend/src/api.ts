@@ -1,5 +1,5 @@
 // WebSocket-Befehle nach docs/API.md.
-import type { Config, ConfigResponse, Hass, Mode, Status } from "./types";
+import type { Config, ConfigResponse, Hass, HistoryPoint, Mode, Status } from "./types";
 
 export const loadConfig = (hass: Hass) => hass.callWS<ConfigResponse>({ type: "waermeregie/config" });
 
@@ -15,6 +15,21 @@ export const setPause = (hass: Hass, minutes: number) => hass.callWS<Status>({ t
 
 export const setBoost = (hass: Hass, delta: number, minutes: number) =>
   hass.callWS<Status>({ type: "waermeregie/boost", delta, minutes });
+
+/** Aufheizen: jetzt für `minutes`, oder Ankunft `arrive` ("HH:MM"), oder abbrechen. */
+export type WarmupRequest = { minutes: number } | { arrive: string } | { cancel: true };
+export const setWarmup = (hass: Hass, req: WarmupRequest) => hass.callWS<Status>({ type: "waermeregie/warmup", ...req });
+
+/** Verlauf für die Grafik. Fehlt der Befehl (ältere Version), wird abgelehnt. */
+export const loadHistory = (hass: Hass, hours = 24) =>
+  hass.callWS<{ points: HistoryPoint[] }>({ type: "waermeregie/history", hours }).then((r) => (Array.isArray(r?.points) ? r.points : []));
+
+/** Ein Sack Pellets nachgefüllt (Dienst, kein WebSocket-Befehl). */
+export async function pelletsRefill(hass: Hass): Promise<Status | null> {
+  if (!hass.callService) throw new Error("callService fehlt");
+  await hass.callService("waermeregie", "pellets_refill", {});
+  return null;
+}
 
 export const setMode = (hass: Hass, mode: Mode) => hass.callWS<Status>({ type: "waermeregie/mode", mode });
 

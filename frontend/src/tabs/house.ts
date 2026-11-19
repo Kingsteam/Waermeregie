@@ -15,7 +15,7 @@ interface ParamDef {
   step: number;
 }
 
-const PARAM_GROUPS: { group: I18nKey; params: ParamDef[] }[] = [
+const PARAM_GROUPS: { group: I18nKey; params: ParamDef[]; extra?: "warmup_scene" }[] = [
   {
     group: "pgroup.stove",
     params: [
@@ -26,6 +26,21 @@ const PARAM_GROUPS: { group: I18nKey; params: ParamDef[] }[] = [
       { key: "min_pause_min", unit: "min", step: 5 },
       { key: "max_starts_per_day", unit: "", step: 1 },
       { key: "stove_block_setpoint_c", unit: "°C", step: 0.5 },
+    ],
+  },
+  {
+    group: "pgroup.softstart",
+    params: [
+      { key: "soft_start_min", unit: "min", step: 1 },
+      { key: "self_off_wait_min", unit: "min", step: 5 },
+    ],
+  },
+  {
+    group: "pgroup.warmup",
+    extra: "warmup_scene",
+    params: [
+      { key: "warmup_extra_k", unit: "K", step: 0.5 },
+      { key: "warmup_lead_min", unit: "min", step: 5 },
     ],
   },
   {
@@ -72,6 +87,19 @@ const PARAM_GROUPS: { group: I18nKey; params: ParamDef[] }[] = [
     ],
   },
 ];
+
+const GROUP_ICONS: Partial<Record<I18nKey, string>> = {
+  "pgroup.stove": "mdi:fire",
+  "pgroup.softstart": "mdi:radiator",
+  "pgroup.warmup": "mdi:home-thermometer-outline",
+  "pgroup.openings": "mdi:window-open-variant",
+  "pgroup.sensors": "mdi:access-point-network-off",
+  "pgroup.power": "mdi:speedometer",
+  "pgroup.radiators": "mdi:radiator",
+  "pgroup.limits": "mdi:snowflake-thermometer",
+  "pgroup.presence": "mdi:motion-sensor",
+  "pgroup.pellets": "mdi:grain",
+};
 
 const KNOWN = new Set(PARAM_GROUPS.flatMap((g) => g.params.map((p) => p.key)));
 
@@ -128,9 +156,11 @@ export class WrHouseEditor extends EditorBase {
     const t = this.t;
     const c = this.config;
     return html`
-      <div class="cols">
-        <div class="card">
-          <h3>${t("house.stove")}</h3>
+      <div class="sections">
+        <details class="sect">
+          <summary><ha-icon icon="mdi:fireplace"></ha-icon><span><b>${t("house.stove")}</b><small>${t("house.sect_stove_hint")}</small></span></summary>
+          <div class="cols">
+        <div>
           ${this._picker({
             label: "house.stove_climate",
             hint: "house.stove_climate_hint",
@@ -148,8 +178,8 @@ export class WrHouseEditor extends EditorBase {
             onChange: (x, v) => (x.stove.power = v as string | null),
           })}
         </div>
-        <div class="card">
-          <h3>${t("house.stove_functions")}</h3>
+        <div>
+          <h4>${t("house.stove_functions")}</h4>
           <div class="banner info" style="margin-bottom:12px;font-size:13px">${t("house.stove_functions_hint")}</div>
           ${this._picker({
             label: "house.chrono_switch",
@@ -189,8 +219,11 @@ export class WrHouseEditor extends EditorBase {
             onChange: (x, v) => (x.stove.ignitions_sensor = v as string | null),
           })}
         </div>
-        <div class="card">
-          <h3>${t("house.environment")}</h3>
+          </div>
+        </details>
+        <details class="sect">
+          <summary><ha-icon icon="mdi:weather-partly-cloudy"></ha-icon><span><b>${t("house.environment")}</b><small>${t("house.sect_env_hint")}</small></span></summary>
+        <div>
           ${this._picker({
             label: "house.weather",
             hint: "house.weather_hint",
@@ -214,8 +247,10 @@ export class WrHouseEditor extends EditorBase {
             onChange: (x, v) => (x.workday = v as string | null),
           })}
         </div>
-        <div class="card">
-          <h3>${t("house.people")}</h3>
+        </details>
+        <details class="sect">
+          <summary><ha-icon icon="mdi:account-group-outline"></ha-icon><span><b>${t("house.people")}</b><small>${t("house.sect_people_hint")}</small></span></summary>
+        <div>
           ${this._picker({
             label: "house.persons",
             hint: "house.persons_hint",
@@ -233,6 +268,7 @@ export class WrHouseEditor extends EditorBase {
           })}
           ${this._renderNotify()}
         </div>
+        </details>
       </div>
       ${this._renderParameters()}
     `;
@@ -275,16 +311,45 @@ export class WrHouseEditor extends EditorBase {
     const extra = Object.keys(params).filter((k) => !KNOWN.has(k));
     const groups = [...PARAM_GROUPS];
     if (extra.length) groups.push({ group: "pgroup.other", params: extra.map((key) => ({ key, unit: guessUnit(key), step: 0.1 })) });
-    return html`<div class="card" style="margin-top:16px">
-      <h3>${t("house.parameters")}</h3>
-      <div class="hint">${t("house.parameters_hint")}</div>
-      ${groups.map((g) => {
-        const present = g.params.filter((p) => p.key in params || this.defaults?.parameters?.[p.key] !== undefined);
-        if (!present.length) return nothing;
-        return html`<h4 style="margin-top:14px">${t(g.group)}</h4>
-          <div class="params">${present.map((p) => this._renderParam(p))}</div>`;
-      })}
-    </div>`;
+    return html`<h3 style="margin:20px 0 4px">${t("house.parameters")}</h3>
+      <div class="hint" style="margin-bottom:8px">${t("house.parameters_hint")}</div>
+      <div class="sections">
+        ${groups.map((g) => {
+          const present = g.params.filter((p) => p.key in params || this.defaults?.parameters?.[p.key] !== undefined);
+          if (!present.length && !g.extra) return nothing;
+          const bad = present.some((p) => invalidParameters(this.config, this.defaults).includes(p.key));
+          const hintKey = `${g.group}_hint` as I18nKey;
+          return html`<details class="sect" ?open=${bad}>
+            <summary>
+              <ha-icon icon=${GROUP_ICONS[g.group] ?? "mdi:tune-variant"}></ha-icon>
+              <span><b>${t(g.group)}</b>${t(hintKey) !== hintKey ? html`<small>${t(hintKey)}</small>` : nothing}</span>
+              ${bad ? html`<ha-icon class="bad" icon="mdi:alert-circle"></ha-icon>` : nothing}
+            </summary>
+            ${g.extra === "warmup_scene" ? this._renderWarmupScene() : nothing}
+            <div class="params">${present.map((p) => this._renderParam(p))}</div>
+          </details>`;
+        })}
+      </div>`;
+  }
+
+  private _renderWarmupScene() {
+    const t = this.t;
+    const value = this.config.warmup_scene ?? "";
+    return html`<label class="field" style="max-width:420px;margin-top:8px">
+      <span class="lbl">${t("house.warmup_scene")}</span>
+      <span class="hint">${t("house.warmup_scene_hint")}</span>
+      <select
+        ?disabled=${this.readonly}
+        .value=${value}
+        @change=${(e: Event) => {
+          const v = (e.target as HTMLSelectElement).value;
+          this._set((x) => (x.warmup_scene = v || null));
+        }}
+      >
+        <option value="" ?selected=${!value}>${t("house.warmup_scene_auto")}</option>
+        ${this.config.scenes.map((sc) => html`<option value=${sc.id} ?selected=${sc.id === value}>${sc.name}</option>`)}
+      </select>
+    </label>`;
   }
 
   private _renderParam(p: ParamDef) {
@@ -340,6 +405,60 @@ export class WrHouseEditor extends EditorBase {
   static override styles = [
     baseStyles,
     css`
+      .sections {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      details.sect {
+        background: var(--wr-card);
+        border: 1px solid var(--wr-div);
+        border-radius: var(--wr-radius);
+        padding: 0 16px;
+      }
+      details.sect[open] {
+        padding-bottom: 12px;
+      }
+      details.sect > summary {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        cursor: pointer;
+        list-style: none;
+      }
+      details.sect > summary::-webkit-details-marker {
+        display: none;
+      }
+      details.sect > summary::after {
+        content: "";
+        margin-left: auto;
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid var(--wr-text2);
+        border-bottom: 2px solid var(--wr-text2);
+        transform: rotate(45deg);
+        transition: transform 0.2s;
+        flex: none;
+      }
+      details.sect[open] > summary::after {
+        transform: rotate(-135deg);
+      }
+      details.sect > summary > ha-icon {
+        color: var(--wr-heat);
+      }
+      details.sect > summary ha-icon.bad {
+        color: var(--wr-err);
+      }
+      details.sect > summary span {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      details.sect > summary small {
+        color: var(--wr-text2);
+        font-size: 12px;
+      }
       .cols {
         display: grid;
         gap: 16px;

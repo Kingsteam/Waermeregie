@@ -1,6 +1,9 @@
 // <waermeregie-panel>: Home-Assistant-Custom-Panel (Properties hass, narrow, route, panel).
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
-import { clearOverrides, loadConfig, saveConfig, setBoost, setMode, setOverride, setPause, subscribeStatus } from "./api";
+import { loadConfig, loadHistory, pelletsRefill, saveConfig, setMode, subscribeStatus } from "./api";
+import { defineControls } from "./controls";
+import { chartStyles, artStyles, renderTrendChart, tankStyles } from "./graphics";
+import { overviewStyles, renderAlertStrip, renderHeroHead, renderPellets, renderRoomTiles, renderStoveCard } from "./overview";
 import { translator, type I18nKey, type Lang, type T } from "./i18n";
 import { baseStyles } from "./styles";
 import "./tabs/rooms";
@@ -8,9 +11,9 @@ import "./tabs/schedule";
 import "./tabs/scenes";
 import "./tabs/house";
 import { invalidParameters } from "./tabs/house";
-import type { Config, Defaults, Hass, Mode, Status } from "./types";
+import type { Config, Defaults, Hass, HistoryPoint, Mode, Status } from "./types";
 import { clone, errorMessage, formatStamp, normalizeConfig, pickLang, sameData, sortLogNewestFirst, validateSlots, WEEK_KEYS } from "./util";
-import { renderAlerts, renderQuickActions, renderRooms, renderSceneChips, renderShadowBanner, renderStove, type ViewCtx } from "./views";
+import { renderShadowBanner, type ViewCtx } from "./views";
 
 type Tab = "overview" | "rooms" | "schedule" | "scenes" | "house" | "log";
 const TABS: { id: Tab; icon: string }[] = [
@@ -64,6 +67,7 @@ export class WaermeregiePanel extends LitElement {
     _busy: { state: true },
     _actionError: { state: true },
     _modeConfirm: { state: true },
+    _history: { state: true },
   };
 
   declare hass: Hass;
@@ -81,6 +85,9 @@ export class WaermeregiePanel extends LitElement {
   declare _busy: boolean;
   declare _actionError: string | null;
   declare _modeConfirm: Mode | null;
+  /** Verlauf für die Grafik; null = nicht verfügbar */
+  declare _history: HistoryPoint[] | null;
+  private _historyTimer: number | undefined;
 
   private _unsub: (() => void) | null = null;
   private _connection: unknown = null;
@@ -100,6 +107,7 @@ export class WaermeregiePanel extends LitElement {
     this._busy = false;
     this._actionError = null;
     this._modeConfirm = null;
+    this._history = null;
   }
 
   private get _lang(): Lang {
@@ -141,11 +149,13 @@ export class WaermeregiePanel extends LitElement {
     super.connectedCallback();
     window.addEventListener("beforeunload", this._beforeUnload);
     if (this.hass) this._ensureData();
+    this._historyTimer = window.setInterval(() => void this._loadHistory(), 10 * 60 * 1000);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("beforeunload", this._beforeUnload);
+    window.clearInterval(this._historyTimer);
     this._unsub?.();
     this._unsub = null;
     this._connection = null;
@@ -169,6 +179,7 @@ export class WaermeregiePanel extends LitElement {
         (s) => (this._status = s),
         (e) => (this._loadError = errorMessage(e)),
       );
+      void this._loadHistory();
     }
     if (!this._saved && !this._loading && !this._loadError) void this._load();
   }
@@ -185,6 +196,15 @@ export class WaermeregiePanel extends LitElement {
       this._loadError = errorMessage(e) || this._t("load_error");
     } finally {
       this._loading = false;
+    }
+  }
+
+  private async _loadHistory() {
+    if (!this.hass?.connection) return;
+    try {
+      this._history = await loadHistory(this.hass, 24);
+    } catch {
+      this._history = null; // ältere Version ohne Verlauf: Grafik ausblenden
     }
   }
 
@@ -349,7 +369,7 @@ export class WaermeregiePanel extends LitElement {
             @config-changed=${onChange}
           ></wr-scenes-editor>`;
       case "house":
-        return html`${adminHint}<wr-house-editor
+        return html`${adminHint}${this._renderModeSwitch()}<wr-house-editor
             .hass=${common.hass}
             .config=${common.config}
             .defaults=${common.defaults}
@@ -380,7 +400,7 @@ export class WaermeregiePanel extends LitElement {
     }
     return html`
       <div class="stack">
-        ${renderShadowBanner(ctx)}
+        ${renderShadowBanner(ctx, true)}
         ${this._actionError
           ? html`<div class="banner error" role="alert">
               <ha-icon icon="mdi:alert-circle-outline"></ha-icon>
@@ -388,31 +408,33 @@ export class WaermeregiePanel extends LitElement {
               <button class="icon" aria-label=${t("close")} @click=${() => (this._actionError = null)}><ha-icon icon="mdi:close"></ha-icon></button>
             </div>`
           : nothing}
-        <div class="top">
-          <div class="card">
-            <h3>${t("scene.title")}</h3>
-            ${renderSceneChips(ctx, (id) => this._action(() => setOverride(this.hass, id, 180)))}
-            <div class="hint">${t("scene.override_hint")}</div>
+        ${renderAlertStrip(ctx)}
+        <div class="card hero">
+          <div class="hero-grid ${this._history?.length ? "" : "solo"}">
+            <div class="hero-left">
+              ${renderHeroHead(ctx)}
+              <wr-controls
+                .hass=${this.hass}
+                .status=${this._status}
+                .config=${this._saved}
+                .lang=${this._lang}
+                @wr-status=${(e: CustomEvent<Status>) => (this._status = e.detail)}
+              ></wr-controls>
+            </div>
+            ${this._history?.length
+              ? html`<div class="hero-chart">
+                  <h4>${t("chart.title")}</h4>
+                  ${renderTrendChart(this._history, t, this._lang, { height: 170 })}
+                </div>`
+              : nothing}
           </div>
-          ${this._renderModeSwitch()}
         </div>
         <div class="mid">
-          ${renderStove(ctx, { timeline: true })}
-          <div class="card">
-            <h3>${t("actions.title")}</h3>
-            ${renderQuickActions(ctx, {
-              boost: () => this._action(() => setBoost(this.hass, 1, 60)),
-              pause: () => this._action(() => setPause(this.hass, 120)),
-              clear: () => this._action(() => clearOverrides(this.hass, this._status)),
-            })}
-          </div>
-          <div class="card">
-            <h3>${t("alerts.title")}</h3>
-            ${renderAlerts(ctx, { showEmpty: true })}
-          </div>
+          ${renderPellets(ctx, () => this._action(() => pelletsRefill(this.hass)))}
+          ${renderStoveCard(ctx)}
         </div>
-        <h3 style="margin:8px 0 0">${t("rooms.title")}</h3>
-        ${renderRooms(ctx)}
+        <h3 style="margin:4px 0 -6px">${t("rooms.title")}</h3>
+        ${renderRoomTiles(ctx)}
       </div>
     `;
   }
@@ -424,8 +446,9 @@ export class WaermeregiePanel extends LitElement {
     const ask = (m: Mode) => {
       if (m !== mode) this._modeConfirm = m;
     };
-    return html`<div class="card mode">
+    return html`<div class="card mode" style="margin-bottom:16px">
       <h3>${t("mode.label")}</h3>
+      <div class="hint">${t("house.mode_hint")}</div>
       <div class="seg" role="radiogroup" aria-label=${t("mode.label")}>
         ${(["shadow", "active"] as Mode[]).map(
           (m) => html`<button
@@ -497,6 +520,10 @@ export class WaermeregiePanel extends LitElement {
 
   static override styles = [
     baseStyles,
+    artStyles,
+    chartStyles,
+    tankStyles,
+    overviewStyles,
     css`
       :host {
         display: flex;
@@ -574,10 +601,24 @@ export class WaermeregiePanel extends LitElement {
         flex-direction: column;
         gap: 16px;
       }
-      .top {
+      .hero-grid {
         display: grid;
-        gap: 16px;
-        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        gap: 16px 24px;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+        align-items: center;
+      }
+      .hero-grid.solo {
+        grid-template-columns: minmax(0, 560px);
+      }
+      .hero-left {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .hero-chart h4 {
+        color: var(--wr-text2);
+        font-weight: 500;
+        margin-bottom: 4px;
       }
       .mid {
         display: grid;
@@ -585,8 +626,8 @@ export class WaermeregiePanel extends LitElement {
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
         align-items: start;
       }
-      @media (max-width: 760px) {
-        .top {
+      @media (max-width: 860px) {
+        .hero-grid {
           grid-template-columns: minmax(0, 1fr);
         }
       }
@@ -668,6 +709,7 @@ export class WaermeregiePanel extends LitElement {
   ];
 }
 
+defineControls();
 if (!customElements.get("waermeregie-panel")) customElements.define("waermeregie-panel", WaermeregiePanel);
 
 declare global {

@@ -1,6 +1,6 @@
 # Handbuch: Wärmeregie
 
-> ⚠️ **Version 0.1.** Die Wärmeregie startet im **Schattenbetrieb**: Sie rechnet und schreibt ins Protokoll, was sie tun würde, schaltet aber nichts. Noch nicht mit echter Hardware getestet. Alle Bilder stammen aus einer simulierten Test-Instanz mit erfundenen Werten.
+> ⚠️ **Version 0.5.** Die Wärmeregie startet im **Schattenbetrieb**: Sie rechnet und schreibt ins Protokoll, was sie tun würde, schaltet aber nichts. Noch nicht mit echter Hardware getestet. Alle Bilder stammen aus einer simulierten Test-Instanz mit erfundenen Werten.
 
 ## Wofür
 Ein Pelletofen ohne Pufferspeicher taktet leicht: Sind die Heizkörperventile zu, wird das Wasser schnell heiß, der Ofen geht aus und bald wieder an. Die Wärmeregie steuert Ofen und Heizkörper gemeinsam, damit der Ofen **seltener, aber länger** brennt und die Wärme auch wirklich in die Räume kommt.
@@ -24,13 +24,17 @@ Ein Pelletofen ohne Pufferspeicher taktet leicht: Sind die Heizkörperventile zu
 
 **Geräte pausieren:** Auf der Raum-Seite hat jedes Gerät einen Pausieren-Knopf. Ein pausiertes Gerät bleibt eingetragen, wird aber nicht verwendet (grauer Punkt). Ein oranger Punkt heißt „nicht verfügbar“; mit *Nicht verfügbare pausieren* sind alle auf einmal still, bis sie wieder gehen.
 
-**Tipp zu Fühlern:** Heizkörperthermostate messen am Heizkörper und zeigen oft zu warm. Ein eigener Raumfühler bekommt deshalb ein höheres Gewicht (z. B. 2), das Thermostat ein niedriges (z. B. 0,5).
+**Tipp zu Fühlern:** Heizkörperthermostate messen am Heizkörper und zeigen oft zu warm, besonders während geheizt wird. Ein eigener Raumfühler bekommt deshalb ein höheres Gewicht (z. B. 2), das Thermostat ein niedriges (z. B. 0,5).
+
+**Korrektur:** Misst ein Fühler immer etwas daneben, trägst du neben dem Gewicht eine *Korrektur* ein (−5 bis +5 °C). −1 heißt: Der Fühler zeigt 1 °C zu viel. Am besten alle Fühler einen Tag nebeneinander laufen lassen und mit einem guten Thermometer vergleichen. Gute Raumfühler: 1,2 bis 1,5 m hoch an einer Innenwand, nicht über dem Heizkörper, nicht in der Sonne, weit weg vom Ofen.
 
 ## Was die Wärmeregie tut
 - **Heizblock starten**, wenn die Räume (gewichtet nach Wichtigkeit) mindestens 0,5 K unter Ziel sind.
 - **Mindestens 90 Minuten brennen**, dann aus, sobald das Ziel um 0,3 K überschritten ist (höchstens 5 Stunden).
 - **Mindestens 60 Minuten Pause** nach jedem Block, **höchstens 4 Starts** pro Tag. Frostschutz geht immer.
+- **Sanfter Start:** Vor dem Zünden gehen zuerst die Heizkörper auf, 5 Minuten später zündet der Ofen (Phase *Heizkörper öffnen*). Ohne Pufferspeicher wird das Wasser sonst so schnell heiß, dass der Ofen gleich wieder selbst abschaltet.
 - **Während eines Blocks** werden die Heizkörper 1 K über Ziel gestellt, damit sie öffnen und die Wärme abnehmen.
+- **Ofen schaltet selbst ab:** Wird das Wasser trotzdem zu heiß (ab 50 °C), schaltet der Ofen selbst ab und zündet nach dem Abkühlen wieder. Die Wärmeregie wartet darauf bis zu 30 Minuten, statt den Block zu beenden, und zählt das nicht als neuen Start.
 - **Fenster/Tür offen:** bis 2 Minuten nichts; danach Heizkörper des Raums auf Frostschutz; ab 10 Minuten kein neuer Ofenstart und eine Nachricht. Ist im Raum laut Meldern niemand, kommt die Nachricht schon nach 1 Minute (z. B. wenn der Hund die Tür aufstößt).
 - **Nach dem Lüften:** Ist das Fenster wieder zu, zählt der Raum noch 20 Minuten nicht für den Ofenstart (Parameter *Nach dem Lüften warten*). So springt der Ofen nicht an, nur weil die Luft am Fenster kurz kalt ist. War es nur kurz offen (unter 2 Minuten), gilt das nicht.
 - **Sensor kurz weg:** Ist ein Fühler, Fenster oder Melder kurz nicht erreichbar (bei Zigbee häufig ein, zwei Minuten), gilt bis zu 30 Minuten sein letzter Wert. Ein offenes Fenster bleibt offen. Danach zählt ein Fenster als zu und ein Fühler wird weggelassen.
@@ -45,10 +49,17 @@ Alle Zeiten und Schwellen lassen sich unter *Ofen & Haus* ändern, aber nur inne
 ## Bedienen
 ![Übersicht](bilder/uebersicht.png)
 
-- **Szene von Hand:** in der Übersicht antippen. Im Panel und in der Karte gilt sie 3 Stunden, über die Entität *Szene* bis zum nächsten Wechsel im Zeitplan. Danach wieder automatisch.
-- **+1 °C für 1 Stunde**, **Ofen 2 Stunden pausieren**, **Aufheben**.
-- Für Automationen und Sprachassistenten gibt es Entitäten (*Phase*, *Aktive Szene*, *Tagesart*, *Starts heute*, *Wärmebedarf*, *Heizblock*, *Öffnung offen*, *Szene*, *Steuerung aktiv*) und Dienste (`waermeregie.set_scene`, `clear_scene`, `pause_stove`, `boost`).
-- **Dashboard-Karte:** im Dashboard *Karte hinzufügen → Wärmeregie* (oder im YAML `type: custom:waermeregie-card`, optional `rooms: [wohnzimmer]`, `title`, `show_actions: false`).
+Oben steht die mittlere Temperatur im Haus mit dem Ziel und dem Verlauf der letzten 24 Stunden (Linie = drinnen, gestrichelt = Ziel, Flächen = Ofen brennt). Darunter Pellets, Ofen und Räume. Selten Gebrauchtes (Starts heute, Wasser, Zündungen, Tagesablauf) steht beim Ofen unter *Details*.
+
+- **Aufheizen:** Der Ofen startet einen ganzen Heizblock, auch wenn es gerade warm genug ist oder „Abwesend“ gilt, und alle Heizkörper gehen auf. Wähle *für 1 h / 90 min / 2 h / 3 h* oder **„Ich komme um …“**: Dann beginnt die Wärmeregie rechtzeitig vorher (Standard 60 Minuten) und hält das Haus nach der Ankunft noch eine Stunde warm. Es gelten die Ziele der Aufheiz-Szene (Standard: Komfort) plus 1 °C. Mindestpause, Starts pro Tag, offene Türen und Störungen gelten weiter. Abbrechen mit dem × neben „Aufheizen bis …“.
+- **Szene:** Knopf in der Mitte, die Auswahl öffnet sich. Im Panel und in der Karte gilt sie 3 Stunden, über die Entität *Szene* bis zum nächsten Wechsel im Zeitplan. Danach wieder automatisch. Dort auch *+1 °C für 1 Stunde* und *Alles von Hand aufheben*.
+- **Pause:** Ofen 1, 2 oder 4 Stunden nicht starten.
+- **Pellets:** Füllstand als Grafik, *Sack nachgefüllt* direkt darunter.
+- Für Automationen und Sprachassistenten gibt es Entitäten (*Phase*, *Aktive Szene*, *Tagesart*, *Starts heute*, *Wärmebedarf*, *Heizblock*, *Öffnung offen*, *Szene*, *Steuerung aktiv*, Knopf *Haus aufheizen*) und Dienste (`waermeregie.set_scene`, `clear_scene`, `pause_stove`, `boost`, `warmup`, `cancel_warmup`).
+- **Beispiel Heimweg:** Automation „Wenn mein Handy die Zone *Büro* verlässt → Dienst `waermeregie.warmup` mit `minutes: 90`“, oder per Siri den Knopf *Haus aufheizen* drücken.
+- **Dashboard-Karte:** im Dashboard *Karte hinzufügen → Wärmeregie* (oder im YAML `type: custom:waermeregie-card`, optional `rooms: [wohnzimmer]`, `title`, `show_actions: false`, `chart: false`, `show_pellets: false`, `show_rooms: false`).
+
+![Aufheizen](bilder/aufheizen.png)
 
 ![Karte](bilder/karte.png)
 
@@ -71,9 +82,9 @@ Die Schätzung ist anfangs grob (Startwert 1,5 kg/h) und wird mit jedem leeren B
 - **Schattenbetrieb** (ab Werk): nichts wird geschaltet. Im **Protokoll** steht, was die Wärmeregie getan hätte (orange markiert). Empfehlung: 2–3 Wochen beobachten.
 
 ![Protokoll](bilder/protokoll.png)
-- **Aktiver Betrieb:** im Panel umschalten (mit Bestätigung) oder Schalter *Steuerung aktiv*. Dann übernimmt die Wärmeregie die Steuerung: Ofen ein/aus mit Block-Sollwert, Leistungsstufe, Heizkörper-Sollwerte, und sie schaltet Chrono und Eco des Ofens aus, damit nur eine Stelle steuert.
+- **Aktiver Betrieb:** im Panel unter *Ofen & Haus* ganz oben umschalten (mit Bestätigung) oder Schalter *Steuerung aktiv*. Dann übernimmt die Wärmeregie die Steuerung: Ofen ein/aus mit Block-Sollwert, Leistungsstufe, Heizkörper-Sollwerte, und sie schaltet Chrono und Eco des Ofens aus, damit nur eine Stelle steuert.
 - Sind Chrono oder Eco des Ofens **nicht** zugeordnet, bitte am Ofen selbst ausschalten. Sind sie zugeordnet, zeigt das Panel im Schattenbetrieb einen Hinweis, wenn sie an sind.
-- Schaltet jemand den Ofen von Hand ein, übernimmt die Wärmeregie das als Heizblock. Geht er von selbst aus, merkt sie das und hält die Pause ein.
+- Schaltet jemand den Ofen von Hand ein, übernimmt die Wärmeregie das als Heizblock. Geht er aus (von Hand, oder von selbst bei kaltem Wasser), merkt sie das und hält die Pause ein.
 
 ## Wenn etwas nicht geht
 - **„… hat keine eindeutige ID“:** Die Entität stammt aus YAML ohne `unique_id` und kann nicht verwendet werden.

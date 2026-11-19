@@ -1,5 +1,5 @@
-var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&&`adoptedStyleSheets`in Document.prototype&&`replace`in CSSStyleSheet.prototype,n=Symbol(),r=/* @__PURE__ */ new WeakMap,i=class{constructor(e,t,r){if(this._$cssResult$=!0,r!==n)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=e,this.t=t}get styleSheet(){let e=this.o,n=this.t;if(t&&e===void 0){let t=n!==void 0&&n.length===1;t&&(e=r.get(n)),e===void 0&&((this.o=e=new CSSStyleSheet).replaceSync(this.cssText),t&&r.set(n,e))}return e}toString(){return this.cssText}},a=e=>new i(typeof e==`string`?e:e+``,void 0,n),o=(e,...t)=>new i(e.length===1?e[0]:t.reduce((t,n,r)=>t+(e=>{if(!0===e._$cssResult$)return e.cssText;if(typeof e==`number`)return e;throw Error(`Value passed to 'css' function must be a 'css' function result: `+e+`. Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.`)})(n)+e[r+1],e[0]),e,n),s=(n,r)=>{if(t)n.adoptedStyleSheets=r.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(let t of r){let r=document.createElement(`style`),i=e.litNonce;i!==void 0&&r.setAttribute(`nonce`,i),r.textContent=t.cssText,n.appendChild(r)}},c=t?e=>e:e=>e instanceof CSSStyleSheet?(e=>{let t=``;for(let n of e.cssRules)t+=n.cssText;return a(t)})(e):e,{is:l,defineProperty:u,getOwnPropertyDescriptor:d,getOwnPropertyNames:ee,getOwnPropertySymbols:te,getPrototypeOf:ne}=Object,f=globalThis,re=f.trustedTypes,ie=re?re.emptyScript:``,ae=f.reactiveElementPolyfillSupport,p=(e,t)=>e,m={toAttribute(e,t){switch(t){case Boolean:e=e?ie:null;break;case Object:case Array:e=e==null?e:JSON.stringify(e)}return e},fromAttribute(e,t){let n=e;switch(t){case Boolean:n=e!==null;break;case Number:n=e===null?null:Number(e);break;case Object:case Array:try{n=JSON.parse(e)}catch{n=null}}return n}},oe=(e,t)=>!l(e,t),se={attribute:!0,type:String,converter:m,reflect:!1,useDefault:!1,hasChanged:oe};Symbol.metadata??=Symbol(`metadata`),f.litPropertyMetadata??=/* @__PURE__ */ new WeakMap;var h=class extends HTMLElement{static addInitializer(e){this._$Ei(),(this.l??=[]).push(e)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(e,t=se){if(t.state&&(t.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(e)&&((t=Object.create(t)).wrapped=!0),this.elementProperties.set(e,t),!t.noAccessor){let n=Symbol(),r=this.getPropertyDescriptor(e,n,t);r!==void 0&&u(this.prototype,e,r)}}static getPropertyDescriptor(e,t,n){let{get:r,set:i}=d(this.prototype,e)??{get(){return this[t]},set(e){this[t]=e}};return{get:r,set(t){let a=r?.call(this);i?.call(this,t),this.requestUpdate(e,a,n)},configurable:!0,enumerable:!0}}static getPropertyOptions(e){return this.elementProperties.get(e)??se}static _$Ei(){if(this.hasOwnProperty(p(`elementProperties`)))return;let e=ne(this);e.finalize(),e.l!==void 0&&(this.l=[...e.l]),this.elementProperties=new Map(e.elementProperties)}static finalize(){if(this.hasOwnProperty(p(`finalized`)))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(p(`properties`))){let e=this.properties,t=[...ee(e),...te(e)];for(let n of t)this.createProperty(n,e[n])}let e=this[Symbol.metadata];if(e!==null){let t=litPropertyMetadata.get(e);if(t!==void 0)for(let[e,n]of t)this.elementProperties.set(e,n)}this._$Eh=/* @__PURE__ */ new Map;for(let[e,t]of this.elementProperties){let n=this._$Eu(e,t);n!==void 0&&this._$Eh.set(n,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(e){let t=[];if(Array.isArray(e)){let n=new Set(e.flat(1/0).reverse());for(let e of n)t.unshift(c(e))}else e!==void 0&&t.push(c(e));return t}static _$Eu(e,t){let n=t.attribute;return!1===n?void 0:typeof n==`string`?n:typeof e==`string`?e.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(e=>this.enableUpdating=e),this._$AL=/* @__PURE__ */ new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(e=>e(this))}addController(e){(this._$EO??=/* @__PURE__ */ new Set).add(e),this.renderRoot!==void 0&&this.isConnected&&e.hostConnected?.()}removeController(e){this._$EO?.delete(e)}_$E_(){let e=/* @__PURE__ */ new Map,t=this.constructor.elementProperties;for(let n of t.keys())this.hasOwnProperty(n)&&(e.set(n,this[n]),delete this[n]);e.size>0&&(this._$Ep=e)}createRenderRoot(){let e=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return s(e,this.constructor.elementStyles),e}connectedCallback(){this.renderRoot??=this.createRenderRoot(),this.enableUpdating(!0),this._$EO?.forEach(e=>e.hostConnected?.())}enableUpdating(e){}disconnectedCallback(){this._$EO?.forEach(e=>e.hostDisconnected?.())}attributeChangedCallback(e,t,n){this._$AK(e,n)}_$ET(e,t){let n=this.constructor.elementProperties.get(e),r=this.constructor._$Eu(e,n);if(r!==void 0&&!0===n.reflect){let i=(n.converter?.toAttribute===void 0?m:n.converter).toAttribute(t,n.type);this._$Em=e,i==null?this.removeAttribute(r):this.setAttribute(r,i),this._$Em=null}}_$AK(e,t){let n=this.constructor,r=n._$Eh.get(e);if(r!==void 0&&this._$Em!==r){let e=n.getPropertyOptions(r),i=typeof e.converter==`function`?{fromAttribute:e.converter}:e.converter?.fromAttribute===void 0?m:e.converter;this._$Em=r;let a=i.fromAttribute(t,e.type);this[r]=a??this._$Ej?.get(r)??a,this._$Em=null}}requestUpdate(e,t,n,r=!1,i){if(e!==void 0){let a=this.constructor;if(!1===r&&(i=this[e]),n??=a.getPropertyOptions(e),!((n.hasChanged??oe)(i,t)||n.useDefault&&n.reflect&&i===this._$Ej?.get(e)&&!this.hasAttribute(a._$Eu(e,n))))return;this.C(e,t,n)}!1===this.isUpdatePending&&(this._$ES=this._$EP())}C(e,t,{useDefault:n,reflect:r,wrapped:i},a){n&&!(this._$Ej??=/* @__PURE__ */ new Map).has(e)&&(this._$Ej.set(e,a??t??this[e]),!0!==i||a!==void 0)||(this._$AL.has(e)||(this.hasUpdated||n||(t=void 0),this._$AL.set(e,t)),!0===r&&this._$Em!==e&&(this._$Eq??=/* @__PURE__ */ new Set).add(e))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}let e=this.scheduleUpdate();return e!=null&&await e,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??=this.createRenderRoot(),this._$Ep){for(let[e,t]of this._$Ep)this[e]=t;this._$Ep=void 0}let e=this.constructor.elementProperties;if(e.size>0)for(let[t,n]of e){let{wrapped:e}=n,r=this[t];!0!==e||this._$AL.has(t)||r===void 0||this.C(t,void 0,n,r)}}let e=!1,t=this._$AL;try{e=this.shouldUpdate(t),e?(this.willUpdate(t),this._$EO?.forEach(e=>e.hostUpdate?.()),this.update(t)):this._$EM()}catch(t){throw e=!1,this._$EM(),t}e&&this._$AE(t)}willUpdate(e){}_$AE(e){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(e)),this.updated(e)}_$EM(){this._$AL=/* @__PURE__ */ new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(e){return!0}update(e){this._$Eq&&=this._$Eq.forEach(e=>this._$ET(e,this[e])),this._$EM()}updated(e){}firstUpdated(e){}};h.elementStyles=[],h.shadowRootOptions={mode:`open`},h[p(`elementProperties`)]=/* @__PURE__ */ new Map,h[p(`finalized`)]=/* @__PURE__ */ new Map,ae?.({ReactiveElement:h}),(f.reactiveElementVersions??=[]).push(`2.1.2`);var g=globalThis,ce=e=>e,_=g.trustedTypes,v=_?_.createPolicy(`lit-html`,{createHTML:e=>e}):void 0,y=`$lit$`,b=`lit$${Math.random().toFixed(9).slice(2)}$`,le=`?`+b,ue=`<${le}>`,x=document,S=()=>x.createComment(``),C=e=>e===null||typeof e!=`object`&&typeof e!=`function`,w=Array.isArray,de=e=>w(e)||typeof e?.[Symbol.iterator]==`function`,T=`[ 	
-\f\r]`,E=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,fe=/-->/g,pe=/>/g,D=RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,`g`),O=/'/g,me=/"/g,he=/^(?:script|style|textarea|title)$/i,k=(e=>(t,...n)=>({_$litType$:e,strings:t,values:n}))(1),A=Symbol.for(`lit-noChange`),j=Symbol.for(`lit-nothing`),ge=/* @__PURE__ */ new WeakMap,M=x.createTreeWalker(x,129);function _e(e,t){if(!w(e)||!e.hasOwnProperty(`raw`))throw Error(`invalid template strings array`);return v===void 0?t:v.createHTML(t)}var ve=(e,t)=>{let n=e.length-1,r=[],i,a=t===2?`<svg>`:t===3?`<math>`:``,o=E;for(let t=0;t<n;t++){let n=e[t],s,c,l=-1,u=0;for(;u<n.length&&(o.lastIndex=u,c=o.exec(n),c!==null);)u=o.lastIndex,o===E?c[1]===`!--`?o=fe:c[1]===void 0?c[2]===void 0?c[3]!==void 0&&(o=D):(he.test(c[2])&&(i=RegExp(`</`+c[2],`g`)),o=D):o=pe:o===D?c[0]===`>`?(o=i??E,l=-1):c[1]===void 0?l=-2:(l=o.lastIndex-c[2].length,s=c[1],o=c[3]===void 0?D:c[3]===`"`?me:O):o===me||o===O?o=D:o===fe||o===pe?o=E:(o=D,i=void 0);let d=o===D&&e[t+1].startsWith(`/>`)?` `:``;a+=o===E?n+ue:l>=0?(r.push(s),n.slice(0,l)+y+n.slice(l)+b+d):n+b+(l===-2?t:d)}return[_e(e,a+(e[n]||`<?>`)+(t===2?`</svg>`:t===3?`</math>`:``)),r]},N=class e{constructor({strings:t,_$litType$:n},r){let i;this.parts=[];let a=0,o=0,s=t.length-1,c=this.parts,[l,u]=ve(t,n);if(this.el=e.createElement(l,r),M.currentNode=this.el.content,n===2||n===3){let e=this.el.content.firstChild;e.replaceWith(...e.childNodes)}for(;(i=M.nextNode())!==null&&c.length<s;){if(i.nodeType===1){if(i.hasAttributes())for(let e of i.getAttributeNames())if(e.endsWith(y)){let t=u[o++],n=i.getAttribute(e).split(b),r=/([.?@])?(.*)/.exec(t);c.push({type:1,index:a,name:r[2],strings:n,ctor:r[1]===`.`?be:r[1]===`?`?xe:r[1]===`@`?Se:I}),i.removeAttribute(e)}else e.startsWith(b)&&(c.push({type:6,index:a}),i.removeAttribute(e));if(he.test(i.tagName)){let e=i.textContent.split(b),t=e.length-1;if(t>0){i.textContent=_?_.emptyScript:``;for(let n=0;n<t;n++)i.append(e[n],S()),M.nextNode(),c.push({type:2,index:++a});i.append(e[t],S())}}}else if(i.nodeType===8){if(i.data===le)c.push({type:2,index:a});else{let e=-1;for(;(e=i.data.indexOf(b,e+1))!==-1;)c.push({type:7,index:a}),e+=b.length-1}}a++}}static createElement(e,t){let n=x.createElement(`template`);return n.innerHTML=e,n}};function P(e,t,n=e,r){if(t===A)return t;let i=r===void 0?n._$Cl:n._$Co?.[r],a=C(t)?void 0:t._$litDirective$;return i?.constructor!==a&&(i?._$AO?.(!1),a===void 0?i=void 0:(i=new a(e),i._$AT(e,n,r)),r===void 0?n._$Cl=i:(n._$Co??=[])[r]=i),i!==void 0&&(t=P(e,i._$AS(e,t.values),i,r)),t}var ye=class{constructor(e,t){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=t}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){let{el:{content:t},parts:n}=this._$AD,r=(e?.creationScope??x).importNode(t,!0);M.currentNode=r;let i=M.nextNode(),a=0,o=0,s=n[0];for(;s!==void 0;){if(a===s.index){let t;s.type===2?t=new F(i,i.nextSibling,this,e):s.type===1?t=new s.ctor(i,s.name,s.strings,this,e):s.type===6&&(t=new Ce(i,this,e)),this._$AV.push(t),s=n[++o]}a!==s?.index&&(i=M.nextNode(),a++)}return M.currentNode=x,r}p(e){let t=0;for(let n of this._$AV)n!==void 0&&(n.strings===void 0?n._$AI(e[t]):(n._$AI(e,n,t),t+=n.strings.length-2)),t++}},F=class e{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(e,t,n,r){this.type=2,this._$AH=j,this._$AN=void 0,this._$AA=e,this._$AB=t,this._$AM=n,this.options=r,this._$Cv=r?.isConnected??!0}get parentNode(){let e=this._$AA.parentNode,t=this._$AM;return t!==void 0&&e?.nodeType===11&&(e=t.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,t=this){e=P(this,e,t),C(e)?e===j||e==null||e===``?(this._$AH!==j&&this._$AR(),this._$AH=j):e!==this._$AH&&e!==A&&this._(e):e._$litType$===void 0?e.nodeType===void 0?de(e)?this.k(e):this._(e):this.T(e):this.$(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==j&&C(this._$AH)?this._$AA.nextSibling.data=e:this.T(x.createTextNode(e)),this._$AH=e}$(e){let{values:t,_$litType$:n}=e,r=typeof n==`number`?this._$AC(e):(n.el===void 0&&(n.el=N.createElement(_e(n.h,n.h[0]),this.options)),n);if(this._$AH?._$AD===r)this._$AH.p(t);else{let e=new ye(r,this),n=e.u(this.options);e.p(t),this.T(n),this._$AH=e}}_$AC(e){let t=ge.get(e.strings);return t===void 0&&ge.set(e.strings,t=new N(e)),t}k(t){w(this._$AH)||(this._$AH=[],this._$AR());let n=this._$AH,r,i=0;for(let a of t)i===n.length?n.push(r=new e(this.O(S()),this.O(S()),this,this.options)):r=n[i],r._$AI(a),i++;i<n.length&&(this._$AR(r&&r._$AB.nextSibling,i),n.length=i)}_$AR(e=this._$AA.nextSibling,t){for(this._$AP?.(!1,!0,t);e!==this._$AB;){let t=ce(e).nextSibling;ce(e).remove(),e=t}}setConnected(e){this._$AM===void 0&&(this._$Cv=e,this._$AP?.(e))}},I=class{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,t,n,r,i){this.type=1,this._$AH=j,this._$AN=void 0,this.element=e,this.name=t,this._$AM=r,this.options=i,n.length>2||n[0]!==``||n[1]!==``?(this._$AH=Array(n.length-1).fill(/* @__PURE__ */ new String),this.strings=n):this._$AH=j}_$AI(e,t=this,n,r){let i=this.strings,a=!1;if(i===void 0)e=P(this,e,t,0),a=!C(e)||e!==this._$AH&&e!==A,a&&(this._$AH=e);else{let r=e,o,s;for(e=i[0],o=0;o<i.length-1;o++)s=P(this,r[n+o],t,o),s===A&&(s=this._$AH[o]),a||=!C(s)||s!==this._$AH[o],s===j?e=j:e!==j&&(e+=(s??``)+i[o+1]),this._$AH[o]=s}a&&!r&&this.j(e)}j(e){e===j?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??``)}},be=class extends I{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===j?void 0:e}},xe=class extends I{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==j)}},Se=class extends I{constructor(e,t,n,r,i){super(e,t,n,r,i),this.type=5}_$AI(e,t=this){if((e=P(this,e,t,0)??j)===A)return;let n=this._$AH,r=e===j&&n!==j||e.capture!==n.capture||e.once!==n.once||e.passive!==n.passive,i=e!==j&&(n===j||r);r&&this.element.removeEventListener(this.name,this,n),i&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){typeof this._$AH==`function`?this._$AH.call(this.options?.host??this.element,e):this._$AH.handleEvent(e)}},Ce=class{constructor(e,t,n){this.element=e,this.type=6,this._$AN=void 0,this._$AM=t,this.options=n}get _$AU(){return this._$AM._$AU}_$AI(e){P(this,e)}},we=g.litHtmlPolyfillSupport;we?.(N,F),(g.litHtmlVersions??=[]).push(`3.3.3`);var Te=(e,t,n)=>{let r=n?.renderBefore??t,i=r._$litPart$;if(i===void 0){let e=n?.renderBefore??null;r._$litPart$=i=new F(t.insertBefore(S(),e),e,void 0,n??{})}return i._$AI(e),i},L=globalThis,R=class extends h{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){let e=super.createRenderRoot();return this.renderOptions.renderBefore??=e.firstChild,e}update(e){let t=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(e),this._$Do=Te(t,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return A}};R._$litElement$=!0,R.finalized=!0,L.litElementHydrateSupport?.({LitElement:R});var Ee=L.litElementPolyfillSupport;Ee?.({LitElement:R}),(L.litElementVersions??=[]).push(`4.2.2`);var De=e=>e.callWS({type:`waermeregie/config`}),z=(e,t,n=180)=>e.callWS(t===null?{type:`waermeregie/override`,scene:null}:{type:`waermeregie/override`,scene:t,minutes:n}),B=(e,t)=>e.callWS({type:`waermeregie/pause`,minutes:t}),Oe=(e,t,n)=>e.callWS({type:`waermeregie/boost`,delta:t,minutes:n});function ke(e,t,n){let r=null,i=!1;return e.connection.subscribeMessage(t,{type:`waermeregie/subscribe`}).then(e=>{i?e():r=e}).catch(e=>n?.(e)),()=>{if(i=!0,r)try{Promise.resolve(r()).catch(()=>void 0)}catch{}r=null}}async function Ae(e,t){let n=t?.overrides,r=!n,i=null;return(r||n?.scene||t?.scene?.source===`override`)&&(i=await z(e,null)),(r||n?.pause_until)&&(i=await B(e,0)),(r||n?.boost)&&(i=await Oe(e,0,0)),i}var je={title:`Wärmeregie`,"tab.overview":`Übersicht`,"tab.rooms":`Räume`,"tab.schedule":`Tagesablauf`,"tab.scenes":`Szenen`,"tab.house":`Ofen & Haus`,"tab.log":`Protokoll`,menu:`Menü`,loading:`Wird geladen …`,load_error:`Die Daten von Wärmeregie konnten nicht geladen werden.`,retry:`Erneut versuchen`,not_admin:`Nur Administratoren können das ändern.`,error:`Fehler`,close:`Schließen`,cancel:`Abbrechen`,delete:`Löschen`,add:`Hinzufügen`,remove:`Entfernen`,none:`–`,id:`Kennung`,"mode.shadow_banner":`Schattenbetrieb: es wird nichts geschaltet`,"mode.shadow_banner_hint":`Wärmeregie rechnet nur mit und zeigt, was es tun würde. Ofen und Heizkörper bleiben unberührt.`,"mode.label":`Betriebsart`,"mode.shadow":`Schatten`,"mode.active":`Aktiv`,"mode.confirm_active":`Auf „Aktiv“ umschalten? Dann schaltet Wärmeregie den Ofen und stellt die Heizkörper selbst.`,"mode.confirm_shadow":`Auf „Schatten“ umschalten? Dann wird nichts mehr geschaltet, Wärmeregie rechnet nur noch mit.`,"mode.confirm_yes_active":`Ja, aktiv schalten`,"mode.confirm_yes_shadow":`Ja, nur noch mitrechnen`,"scene.title":`Szene`,"scene.auto":`Automatisch`,"scene.auto_hint":`nach Tagesablauf`,"scene.override_until":`von Hand bis {time}`,"scene.next_change":`nächster Wechsel {time}`,"scene.override_hint":`Eine Szene gilt nach dem Antippen für 3 Stunden.`,"day_type.today":`Heute: {name}`,"stove.title":`Ofen`,"stove.phase.idle":`Bereit`,"stove.phase.block":`Heizblock läuft`,"stove.phase.pause":`Pause`,"stove.phase.blocked":`Gesperrt`,"stove.action.start":`möchte starten`,"stove.action.stop":`möchte ausschalten`,"stove.action.keep":`keine Änderung`,"stove.burning":`brennt`,"stove.not_burning":`brennt nicht`,"stove.unavailable":`Ofen nicht erreichbar`,"stove.starts_today":`Starts heute`,"stove.pause_until":`Pause bis`,"stove.block_since":`Heizblock seit`,"stove.reason":`Grund`,"stove.chrono_warning":`Das Zeitprogramm (Chrono) des Ofens ist an. Im aktiven Betrieb schaltet Wärmeregie es aus; im Schattenbetrieb bitte selbst darauf achten.`,"stove.eco_warning":`Eco ist am Ofen eingeschaltet. Im aktiven Betrieb schaltet Wärmeregie es aus.`,"stove.error":`Der Ofen meldet eine Störung. Solange startet Wärmeregie ihn nicht.`,"stove.error_short":`Störung`,"stove.power_level":`Leistungsstufe`,"stove.water":`Wasser`,"stove.ignitions":`Zündungen`,"stove.no_status":`Noch kein Ofenstatus.`,"house.outdoor":`Außen`,"house.deficit":`Wärmebedarf`,"rooms.title":`Räume`,"room.current":`Ist`,"room.target":`Ziel`,"room.radiator":`Heizkörper`,"room.open":`offen`,"room.open_for":`offen seit {time}`,"room.occupied":`belegt`,"room.empty":`leer`,"room.sensors_missing":`{n} Fühler fehlen`,"room.sensor_missing":`1 Fühler fehlt`,"room.too_cold":`zu kalt`,"rooms.none":`Noch keine Räume eingerichtet.`,"alerts.title":`Hinweise`,"alerts.none":`Alles in Ordnung.`,"actions.title":`Schnellaktionen`,"actions.boost":`+1 °C für 1 Stunde`,"actions.boost_short":`+1 °C`,"actions.pause":`Ofen 2 Stunden pausieren`,"actions.pause_short":`Pause 2 h`,"actions.clear":`Aufheben`,"actions.clear_hint":`Hebt Szene von Hand, Pause und +1 °C auf.`,"actions.boost_active":`+{delta} °C aktiv`,"actions.pause_active":`Ofen pausiert bis {time}`,"actions.done":`Erledigt.`,"editor.unsaved":`Ungespeicherte Änderungen`,"editor.saved":`Alles gespeichert`,"editor.save":`Speichern`,"editor.saving":`Speichert …`,"editor.discard":`Verwerfen`,"editor.save_error":`Speichern fehlgeschlagen: {message}`,"editor.save_ok":`Gespeichert.`,"editor.fix_errors":`Bitte zuerst die rot markierten Angaben korrigieren.`,"editor.leave_warning":`Es gibt ungespeicherte Änderungen.`,"rooms.add_placeholder":`Name des neuen Raums, z. B. Wohnzimmer`,"rooms.add":`Raum hinzufügen`,"rooms.select":`Raum auswählen`,"room.name":`Name`,"room.importance":`Wichtigkeit`,"room.importance_hint":`Wichtige Räume zählen stärker, wenn entschieden wird, ob der Ofen startet.`,"importance.1":`niedrig`,"importance.2":`mittel`,"importance.3":`hoch`,"room.radiators":`Heizkörperthermostate`,"room.radiators_hint":`Thermostate in diesem Raum (z. B. Tado).`,"room.sensors":`Temperaturfühler`,"room.sensors_hint":`Wird kein Fühler gewählt, gilt die Temperatur der Thermostate. Das Gewicht bestimmt, wie stark ein Fühler zählt.`,"room.weight":`Gewicht`,"room.openings":`Fenster und Türen`,"room.openings_hint":`Ist etwas offen, wird hier nicht geheizt.`,"room.presence":`Anwesenheit`,"room.presence_hint":`Bewegungs- oder Anwesenheitsmelder. Optional.`,"room.targets":`Zieltemperaturen je Szene`,"room.targets_hint":`Leer lassen = Standardwert der Szene.`,"room.devices":`Geräte`,"room.devices_hint":`Pausierte Geräte bleiben eingetragen, werden aber nicht verwendet, z. B. wenn ein Melder offline ist.`,"room.recovering":`lüftet nach bis {time}`,"dev.pause":`Pausieren`,"dev.resume":`Wieder verwenden`,"dev.paused":`pausiert`,"dev.unavailable":`nicht verfügbar`,"dev.add":`Gerät hinzufügen`,"dev.open":`offen`,"dev.closed":`zu`,"dev.occupied":`belegt`,"dev.empty":`leer`,"dev.none":`keine`,"dev.unavail_count":`{n} Geräte nicht verfügbar`,"dev.unavail_one":`1 Gerät nicht verfügbar`,"dev.pause_unavail":`Nicht verfügbare pausieren`,"dev.held":`kurz weg, letzter Wert gilt`,"dev.drops":`{n}× weg (24 h)`,"param.opening_check_min":`Fenster prüfen nach`,"param.opening_check_min_hint":`Meldet ein Fenster so lange offen und der Raum kühlt nicht ab, kommt ein Hinweis aufs Handy: Sensor prüfen. Der Raum bleibt trotzdem auf Frostschutz. 0 = aus.`,"param.sensor_hold_min":`Aussetzer überbrücken bis`,"param.sensor_hold_min_hint":`Ist ein Sensor kurz nicht erreichbar, gilt so lange sein letzter Wert. Ein offenes Fenster bleibt also offen. Danach zählt ein Fenster als zu und ein Fühler wird weggelassen. 0 = aus.`,"param.sensor_alert_min":`Ausfall melden nach`,"param.sensor_alert_min_hint":`Ist ein Sensor so lange nicht erreichbar, kommt eine Nachricht aufs Handy, höchstens einmal am Tag je Sensor. 0 = keine Nachricht.`,"param.opening_recovery_min":`Nach dem Lüften warten`,"param.opening_recovery_min_hint":`So lange zählt ein gelüfteter Raum nach dem Schließen nicht für den Ofenstart. Die Luft wird von selbst schnell wieder warm. 0 = aus.`,"room.delete":`Raum löschen`,"room.delete_confirm":`Raum „{name}“ wirklich löschen? Das lässt sich nach dem Speichern nicht rückgängig machen.`,"schedule.day_types":`Tagesarten`,"schedule.day_types_hint":`Eine Tagesart legt fest, ab wann welche Szene gilt. Vor dem ersten Zeitpunkt gilt die letzte Szene des Vortags.`,"schedule.add_placeholder":`Name der neuen Tagesart, z. B. Homeoffice`,"schedule.add":`Tagesart hinzufügen`,"schedule.slot_from":`ab`,"schedule.add_slot":`Zeitpunkt hinzufügen`,"schedule.week":`Woche`,"schedule.week_hint":`Welche Tagesart gilt an welchem Tag?`,"schedule.delete_day_type":`Tagesart löschen`,"schedule.delete_confirm":`Tagesart „{name}“ wirklich löschen?`,"schedule.in_use":`Wird in der Woche verwendet ({days}). Bitte dort zuerst eine andere Tagesart wählen.`,"schedule.no_scenes":`Bitte zuerst unter „Szenen“ eine Szene anlegen.`,"slot.time_format":`Uhrzeit bitte als HH:MM angeben.`,"slot.not_ascending":`Die Zeiten müssen aufsteigend sein.`,"slot.scene_missing":`Bitte eine Szene wählen.`,"slot.scene_unknown":`Diese Szene gibt es nicht mehr.`,"slot.empty":`Mindestens ein Zeitpunkt ist nötig.`,"week.mon":`Montag`,"week.tue":`Dienstag`,"week.wed":`Mittwoch`,"week.thu":`Donnerstag`,"week.fri":`Freitag`,"week.sat":`Samstag`,"week.sun":`Sonntag`,"week.holiday":`Feiertag`,"week.unset":`– bitte wählen –`,"scenes.title":`Szenen`,"scenes.hint":`Eine Szene ist ein Wärmewunsch, z. B. Komfort oder Sparen.`,"scenes.add_placeholder":`Name der neuen Szene, z. B. Komfort`,"scenes.add":`Szene hinzufügen`,"scene.name":`Name`,"scene.icon":`Symbol`,"scene.icon_hint":`z. B. mdi:sofa`,"scene.stove":`Ofen`,"scene.stove.allow":`darf heizen`,"scene.stove.frost_only":`nur gegen Kälte (Frost/Nacht)`,"scene.stove.deny":`bleibt aus`,"scene.default_target":`Standardziel`,"scene.delete":`Szene löschen`,"scene.delete_confirm":`Szene „{name}“ wirklich löschen? Eigene Zieltemperaturen der Räume für diese Szene werden entfernt.`,"scene.in_use":`Wird im Tagesablauf verwendet ({names}). Bitte dort zuerst ersetzen.`,"scenes.matrix":`Zieltemperaturen Raum × Szene`,"scenes.matrix_hint":`Leere Felder verwenden das Standardziel der Szene.`,"scenes.none":`Noch keine Szenen.`,"house.stove":`Ofen`,"house.stove_climate":`Ofen-Thermostat`,"house.stove_climate_hint":`Pflicht. Die Thermostat-Entität des Pelletofens.`,"house.stove_climate_active_hint":`Ohne Ofen-Thermostat kann Wärmeregie nur im Schattenbetrieb laufen.`,"house.power":`Leistungsstufe`,"house.power_hint":`Optional. Auswahl- oder Zahl-Entität für die Stufe 1 bis 5.`,"house.stove_functions":`Ofen-Funktionen`,"house.stove_functions_hint":`Im aktiven Betrieb schaltet Wärmeregie das Zeitprogramm (Chrono) und Eco des Ofens aus und wählt die Leistungsstufe selbst. Im Schattenbetrieb gibt es nur Hinweise.`,"house.chrono_switch":`Zeitprogramm (Chrono)`,"house.chrono_switch_hint":`Optional. Schalter für das eigene Zeitprogramm des Ofens.`,"house.eco_switch":`Eco`,"house.eco_switch_hint":`Optional. Schalter für den Eco-Modus des Ofens.`,"house.error_sensor":`Störung`,"house.error_sensor_hint":`Optional. Meldet der Ofen eine Störung, wird er nicht gestartet.`,"house.water_sensor":`Wassertemperatur`,"house.water_sensor_hint":`Optional. Nur zur Anzeige.`,"house.ignitions_sensor":`Zündzähler`,"house.ignitions_sensor_hint":`Optional. Nur zur Anzeige.`,"house.environment":`Wetter und Kalender`,"house.weather":`Wetter`,"house.weather_hint":`Optional. Für die Vorhersage.`,"house.outdoor_sensor":`Außenfühler`,"house.outdoor_sensor_hint":`Optional. Genauer als die Wettervorhersage.`,"house.workday":`Arbeitstag`,"house.workday_hint":`Optional. Erkennt Feiertage (Integration „Arbeitstag“).`,"house.people":`Bewohner`,"house.persons":`Personen`,"house.persons_hint":`Ist niemand zu Hause, wird gespart.`,"house.pet":`Haustier`,"house.pet_hint":`Optional. Ist ein Tier zu Hause, wird nicht unter die Frostgrenze abgesenkt.`,"house.notify":`Benachrichtigungen`,"house.notify_hint":`Wohin sollen Hinweise geschickt werden?`,"house.notify_none":`Keine Benachrichtigungsdienste gefunden.`,"house.notify_unknown":`nicht mehr vorhanden`,"house.parameters":`Regelwerte`,"house.parameters_hint":`Die Voreinstellungen passen für die meisten Häuser. Nur ändern, wenn nötig.`,"house.out_of_range":`Erlaubt: {min} bis {max}`,"pgroup.stove":`Ofen starten und stoppen`,"pgroup.openings":`Fenster und Türen`,"pgroup.sensors":`Ausfall von Sensoren`,"pgroup.radiators":`Heizkörper`,"pgroup.limits":`Untergrenzen`,"pgroup.presence":`Anwesenheit`,"pgroup.pellets":`Pellets`,"param.pellet_bag_kg":`Gewicht eines Sacks`,"param.pellet_bag_kg_hint":`So viel zählt der Knopf „Sack Pellets nachgefüllt“ dazu.`,"param.pellet_capacity_kg":`Fassungsvermögen des Behälters`,"param.pellet_capacity_kg_hint":`Mehr passt nicht hinein; der Vorrat wird darauf begrenzt.`,"param.pellet_rate_kg_h":`Verbrauch pro Brennstunde (Startwert)`,"param.pellet_rate_kg_h_hint":`Gilt, bis die Wärmeregie aus einem leeren Behälter den echten Wert gelernt hat.`,"param.pellet_reminder_kg":`Erinnern ab Vorrat`,"param.pellet_reminder_kg_hint":`Fällt die Schätzung darunter, kommt eine Nachricht.`,"stove.pellets":`Pellets`,"stove.pellets_empty":`leer`,"pgroup.power":`Leistungsstufe`,"pgroup.other":`Weitere`,"param.start_below_k":`Start, wenn so viel unter Ziel`,"param.start_below_k_hint":`Der Ofen startet erst, wenn die Wohnräume so viel kälter als gewünscht sind.`,"param.stop_above_k":`Stopp, wenn so viel über Ziel`,"param.stop_above_k_hint":`Der Heizblock endet, wenn es so viel wärmer als gewünscht ist.`,"param.min_burn_min":`Kürzeste Brenndauer`,"param.min_burn_min_hint":`Ein Heizblock läuft mindestens so lange. Schont den Ofen.`,"param.max_burn_min":`Längste Brenndauer`,"param.max_burn_min_hint":`Danach wird ein Heizblock immer beendet.`,"param.min_pause_min":`Kürzeste Pause`,"param.min_pause_min_hint":`So lange bleibt der Ofen nach einem Heizblock mindestens aus.`,"param.max_starts_per_day":`Starts pro Tag höchstens`,"param.max_starts_per_day_hint":`Wenige lange Heizblöcke sind besser als häufiges An und Aus.`,"param.opening_grace_min":`Kurz lüften erlaubt`,"param.opening_grace_min_hint":`So lange darf ein Fenster offen sein, ohne dass etwas passiert.`,"param.opening_stop_min":`Ofen stoppt bei offenem Fenster nach`,"param.opening_stop_min_hint":`Bleibt ein Fenster länger offen, wird der Heizblock beendet.`,"param.opening_empty_room_min":`Leerer Raum: Heizkörper zu nach`,"param.opening_empty_room_min_hint":`In einem leeren Raum mit offenem Fenster wird der Heizkörper schon so früh abgedreht.`,"param.radiator_boost_k":`Heizkörper-Vorlauf`,"param.radiator_boost_k_hint":`Während der Ofen brennt, werden die Heizkörper so viel höher gestellt.`,"param.frost_c":`Frostgrenze`,"param.frost_c_hint":`Kälter darf es nie werden. Gilt auch bei Szenen, in denen der Ofen sonst aus bleibt.`,"param.night_floor_c":`Nachtuntergrenze`,"param.night_floor_c_hint":`Nachts wird mindestens auf diese Temperatur geheizt.`,"param.stove_block_setpoint_c":`Ofen-Sollwert im Heizblock`,"param.stove_block_setpoint_c_hint":`Auf diesen Wert wird das Ofen-Thermostat gestellt, damit er sicher durchbrennt.`,"param.presence_empty_min":`Raum gilt als leer nach`,"param.presence_empty_min_hint":`So lange ohne Bewegung, dann gilt ein Raum als leer.`,"param.power_min":`Kleinste Leistungsstufe`,"param.power_min_hint":`Mit dieser Stufe läuft ein Heizblock bei mildem Wetter (1 bis 5).`,"param.power_max":`Größte Leistungsstufe`,"param.power_max_hint":`Höchste Stufe, die Wärmeregie wählt (1 bis 5).`,"param.power_cold_c":`Volle Leistung unter`,"param.power_cold_c_hint":`Ist es draußen kälter, wird die größte Leistungsstufe gewählt.`,"log.title":`Protokoll`,"log.empty":`Noch keine Einträge.`,"log.shadow":`Schatten`,"log.shadow_hint":`Nur berechnet, nicht geschaltet`,"picker.search":`Suchen …`,"picker.no_results":`Keine passenden Entitäten.`,"picker.show_all":`auch andere Arten anzeigen`,"picker.missing":`nicht gefunden`,"picker.more":`Weitere Treffer – bitte genauer suchen.`,"card.name":`Wärmeregie`,"card.description":`Ofen, Szene und Räume auf einen Blick.`,"card.no_rooms":`Keine Räume ausgewählt.`,"card.open_panel":`Wärmeregie öffnen`},Me={title:`Wärmeregie`,"tab.overview":`Overview`,"tab.rooms":`Rooms`,"tab.schedule":`Schedule`,"tab.scenes":`Scenes`,"tab.house":`Stove & house`,"tab.log":`Log`,menu:`Menu`,loading:`Loading …`,load_error:`Could not load Wärmeregie data.`,retry:`Try again`,not_admin:`Only administrators can change this.`,error:`Error`,close:`Close`,cancel:`Cancel`,delete:`Delete`,add:`Add`,remove:`Remove`,none:`–`,id:`ID`,"mode.shadow_banner":`Shadow mode: nothing is being switched`,"mode.shadow_banner_hint":`Wärmeregie only calculates and shows what it would do. Stove and radiators are left alone.`,"mode.label":`Mode`,"mode.shadow":`Shadow`,"mode.active":`Active`,"mode.confirm_active":`Switch to “Active”? Wärmeregie will then control the stove and set the radiators.`,"mode.confirm_shadow":`Switch to “Shadow”? Nothing will be switched any more, Wärmeregie only calculates.`,"mode.confirm_yes_active":`Yes, go active`,"mode.confirm_yes_shadow":`Yes, only calculate`,"scene.title":`Scene`,"scene.auto":`Automatic`,"scene.auto_hint":`by schedule`,"scene.override_until":`manual until {time}`,"scene.next_change":`next change {time}`,"scene.override_hint":`A tapped scene applies for 3 hours.`,"day_type.today":`Today: {name}`,"stove.title":`Stove`,"stove.phase.idle":`Ready`,"stove.phase.block":`Heating block running`,"stove.phase.pause":`Pause`,"stove.phase.blocked":`Blocked`,"stove.action.start":`wants to start`,"stove.action.stop":`wants to stop`,"stove.action.keep":`no change`,"stove.burning":`burning`,"stove.not_burning":`not burning`,"stove.unavailable":`Stove not reachable`,"stove.starts_today":`Starts today`,"stove.pause_until":`Pause until`,"stove.block_since":`Block since`,"stove.reason":`Reason`,"stove.chrono_warning":`The stove's own timer (chrono) is on. In active mode Wärmeregie switches it off; in shadow mode please keep an eye on it yourself.`,"stove.eco_warning":`Eco is switched on at the stove. In active mode Wärmeregie switches it off.`,"stove.error":`The stove reports a fault. Wärmeregie will not start it until it is cleared.`,"stove.error_short":`Fault`,"stove.power_level":`Power level`,"stove.water":`Water`,"stove.ignitions":`Ignitions`,"stove.no_status":`No stove status yet.`,"house.outdoor":`Outdoor`,"house.deficit":`Heat demand`,"rooms.title":`Rooms`,"room.current":`Now`,"room.target":`Target`,"room.radiator":`Radiator`,"room.open":`open`,"room.open_for":`open for {time}`,"room.occupied":`occupied`,"room.empty":`empty`,"room.sensors_missing":`{n} sensors missing`,"room.sensor_missing":`1 sensor missing`,"room.too_cold":`too cold`,"rooms.none":`No rooms set up yet.`,"alerts.title":`Notices`,"alerts.none":`All fine.`,"actions.title":`Quick actions`,"actions.boost":`+1 °C for 1 hour`,"actions.boost_short":`+1 °C`,"actions.pause":`Pause stove for 2 hours`,"actions.pause_short":`Pause 2 h`,"actions.clear":`Cancel`,"actions.clear_hint":`Cancels manual scene, pause and +1 °C.`,"actions.boost_active":`+{delta} °C active`,"actions.pause_active":`Stove paused until {time}`,"actions.done":`Done.`,"editor.unsaved":`Unsaved changes`,"editor.saved":`All saved`,"editor.save":`Save`,"editor.saving":`Saving …`,"editor.discard":`Discard`,"editor.save_error":`Saving failed: {message}`,"editor.save_ok":`Saved.`,"editor.fix_errors":`Please fix the entries marked in red first.`,"editor.leave_warning":`There are unsaved changes.`,"rooms.add_placeholder":`Name of the new room, e.g. Living room`,"rooms.add":`Add room`,"rooms.select":`Select room`,"room.name":`Name`,"room.importance":`Importance`,"room.importance_hint":`Important rooms count more when deciding whether the stove starts.`,"importance.1":`low`,"importance.2":`medium`,"importance.3":`high`,"room.radiators":`Radiator thermostats`,"room.radiators_hint":`Thermostats in this room (e.g. Tado).`,"room.sensors":`Temperature sensors`,"room.sensors_hint":`Without a sensor the thermostat temperature is used. The weight sets how much a sensor counts.`,"room.weight":`Weight`,"room.openings":`Windows and doors`,"room.openings_hint":`While something is open, this room is not heated.`,"room.presence":`Presence`,"room.presence_hint":`Motion or presence sensors. Optional.`,"room.targets":`Target temperature per scene`,"room.targets_hint":`Leave empty = scene default.`,"room.devices":`Devices`,"room.devices_hint":`Paused devices stay configured but are not used, e.g. while a sensor is offline.`,"room.recovering":`recovering from airing until {time}`,"dev.pause":`Pause`,"dev.resume":`Use again`,"dev.paused":`paused`,"dev.unavailable":`unavailable`,"dev.add":`Add device`,"dev.open":`open`,"dev.closed":`closed`,"dev.occupied":`occupied`,"dev.empty":`empty`,"dev.none":`none`,"dev.unavail_count":`{n} devices unavailable`,"dev.unavail_one":`1 device unavailable`,"dev.pause_unavail":`Pause unavailable ones`,"dev.held":`briefly gone, last value used`,"dev.drops":`{n}× gone (24 h)`,"param.opening_check_min":`Check windows after`,"param.opening_check_min_hint":`If a window reports open this long and the room does not cool down, a notice is sent to the phone: check the sensor. The room still stays on frost protection. 0 = off.`,"param.sensor_hold_min":`Bridge dropouts for up to`,"param.sensor_hold_min_hint":`If a sensor is briefly unreachable, its last value is used this long. An open window stays open. After that a window counts as closed and a temperature sensor is left out. 0 = off.`,"param.sensor_alert_min":`Report outage after`,"param.sensor_alert_min_hint":`If a sensor is unreachable this long, a message is sent to the phone, at most once a day per sensor. 0 = no message.`,"param.opening_recovery_min":`Wait after airing`,"param.opening_recovery_min_hint":`For this long after closing, an aired room does not count for starting the stove. The air warms up again quickly by itself. 0 = off.`,"room.delete":`Delete room`,"room.delete_confirm":`Really delete room “{name}”? This cannot be undone after saving.`,"schedule.day_types":`Day types`,"schedule.day_types_hint":`A day type sets from when which scene applies. Before the first time, the last scene of the previous day applies.`,"schedule.add_placeholder":`Name of the new day type, e.g. Home office`,"schedule.add":`Add day type`,"schedule.slot_from":`from`,"schedule.add_slot":`Add time`,"schedule.week":`Week`,"schedule.week_hint":`Which day type applies on which day?`,"schedule.delete_day_type":`Delete day type`,"schedule.delete_confirm":`Really delete day type “{name}”?`,"schedule.in_use":`Used in the week ({days}). Please choose another day type there first.`,"schedule.no_scenes":`Please create a scene under “Scenes” first.`,"slot.time_format":`Please enter the time as HH:MM.`,"slot.not_ascending":`Times must be in ascending order.`,"slot.scene_missing":`Please choose a scene.`,"slot.scene_unknown":`This scene no longer exists.`,"slot.empty":`At least one time is required.`,"week.mon":`Monday`,"week.tue":`Tuesday`,"week.wed":`Wednesday`,"week.thu":`Thursday`,"week.fri":`Friday`,"week.sat":`Saturday`,"week.sun":`Sunday`,"week.holiday":`Holiday`,"week.unset":`– please choose –`,"scenes.title":`Scenes`,"scenes.hint":`A scene is a heat wish, e.g. comfort or eco.`,"scenes.add_placeholder":`Name of the new scene, e.g. Comfort`,"scenes.add":`Add scene`,"scene.name":`Name`,"scene.icon":`Icon`,"scene.icon_hint":`e.g. mdi:sofa`,"scene.stove":`Stove`,"scene.stove.allow":`may heat`,"scene.stove.frost_only":`only against cold (frost/night)`,"scene.stove.deny":`stays off`,"scene.default_target":`Default target`,"scene.delete":`Delete scene`,"scene.delete_confirm":`Really delete scene “{name}”? Room targets for this scene will be removed.`,"scene.in_use":`Used in the schedule ({names}). Please replace it there first.`,"scenes.matrix":`Target temperatures room × scene`,"scenes.matrix_hint":`Empty fields use the scene default.`,"scenes.none":`No scenes yet.`,"house.stove":`Stove`,"house.stove_climate":`Stove thermostat`,"house.stove_climate_hint":`Required. The thermostat entity of the pellet stove.`,"house.stove_climate_active_hint":`Without a stove thermostat Wärmeregie can only run in shadow mode.`,"house.power":`Power level`,"house.power_hint":`Optional. Select or number entity for level 1 to 5.`,"house.stove_functions":`Stove functions`,"house.stove_functions_hint":`In active mode Wärmeregie switches off the stove's own timer (chrono) and eco mode and chooses the power level itself. In shadow mode there are only notices.`,"house.chrono_switch":`Timer (chrono)`,"house.chrono_switch_hint":`Optional. Switch for the stove's own timer.`,"house.eco_switch":`Eco`,"house.eco_switch_hint":`Optional. Switch for the stove's eco mode.`,"house.error_sensor":`Fault`,"house.error_sensor_hint":`Optional. While the stove reports a fault, it is not started.`,"house.water_sensor":`Water temperature`,"house.water_sensor_hint":`Optional. Display only.`,"house.ignitions_sensor":`Ignition counter`,"house.ignitions_sensor_hint":`Optional. Display only.`,"house.environment":`Weather and calendar`,"house.weather":`Weather`,"house.weather_hint":`Optional. Used for the forecast.`,"house.outdoor_sensor":`Outdoor sensor`,"house.outdoor_sensor_hint":`Optional. More precise than the weather forecast.`,"house.workday":`Workday`,"house.workday_hint":`Optional. Detects holidays (“Workday” integration).`,"house.people":`Residents`,"house.persons":`Persons`,"house.persons_hint":`If nobody is home, energy is saved.`,"house.pet":`Pet`,"house.pet_hint":`Optional. If a pet is home, temperature is never lowered below the frost limit.`,"house.notify":`Notifications`,"house.notify_hint":`Where should notices be sent?`,"house.notify_none":`No notification services found.`,"house.notify_unknown":`no longer available`,"house.parameters":`Control values`,"house.parameters_hint":`The defaults suit most houses. Only change them if needed.`,"house.out_of_range":`Allowed: {min} to {max}`,"pgroup.stove":`Starting and stopping the stove`,"pgroup.openings":`Windows and doors`,"pgroup.sensors":`Sensor outages`,"pgroup.radiators":`Radiators`,"pgroup.limits":`Lower limits`,"pgroup.presence":`Presence`,"pgroup.pellets":`Pellets`,"param.pellet_bag_kg":`Weight of one bag`,"param.pellet_bag_kg_hint":`The button “Pellet bag refilled” adds this much.`,"param.pellet_capacity_kg":`Hopper capacity`,"param.pellet_capacity_kg_hint":`No more fits in; the stock is capped at this.`,"param.pellet_rate_kg_h":`Consumption per burn hour (start value)`,"param.pellet_rate_kg_h_hint":`Used until the real value is learned from an empty hopper.`,"param.pellet_reminder_kg":`Remind below`,"param.pellet_reminder_kg_hint":`When the estimate drops below this, a message is sent.`,"stove.pellets":`Pellets`,"stove.pellets_empty":`empty`,"pgroup.power":`Power level`,"pgroup.other":`Other`,"param.start_below_k":`Start when this far below target`,"param.start_below_k_hint":`The stove only starts when the living rooms are this much colder than wanted.`,"param.stop_above_k":`Stop when this far above target`,"param.stop_above_k_hint":`The heating block ends when it is this much warmer than wanted.`,"param.min_burn_min":`Shortest burn time`,"param.min_burn_min_hint":`A heating block runs at least this long. Easier on the stove.`,"param.max_burn_min":`Longest burn time`,"param.max_burn_min_hint":`After this a heating block always ends.`,"param.min_pause_min":`Shortest pause`,"param.min_pause_min_hint":`The stove stays off at least this long after a heating block.`,"param.max_starts_per_day":`Max starts per day`,"param.max_starts_per_day_hint":`A few long heating blocks are better than frequent on and off.`,"param.opening_grace_min":`Short airing allowed`,"param.opening_grace_min_hint":`A window may be open this long without anything happening.`,"param.opening_stop_min":`Stove stops with open window after`,"param.opening_stop_min_hint":`If a window stays open longer, the heating block ends.`,"param.opening_empty_room_min":`Empty room: radiator off after`,"param.opening_empty_room_min_hint":`In an empty room with an open window the radiator is turned down this early.`,"param.radiator_boost_k":`Radiator lead`,"param.radiator_boost_k_hint":`While the stove burns, radiators are set this much higher.`,"param.frost_c":`Frost limit`,"param.frost_c_hint":`It never gets colder than this, even in scenes where the stove otherwise stays off.`,"param.night_floor_c":`Night minimum`,"param.night_floor_c_hint":`At night it is heated to at least this temperature.`,"param.stove_block_setpoint_c":`Stove setpoint during block`,"param.stove_block_setpoint_c_hint":`The stove thermostat is set to this value so it keeps burning.`,"param.presence_empty_min":`Room counts as empty after`,"param.presence_empty_min_hint":`After this long without motion a room counts as empty.`,"param.power_min":`Lowest power level`,"param.power_min_hint":`A heating block runs at this level in mild weather (1 to 5).`,"param.power_max":`Highest power level`,"param.power_max_hint":`Highest level Wärmeregie will choose (1 to 5).`,"param.power_cold_c":`Full power below`,"param.power_cold_c_hint":`If it is colder outside, the highest power level is chosen.`,"log.title":`Log`,"log.empty":`No entries yet.`,"log.shadow":`Shadow`,"log.shadow_hint":`Only calculated, not switched`,"picker.search":`Search …`,"picker.no_results":`No matching entities.`,"picker.show_all":`also show other kinds`,"picker.missing":`not found`,"picker.more":`More results – please refine your search.`,"card.name":`Wärmeregie`,"card.description":`Stove, scene and rooms at a glance.`,"card.no_rooms":`No rooms selected.`,"card.open_panel":`Open Wärmeregie`};function Ne(e,t,n){let r=(e===`en`?Me[t]:void 0)??je[t]??t;if(n)for(let[e,t]of Object.entries(n))r=r.split(`{${e}}`).join(String(t));return r}function Pe(e){return(t,n)=>Ne(e,t,n)}var Fe=o`
+var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&&`adoptedStyleSheets`in Document.prototype&&`replace`in CSSStyleSheet.prototype,n=Symbol(),r=/* @__PURE__ */ new WeakMap,i=class{constructor(e,t,r){if(this._$cssResult$=!0,r!==n)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=e,this.t=t}get styleSheet(){let e=this.o,n=this.t;if(t&&e===void 0){let t=n!==void 0&&n.length===1;t&&(e=r.get(n)),e===void 0&&((this.o=e=new CSSStyleSheet).replaceSync(this.cssText),t&&r.set(n,e))}return e}toString(){return this.cssText}},a=e=>new i(typeof e==`string`?e:e+``,void 0,n),o=(e,...t)=>new i(e.length===1?e[0]:t.reduce((t,n,r)=>t+(e=>{if(!0===e._$cssResult$)return e.cssText;if(typeof e==`number`)return e;throw Error(`Value passed to 'css' function must be a 'css' function result: `+e+`. Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.`)})(n)+e[r+1],e[0]),e,n),s=(n,r)=>{if(t)n.adoptedStyleSheets=r.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(let t of r){let r=document.createElement(`style`),i=e.litNonce;i!==void 0&&r.setAttribute(`nonce`,i),r.textContent=t.cssText,n.appendChild(r)}},c=t?e=>e:e=>e instanceof CSSStyleSheet?(e=>{let t=``;for(let n of e.cssRules)t+=n.cssText;return a(t)})(e):e,{is:l,defineProperty:u,getOwnPropertyDescriptor:d,getOwnPropertyNames:f,getOwnPropertySymbols:p,getPrototypeOf:m}=Object,h=globalThis,g=h.trustedTypes,ee=g?g.emptyScript:``,te=h.reactiveElementPolyfillSupport,_=(e,t)=>e,v={toAttribute(e,t){switch(t){case Boolean:e=e?ee:null;break;case Object:case Array:e=e==null?e:JSON.stringify(e)}return e},fromAttribute(e,t){let n=e;switch(t){case Boolean:n=e!==null;break;case Number:n=e===null?null:Number(e);break;case Object:case Array:try{n=JSON.parse(e)}catch{n=null}}return n}},ne=(e,t)=>!l(e,t),y={attribute:!0,type:String,converter:v,reflect:!1,useDefault:!1,hasChanged:ne};Symbol.metadata??=Symbol(`metadata`),h.litPropertyMetadata??=/* @__PURE__ */ new WeakMap;var b=class extends HTMLElement{static addInitializer(e){this._$Ei(),(this.l??=[]).push(e)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(e,t=y){if(t.state&&(t.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(e)&&((t=Object.create(t)).wrapped=!0),this.elementProperties.set(e,t),!t.noAccessor){let n=Symbol(),r=this.getPropertyDescriptor(e,n,t);r!==void 0&&u(this.prototype,e,r)}}static getPropertyDescriptor(e,t,n){let{get:r,set:i}=d(this.prototype,e)??{get(){return this[t]},set(e){this[t]=e}};return{get:r,set(t){let a=r?.call(this);i?.call(this,t),this.requestUpdate(e,a,n)},configurable:!0,enumerable:!0}}static getPropertyOptions(e){return this.elementProperties.get(e)??y}static _$Ei(){if(this.hasOwnProperty(_(`elementProperties`)))return;let e=m(this);e.finalize(),e.l!==void 0&&(this.l=[...e.l]),this.elementProperties=new Map(e.elementProperties)}static finalize(){if(this.hasOwnProperty(_(`finalized`)))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(_(`properties`))){let e=this.properties,t=[...f(e),...p(e)];for(let n of t)this.createProperty(n,e[n])}let e=this[Symbol.metadata];if(e!==null){let t=litPropertyMetadata.get(e);if(t!==void 0)for(let[e,n]of t)this.elementProperties.set(e,n)}this._$Eh=/* @__PURE__ */ new Map;for(let[e,t]of this.elementProperties){let n=this._$Eu(e,t);n!==void 0&&this._$Eh.set(n,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(e){let t=[];if(Array.isArray(e)){let n=new Set(e.flat(1/0).reverse());for(let e of n)t.unshift(c(e))}else e!==void 0&&t.push(c(e));return t}static _$Eu(e,t){let n=t.attribute;return!1===n?void 0:typeof n==`string`?n:typeof e==`string`?e.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(e=>this.enableUpdating=e),this._$AL=/* @__PURE__ */ new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(e=>e(this))}addController(e){(this._$EO??=/* @__PURE__ */ new Set).add(e),this.renderRoot!==void 0&&this.isConnected&&e.hostConnected?.()}removeController(e){this._$EO?.delete(e)}_$E_(){let e=/* @__PURE__ */ new Map,t=this.constructor.elementProperties;for(let n of t.keys())this.hasOwnProperty(n)&&(e.set(n,this[n]),delete this[n]);e.size>0&&(this._$Ep=e)}createRenderRoot(){let e=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return s(e,this.constructor.elementStyles),e}connectedCallback(){this.renderRoot??=this.createRenderRoot(),this.enableUpdating(!0),this._$EO?.forEach(e=>e.hostConnected?.())}enableUpdating(e){}disconnectedCallback(){this._$EO?.forEach(e=>e.hostDisconnected?.())}attributeChangedCallback(e,t,n){this._$AK(e,n)}_$ET(e,t){let n=this.constructor.elementProperties.get(e),r=this.constructor._$Eu(e,n);if(r!==void 0&&!0===n.reflect){let i=(n.converter?.toAttribute===void 0?v:n.converter).toAttribute(t,n.type);this._$Em=e,i==null?this.removeAttribute(r):this.setAttribute(r,i),this._$Em=null}}_$AK(e,t){let n=this.constructor,r=n._$Eh.get(e);if(r!==void 0&&this._$Em!==r){let e=n.getPropertyOptions(r),i=typeof e.converter==`function`?{fromAttribute:e.converter}:e.converter?.fromAttribute===void 0?v:e.converter;this._$Em=r;let a=i.fromAttribute(t,e.type);this[r]=a??this._$Ej?.get(r)??a,this._$Em=null}}requestUpdate(e,t,n,r=!1,i){if(e!==void 0){let a=this.constructor;if(!1===r&&(i=this[e]),n??=a.getPropertyOptions(e),!((n.hasChanged??ne)(i,t)||n.useDefault&&n.reflect&&i===this._$Ej?.get(e)&&!this.hasAttribute(a._$Eu(e,n))))return;this.C(e,t,n)}!1===this.isUpdatePending&&(this._$ES=this._$EP())}C(e,t,{useDefault:n,reflect:r,wrapped:i},a){n&&!(this._$Ej??=/* @__PURE__ */ new Map).has(e)&&(this._$Ej.set(e,a??t??this[e]),!0!==i||a!==void 0)||(this._$AL.has(e)||(this.hasUpdated||n||(t=void 0),this._$AL.set(e,t)),!0===r&&this._$Em!==e&&(this._$Eq??=/* @__PURE__ */ new Set).add(e))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}let e=this.scheduleUpdate();return e!=null&&await e,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??=this.createRenderRoot(),this._$Ep){for(let[e,t]of this._$Ep)this[e]=t;this._$Ep=void 0}let e=this.constructor.elementProperties;if(e.size>0)for(let[t,n]of e){let{wrapped:e}=n,r=this[t];!0!==e||this._$AL.has(t)||r===void 0||this.C(t,void 0,n,r)}}let e=!1,t=this._$AL;try{e=this.shouldUpdate(t),e?(this.willUpdate(t),this._$EO?.forEach(e=>e.hostUpdate?.()),this.update(t)):this._$EM()}catch(t){throw e=!1,this._$EM(),t}e&&this._$AE(t)}willUpdate(e){}_$AE(e){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(e)),this.updated(e)}_$EM(){this._$AL=/* @__PURE__ */ new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(e){return!0}update(e){this._$Eq&&=this._$Eq.forEach(e=>this._$ET(e,this[e])),this._$EM()}updated(e){}firstUpdated(e){}};b.elementStyles=[],b.shadowRootOptions={mode:`open`},b[_(`elementProperties`)]=/* @__PURE__ */ new Map,b[_(`finalized`)]=/* @__PURE__ */ new Map,te?.({ReactiveElement:b}),(h.reactiveElementVersions??=[]).push(`2.1.2`);var x=globalThis,S=e=>e,C=x.trustedTypes,re=C?C.createPolicy(`lit-html`,{createHTML:e=>e}):void 0,ie=`$lit$`,w=`lit$${Math.random().toFixed(9).slice(2)}$`,ae=`?`+w,oe=`<${ae}>`,T=document,E=()=>T.createComment(``),D=e=>e===null||typeof e!=`object`&&typeof e!=`function`,O=Array.isArray,se=e=>O(e)||typeof e?.[Symbol.iterator]==`function`,k=`[ 	
+\f\r]`,A=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,ce=/-->/g,le=/>/g,j=RegExp(`>|${k}(?:([^\\s"'>=/]+)(${k}*=${k}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,`g`),ue=/'/g,de=/"/g,fe=/^(?:script|style|textarea|title)$/i,pe=e=>(t,...n)=>({_$litType$:e,strings:t,values:n}),M=pe(1),N=pe(2),P=Symbol.for(`lit-noChange`),F=Symbol.for(`lit-nothing`),me=/* @__PURE__ */ new WeakMap,I=T.createTreeWalker(T,129);function he(e,t){if(!O(e)||!e.hasOwnProperty(`raw`))throw Error(`invalid template strings array`);return re===void 0?t:re.createHTML(t)}var ge=(e,t)=>{let n=e.length-1,r=[],i,a=t===2?`<svg>`:t===3?`<math>`:``,o=A;for(let t=0;t<n;t++){let n=e[t],s,c,l=-1,u=0;for(;u<n.length&&(o.lastIndex=u,c=o.exec(n),c!==null);)u=o.lastIndex,o===A?c[1]===`!--`?o=ce:c[1]===void 0?c[2]===void 0?c[3]!==void 0&&(o=j):(fe.test(c[2])&&(i=RegExp(`</`+c[2],`g`)),o=j):o=le:o===j?c[0]===`>`?(o=i??A,l=-1):c[1]===void 0?l=-2:(l=o.lastIndex-c[2].length,s=c[1],o=c[3]===void 0?j:c[3]===`"`?de:ue):o===de||o===ue?o=j:o===ce||o===le?o=A:(o=j,i=void 0);let d=o===j&&e[t+1].startsWith(`/>`)?` `:``;a+=o===A?n+oe:l>=0?(r.push(s),n.slice(0,l)+ie+n.slice(l)+w+d):n+w+(l===-2?t:d)}return[he(e,a+(e[n]||`<?>`)+(t===2?`</svg>`:t===3?`</math>`:``)),r]},L=class e{constructor({strings:t,_$litType$:n},r){let i;this.parts=[];let a=0,o=0,s=t.length-1,c=this.parts,[l,u]=ge(t,n);if(this.el=e.createElement(l,r),I.currentNode=this.el.content,n===2||n===3){let e=this.el.content.firstChild;e.replaceWith(...e.childNodes)}for(;(i=I.nextNode())!==null&&c.length<s;){if(i.nodeType===1){if(i.hasAttributes())for(let e of i.getAttributeNames())if(e.endsWith(ie)){let t=u[o++],n=i.getAttribute(e).split(w),r=/([.?@])?(.*)/.exec(t);c.push({type:1,index:a,name:r[2],strings:n,ctor:r[1]===`.`?ve:r[1]===`?`?ye:r[1]===`@`?be:B}),i.removeAttribute(e)}else e.startsWith(w)&&(c.push({type:6,index:a}),i.removeAttribute(e));if(fe.test(i.tagName)){let e=i.textContent.split(w),t=e.length-1;if(t>0){i.textContent=C?C.emptyScript:``;for(let n=0;n<t;n++)i.append(e[n],E()),I.nextNode(),c.push({type:2,index:++a});i.append(e[t],E())}}}else if(i.nodeType===8){if(i.data===ae)c.push({type:2,index:a});else{let e=-1;for(;(e=i.data.indexOf(w,e+1))!==-1;)c.push({type:7,index:a}),e+=w.length-1}}a++}}static createElement(e,t){let n=T.createElement(`template`);return n.innerHTML=e,n}};function R(e,t,n=e,r){if(t===P)return t;let i=r===void 0?n._$Cl:n._$Co?.[r],a=D(t)?void 0:t._$litDirective$;return i?.constructor!==a&&(i?._$AO?.(!1),a===void 0?i=void 0:(i=new a(e),i._$AT(e,n,r)),r===void 0?n._$Cl=i:(n._$Co??=[])[r]=i),i!==void 0&&(t=R(e,i._$AS(e,t.values),i,r)),t}var _e=class{constructor(e,t){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=t}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){let{el:{content:t},parts:n}=this._$AD,r=(e?.creationScope??T).importNode(t,!0);I.currentNode=r;let i=I.nextNode(),a=0,o=0,s=n[0];for(;s!==void 0;){if(a===s.index){let t;s.type===2?t=new z(i,i.nextSibling,this,e):s.type===1?t=new s.ctor(i,s.name,s.strings,this,e):s.type===6&&(t=new xe(i,this,e)),this._$AV.push(t),s=n[++o]}a!==s?.index&&(i=I.nextNode(),a++)}return I.currentNode=T,r}p(e){let t=0;for(let n of this._$AV)n!==void 0&&(n.strings===void 0?n._$AI(e[t]):(n._$AI(e,n,t),t+=n.strings.length-2)),t++}},z=class e{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(e,t,n,r){this.type=2,this._$AH=F,this._$AN=void 0,this._$AA=e,this._$AB=t,this._$AM=n,this.options=r,this._$Cv=r?.isConnected??!0}get parentNode(){let e=this._$AA.parentNode,t=this._$AM;return t!==void 0&&e?.nodeType===11&&(e=t.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,t=this){e=R(this,e,t),D(e)?e===F||e==null||e===``?(this._$AH!==F&&this._$AR(),this._$AH=F):e!==this._$AH&&e!==P&&this._(e):e._$litType$===void 0?e.nodeType===void 0?se(e)?this.k(e):this._(e):this.T(e):this.$(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==F&&D(this._$AH)?this._$AA.nextSibling.data=e:this.T(T.createTextNode(e)),this._$AH=e}$(e){let{values:t,_$litType$:n}=e,r=typeof n==`number`?this._$AC(e):(n.el===void 0&&(n.el=L.createElement(he(n.h,n.h[0]),this.options)),n);if(this._$AH?._$AD===r)this._$AH.p(t);else{let e=new _e(r,this),n=e.u(this.options);e.p(t),this.T(n),this._$AH=e}}_$AC(e){let t=me.get(e.strings);return t===void 0&&me.set(e.strings,t=new L(e)),t}k(t){O(this._$AH)||(this._$AH=[],this._$AR());let n=this._$AH,r,i=0;for(let a of t)i===n.length?n.push(r=new e(this.O(E()),this.O(E()),this,this.options)):r=n[i],r._$AI(a),i++;i<n.length&&(this._$AR(r&&r._$AB.nextSibling,i),n.length=i)}_$AR(e=this._$AA.nextSibling,t){for(this._$AP?.(!1,!0,t);e!==this._$AB;){let t=S(e).nextSibling;S(e).remove(),e=t}}setConnected(e){this._$AM===void 0&&(this._$Cv=e,this._$AP?.(e))}},B=class{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,t,n,r,i){this.type=1,this._$AH=F,this._$AN=void 0,this.element=e,this.name=t,this._$AM=r,this.options=i,n.length>2||n[0]!==``||n[1]!==``?(this._$AH=Array(n.length-1).fill(/* @__PURE__ */ new String),this.strings=n):this._$AH=F}_$AI(e,t=this,n,r){let i=this.strings,a=!1;if(i===void 0)e=R(this,e,t,0),a=!D(e)||e!==this._$AH&&e!==P,a&&(this._$AH=e);else{let r=e,o,s;for(e=i[0],o=0;o<i.length-1;o++)s=R(this,r[n+o],t,o),s===P&&(s=this._$AH[o]),a||=!D(s)||s!==this._$AH[o],s===F?e=F:e!==F&&(e+=(s??``)+i[o+1]),this._$AH[o]=s}a&&!r&&this.j(e)}j(e){e===F?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??``)}},ve=class extends B{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===F?void 0:e}},ye=class extends B{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==F)}},be=class extends B{constructor(e,t,n,r,i){super(e,t,n,r,i),this.type=5}_$AI(e,t=this){if((e=R(this,e,t,0)??F)===P)return;let n=this._$AH,r=e===F&&n!==F||e.capture!==n.capture||e.once!==n.once||e.passive!==n.passive,i=e!==F&&(n===F||r);r&&this.element.removeEventListener(this.name,this,n),i&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){typeof this._$AH==`function`?this._$AH.call(this.options?.host??this.element,e):this._$AH.handleEvent(e)}},xe=class{constructor(e,t,n){this.element=e,this.type=6,this._$AN=void 0,this._$AM=t,this.options=n}get _$AU(){return this._$AM._$AU}_$AI(e){R(this,e)}},Se=x.litHtmlPolyfillSupport;Se?.(L,z),(x.litHtmlVersions??=[]).push(`3.3.3`);var Ce=(e,t,n)=>{let r=n?.renderBefore??t,i=r._$litPart$;if(i===void 0){let e=n?.renderBefore??null;r._$litPart$=i=new z(t.insertBefore(E(),e),e,void 0,n??{})}return i._$AI(e),i},V=globalThis,H=class extends b{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){let e=super.createRenderRoot();return this.renderOptions.renderBefore??=e.firstChild,e}update(e){let t=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(e),this._$Do=Ce(t,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return P}};H._$litElement$=!0,H.finalized=!0,V.litElementHydrateSupport?.({LitElement:H});var we=V.litElementPolyfillSupport;we?.({LitElement:H}),(V.litElementVersions??=[]).push(`4.2.2`);var Te=e=>e.callWS({type:`waermeregie/config`}),U=(e,t,n=180)=>e.callWS(t===null?{type:`waermeregie/override`,scene:null}:{type:`waermeregie/override`,scene:t,minutes:n}),W=(e,t)=>e.callWS({type:`waermeregie/pause`,minutes:t}),G=(e,t,n)=>e.callWS({type:`waermeregie/boost`,delta:t,minutes:n}),Ee=(e,t)=>e.callWS({type:`waermeregie/warmup`,...t}),De=(e,t=24)=>e.callWS({type:`waermeregie/history`,hours:t}).then(e=>Array.isArray(e?.points)?e.points:[]);function Oe(e,t,n){let r=null,i=!1;return e.connection.subscribeMessage(t,{type:`waermeregie/subscribe`}).then(e=>{i?e():r=e}).catch(e=>n?.(e)),()=>{if(i=!0,r)try{Promise.resolve(r()).catch(()=>void 0)}catch{}r=null}}async function ke(e,t){let n=t?.overrides,r=!n,i=null;return(r||n?.scene||t?.scene?.source===`override`)&&(i=await U(e,null)),(r||n?.pause_until)&&(i=await W(e,0)),(r||n?.boost)&&(i=await G(e,0,0)),i}var K=1440,Ae=/^([01]\d|2[0-3]):([0-5]\d)$/;function je(e){let t=Ae.exec(String(e??``).trim());return t?Number(t[1])*60+Number(t[2]):null}function Me(e){let t=e.trim().replace(/[.,h ]/g,`:`),n,r,i=/^(\d{1,2}):(\d{1,2})$/.exec(t),a=/^(\d{1,4})$/.exec(t);if(i)n=Number(i[1]),r=Number(i[2]);else if(a){let e=a[1];n=Number(e.length<=2?e:e.slice(0,e.length-2)),r=e.length<=2?0:Number(e.slice(-2))}else return e;return n>23||r>59?e:`${String(n).padStart(2,`0`)}:${String(r).padStart(2,`0`)}`}function Ne(e){let t=(Math.floor(e)%K+K)%K;return`${String(Math.floor(t/60)).padStart(2,`0`)}:${String(t%60).padStart(2,`0`)}`}function Pe(e){return e.startsWith(`de`)?`,`:`.`}function q(e,t,n=1){if(e==null||!Number.isFinite(e))return`–`;let r=e.toFixed(n);return Pe(t)===`,`?r.replace(`.`,`,`):r}function Fe(e,t){let n=q(e,t,1);return n===`–`?n:`${n} °C`}var J=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/;function Y(e){if(!e)return`–`;let t=J.exec(e);if(t)return`${t[4]}:${t[5]}`;let n=je(e);return n===null?`–`:Ne(n)}function Ie(e,t){let n=e?J.exec(e):null;return n?t.startsWith(`de`)?`${n[3]}.${n[2]}.`:`${n[2]}/${n[3]}`:``}function Le(e){let t=e?J.exec(e):null;return t?`${t[1]}-${t[2]}-${t[3]}`:null}function Re(e){let t=e?J.exec(e):null;return t?Number(t[4])*60+Number(t[5]):null}function X(e,t,n){let r=Y(e);if(r===`–`)return r;let i=Le(e);if(i&&t&&i===Le(t))return r;let a=Ie(e,n);return a?`${a} ${r}`:r}function ze(e){let t=String(e??`de`).toLowerCase();return t.startsWith(`de`)||t===``?`de`:`en`}function Be(e){let t=e??{};return{...t,stove:{...t.stove??{},climate:t.stove?.climate??null,power:t.stove?.power??null,chrono_switch:t.stove?.chrono_switch??null,eco_switch:t.stove?.eco_switch??null,error_sensor:t.stove?.error_sensor??null,water_sensor:t.stove?.water_sensor??null,ignitions_sensor:t.stove?.ignitions_sensor??null},weather:t.weather??null,outdoor_sensor:t.outdoor_sensor??null,workday:t.workday??null,persons:t.persons??[],pet:t.pet??null,notify:t.notify??[],rooms:(t.rooms??[]).map(e=>({...e,importance:e.importance??2,radiators:e.radiators??[],temperature_sensors:(e.temperature_sensors??[]).map(e=>({...e,weight:e.weight??1,offset:e.offset??0})),openings:e.openings??[],presence:e.presence??[],paused:e.paused??[],targets:e.targets??{}})),scenes:t.scenes??[],day_types:(t.day_types??[]).map(e=>({...e,slots:e.slots??[]})),week:t.week??{},warmup_scene:t.warmup_scene??null,parameters:t.parameters??{},mode:t.mode??`shadow`}}function Z(e){if(!e)return``;if(typeof e==`string`)return e;if(typeof e==`object`){let t=e;if(typeof t.message==`string`&&t.message)return t.message;if(t.error&&typeof t.error.message==`string`)return t.error.message;if(typeof t.code==`string`)return t.code}return String(e)}var Q=e=>typeof e==`number`&&Number.isFinite(e);function Ve(e){if(!e.length)return[18,22];let t=Math.floor(Math.min(...e)-.3),n=Math.ceil(Math.max(...e)+.3);if(n-t<2){let e=(n+t)/2;t=Math.floor(e-1),n=t+2}return[t,n]}function He(e){let t=[],n=-1;return e.forEach((e,r)=>{e.burning&&n<0&&(n=r),!e.burning&&n>=0&&(t.push([n,r]),n=-1)}),n>=0&&t.push([n,e.length]),t}function Ue(e,t){let n=(e??[]).filter(e=>e&&typeof e.t==`string`&&!Number.isNaN(Date.parse(e.t)));if(n.sort((e,t)=>Date.parse(e.t)-Date.parse(t.t)),n.filter(e=>Q(e.house_c)).length<2)return null;let r=t.padLeft??28,i=t.width-(t.padRight??8),a=t.padTop??8,o=t.height-(t.padBottom??18),s=Date.parse(n[0].t),c=Date.parse(n[n.length-1].t),l=Math.max(1,c-s),u=e=>r+(Date.parse(e)-s)/l*(i-r),[d,f]=Ve(n.flatMap(e=>[e.house_c,e.target_c]).filter(Q)),p=e=>o-(e-d)/(f-d)*(o-a),m=e=>Math.round(e*10)/10,h=``,g=!1,ee=null;for(let e of n)Q(e.house_c)?(h+=`${g?`L`:`M`}${m(u(e.t))},${m(p(e.house_c))}`,g=!0,ee={x:m(u(e.t)),y:m(p(e.house_c)),value:e.house_c}):g=!1;let te=``,_=null;for(let e of n){if(!Q(e.target_c)){_=null;continue}let t=m(u(e.t)),n=m(p(e.target_c));te+=_===null?`M${t},${n}`:`H${t}${n===_?``:`V${n}`}`,_=n}let v=n.length>1?(i-r)/(n.length-1):0,ne=He(n).map(([e,t])=>{let r=u(n[e].t),a=t<n.length?u(n[t].t):Math.min(i,u(n[t-1].t)+v);return{x:m(r),w:m(Math.max(1,a-r))}}),y=[],b=Math.max(2,Math.floor((o-a)/24)),x=Math.max(1,Math.ceil((f-d)/b));for(let e=d;e<=f;e+=x)y.push({y:m(p(e)),value:e});let S=[],C=/* @__PURE__ */ new Set;for(let e of n){let t=Re(e.t);if(t===null)continue;let n=Math.floor(t/60),r=`${e.t.slice(0,10)} ${n}`;n%6==0&&!C.has(r)&&(C.add(r),S.push({x:m(u(e.t)),label:Ne(n*60)}))}return{width:t.width,height:t.height,left:r,right:i,top:a,bottom:o,yMin:d,yMax:f,house:h,target:te,bands:ne,yTicks:y,xTicks:S,last:ee}}function We(e,t){if(!e)return null;if(Q(e.fill_pct))return Math.max(0,Math.min(100,Math.round(e.fill_pct)));let n=Q(e.capacity_kg)?e.capacity_kg:t;return!Q(e.stock_kg)||!Q(n)||n<=0?null:Math.max(0,Math.min(100,Math.round(e.stock_kg/n*100)))}function Ge(e,t=/* @__PURE__ */ new Date){let n=Re(e);return n===null&&(n=t.getHours()*60+t.getMinutes()),Ne(Math.ceil((n+60)/15)*15%1440)}function Ke(e){let t=e?.house;if(t&&(Q(t.temperature_c)||Q(t.target_c)))return{temp:Q(t.temperature_c)?t.temperature_c:null,target:Q(t.target_c)?t.target_c:null};let n=e?.rooms??[],r=e=>e.length?Math.round(e.reduce((e,t)=>e+t,0)/e.length*10)/10:null;return{temp:r(n.map(e=>e.temperature).filter(Q)),target:r(n.map(e=>e.target).filter(Q))}}function qe(e){let t=e?.stove;if(!t)return{key:`idle`};if(t.error)return{key:`error`};if(t.phase===`prepare`)return{key:`prepare`,time:Y(t.start_at)};if(t.self_off)return{key:`self_off`};if(t.burning)return{key:`burning`,time:Y(t.block_start)};if(t.phase===`block`)return{key:`block`,time:Y(t.block_start)};if(!t.available)return{key:`unavailable`};let n=e?.warmup;if(n&&!n.active&&n.start_at)return{key:`warmup_planned`,time:Y(n.start_at)};let r=e?.overrides?.pause_until;if(r)return{key:`paused`,time:Y(r)};if(t.phase===`pause`&&t.pause_until)return{key:`pause`,time:Y(t.pause_until)};let i=e?.house?.deficit_k;return Q(i)&&i<0?{key:`idle_warm`}:{key:`idle`}}function Je(e,t){let n=e?.warmup;return!n||!n.until?null:n.active?t(`warmup.active_until`,{time:Y(n.until)}):n.arrive?t(`warmup.planned_arrive`,{time:Y(n.start_at),arrive:Y(n.arrive)}):t(`warmup.planned`,{time:Y(n.start_at)})}var Ye={title:`Wärmeregie`,"tab.overview":`Übersicht`,"tab.rooms":`Räume`,"tab.schedule":`Tagesablauf`,"tab.scenes":`Szenen`,"tab.house":`Ofen & Haus`,"tab.log":`Protokoll`,menu:`Menü`,loading:`Wird geladen …`,load_error:`Die Daten von Wärmeregie konnten nicht geladen werden.`,retry:`Erneut versuchen`,not_admin:`Nur Administratoren können das ändern.`,error:`Fehler`,close:`Schließen`,cancel:`Abbrechen`,delete:`Löschen`,add:`Hinzufügen`,remove:`Entfernen`,none:`–`,id:`Kennung`,"mode.shadow_banner":`Schattenbetrieb: es wird nichts geschaltet`,"mode.shadow_banner_hint":`Wärmeregie rechnet nur mit und zeigt, was es tun würde. Ofen und Heizkörper bleiben unberührt.`,"mode.label":`Betriebsart`,"mode.shadow":`Schatten`,"mode.active":`Aktiv`,"mode.confirm_active":`Auf „Aktiv“ umschalten? Dann schaltet Wärmeregie den Ofen und stellt die Heizkörper selbst.`,"mode.confirm_shadow":`Auf „Schatten“ umschalten? Dann wird nichts mehr geschaltet, Wärmeregie rechnet nur noch mit.`,"mode.confirm_yes_active":`Ja, aktiv schalten`,"mode.confirm_yes_shadow":`Ja, nur noch mitrechnen`,"scene.title":`Szene`,"scene.auto":`Automatisch`,"scene.auto_hint":`nach Tagesablauf`,"scene.override_until":`von Hand bis {time}`,"scene.next_change":`nächster Wechsel {time}`,"scene.override_hint":`Eine Szene gilt nach dem Antippen für 3 Stunden.`,"day_type.today":`Heute: {name}`,"stove.title":`Ofen`,"stove.phase.idle":`Bereit`,"stove.phase.block":`Heizblock läuft`,"stove.phase.pause":`Pause`,"stove.phase.blocked":`Gesperrt`,"stove.action.start":`möchte starten`,"stove.action.stop":`möchte ausschalten`,"stove.action.keep":`keine Änderung`,"stove.burning":`brennt`,"stove.not_burning":`brennt nicht`,"stove.unavailable":`Ofen nicht erreichbar`,"stove.starts_today":`Starts heute`,"stove.pause_until":`Pause bis`,"stove.block_since":`Heizblock seit`,"stove.reason":`Grund`,"stove.chrono_warning":`Das Zeitprogramm (Chrono) des Ofens ist an. Im aktiven Betrieb schaltet Wärmeregie es aus; im Schattenbetrieb bitte selbst darauf achten.`,"stove.eco_warning":`Eco ist am Ofen eingeschaltet. Im aktiven Betrieb schaltet Wärmeregie es aus.`,"stove.error":`Der Ofen meldet eine Störung. Solange startet Wärmeregie ihn nicht.`,"stove.error_short":`Störung`,"stove.power_level":`Leistungsstufe`,"stove.water":`Wasser`,"stove.ignitions":`Zündungen`,"stove.no_status":`Noch kein Ofenstatus.`,"house.outdoor":`Außen`,"house.deficit":`Wärmebedarf`,"rooms.title":`Räume`,"room.current":`Ist`,"room.target":`Ziel`,"room.radiator":`Heizkörper`,"room.open":`offen`,"room.open_for":`offen seit {time}`,"room.occupied":`belegt`,"room.empty":`leer`,"room.sensors_missing":`{n} Fühler fehlen`,"room.sensor_missing":`1 Fühler fehlt`,"room.too_cold":`zu kalt`,"rooms.none":`Noch keine Räume eingerichtet.`,"alerts.title":`Hinweise`,"alerts.none":`Alles in Ordnung.`,"actions.title":`Schnellaktionen`,"actions.boost":`+1 °C für 1 Stunde`,"actions.boost_short":`+1 °C`,"actions.pause":`Ofen 2 Stunden pausieren`,"actions.pause_short":`Pause 2 h`,"actions.clear":`Aufheben`,"actions.clear_hint":`Hebt Szene von Hand, Pause und +1 °C auf.`,"actions.boost_active":`+{delta} °C aktiv`,"actions.pause_active":`Ofen pausiert bis {time}`,"actions.done":`Erledigt.`,"editor.unsaved":`Ungespeicherte Änderungen`,"editor.saved":`Alles gespeichert`,"editor.save":`Speichern`,"editor.saving":`Speichert …`,"editor.discard":`Verwerfen`,"editor.save_error":`Speichern fehlgeschlagen: {message}`,"editor.save_ok":`Gespeichert.`,"editor.fix_errors":`Bitte zuerst die rot markierten Angaben korrigieren.`,"editor.leave_warning":`Es gibt ungespeicherte Änderungen.`,"rooms.add_placeholder":`Name des neuen Raums, z. B. Wohnzimmer`,"rooms.add":`Raum hinzufügen`,"rooms.select":`Raum auswählen`,"room.name":`Name`,"room.importance":`Wichtigkeit`,"room.importance_hint":`Wichtige Räume zählen stärker, wenn entschieden wird, ob der Ofen startet.`,"importance.1":`niedrig`,"importance.2":`mittel`,"importance.3":`hoch`,"room.radiators":`Heizkörperthermostate`,"room.radiators_hint":`Thermostate in diesem Raum (z. B. Tado).`,"room.sensors":`Temperaturfühler`,"room.sensors_hint":`Wird kein Fühler gewählt, gilt die Temperatur der Thermostate. Das erste Feld ist das Gewicht (wie stark ein Fühler zählt), das zweite eine Korrektur in K.`,"room.weight":`Gewicht`,"room.openings":`Fenster und Türen`,"room.openings_hint":`Ist etwas offen, wird hier nicht geheizt.`,"room.presence":`Anwesenheit`,"room.presence_hint":`Bewegungs- oder Anwesenheitsmelder. Optional.`,"room.targets":`Zieltemperaturen je Szene`,"room.targets_hint":`Leer lassen = Standardwert der Szene.`,"room.devices":`Geräte`,"room.devices_hint":`Pausierte Geräte bleiben eingetragen, werden aber nicht verwendet, z. B. wenn ein Melder offline ist.`,"room.recovering":`lüftet nach bis {time}`,"dev.pause":`Pausieren`,"dev.resume":`Wieder verwenden`,"dev.paused":`pausiert`,"dev.unavailable":`nicht verfügbar`,"dev.add":`Gerät hinzufügen`,"dev.open":`offen`,"dev.closed":`zu`,"dev.occupied":`belegt`,"dev.empty":`leer`,"dev.none":`keine`,"dev.unavail_count":`{n} Geräte nicht verfügbar`,"dev.unavail_one":`1 Gerät nicht verfügbar`,"dev.pause_unavail":`Nicht verfügbare pausieren`,"dev.held":`kurz weg, letzter Wert gilt`,"dev.drops":`{n}× weg (24 h)`,"param.opening_check_min":`Fenster prüfen nach`,"param.opening_check_min_hint":`Meldet ein Fenster so lange offen und der Raum kühlt nicht ab, kommt ein Hinweis aufs Handy: Sensor prüfen. Der Raum bleibt trotzdem auf Frostschutz. 0 = aus.`,"param.sensor_hold_min":`Aussetzer überbrücken bis`,"param.sensor_hold_min_hint":`Ist ein Sensor kurz nicht erreichbar, gilt so lange sein letzter Wert. Ein offenes Fenster bleibt also offen. Danach zählt ein Fenster als zu und ein Fühler wird weggelassen. 0 = aus.`,"param.sensor_alert_min":`Ausfall melden nach`,"param.sensor_alert_min_hint":`Ist ein Sensor so lange nicht erreichbar, kommt eine Nachricht aufs Handy, höchstens einmal am Tag je Sensor. 0 = keine Nachricht.`,"param.opening_recovery_min":`Nach dem Lüften warten`,"param.opening_recovery_min_hint":`So lange zählt ein gelüfteter Raum nach dem Schließen nicht für den Ofenstart. Die Luft wird von selbst schnell wieder warm. 0 = aus.`,"room.delete":`Raum löschen`,"room.delete_confirm":`Raum „{name}“ wirklich löschen? Das lässt sich nach dem Speichern nicht rückgängig machen.`,"schedule.day_types":`Tagesarten`,"schedule.day_types_hint":`Eine Tagesart legt fest, ab wann welche Szene gilt. Vor dem ersten Zeitpunkt gilt die letzte Szene des Vortags.`,"schedule.add_placeholder":`Name der neuen Tagesart, z. B. Homeoffice`,"schedule.add":`Tagesart hinzufügen`,"schedule.slot_from":`ab`,"schedule.add_slot":`Zeitpunkt hinzufügen`,"schedule.week":`Woche`,"schedule.week_hint":`Welche Tagesart gilt an welchem Tag?`,"schedule.delete_day_type":`Tagesart löschen`,"schedule.delete_confirm":`Tagesart „{name}“ wirklich löschen?`,"schedule.in_use":`Wird in der Woche verwendet ({days}). Bitte dort zuerst eine andere Tagesart wählen.`,"schedule.no_scenes":`Bitte zuerst unter „Szenen“ eine Szene anlegen.`,"slot.time_format":`Uhrzeit bitte als HH:MM angeben.`,"slot.not_ascending":`Die Zeiten müssen aufsteigend sein.`,"slot.scene_missing":`Bitte eine Szene wählen.`,"slot.scene_unknown":`Diese Szene gibt es nicht mehr.`,"slot.empty":`Mindestens ein Zeitpunkt ist nötig.`,"week.mon":`Montag`,"week.tue":`Dienstag`,"week.wed":`Mittwoch`,"week.thu":`Donnerstag`,"week.fri":`Freitag`,"week.sat":`Samstag`,"week.sun":`Sonntag`,"week.holiday":`Feiertag`,"week.unset":`– bitte wählen –`,"scenes.title":`Szenen`,"scenes.hint":`Eine Szene ist ein Wärmewunsch, z. B. Komfort oder Sparen.`,"scenes.add_placeholder":`Name der neuen Szene, z. B. Komfort`,"scenes.add":`Szene hinzufügen`,"scene.name":`Name`,"scene.icon":`Symbol`,"scene.icon_hint":`z. B. mdi:sofa`,"scene.stove":`Ofen`,"scene.stove.allow":`darf heizen`,"scene.stove.frost_only":`nur gegen Kälte (Frost/Nacht)`,"scene.stove.deny":`bleibt aus`,"scene.default_target":`Standardziel`,"scene.delete":`Szene löschen`,"scene.delete_confirm":`Szene „{name}“ wirklich löschen? Eigene Zieltemperaturen der Räume für diese Szene werden entfernt.`,"scene.in_use":`Wird im Tagesablauf verwendet ({names}). Bitte dort zuerst ersetzen.`,"scenes.matrix":`Zieltemperaturen Raum × Szene`,"scenes.matrix_hint":`Leere Felder verwenden das Standardziel der Szene.`,"scenes.none":`Noch keine Szenen.`,"house.stove":`Ofen`,"house.stove_climate":`Ofen-Thermostat`,"house.stove_climate_hint":`Pflicht. Die Thermostat-Entität des Pelletofens.`,"house.stove_climate_active_hint":`Ohne Ofen-Thermostat kann Wärmeregie nur im Schattenbetrieb laufen.`,"house.power":`Leistungsstufe`,"house.power_hint":`Optional. Auswahl- oder Zahl-Entität für die Stufe 1 bis 5.`,"house.stove_functions":`Ofen-Funktionen`,"house.stove_functions_hint":`Im aktiven Betrieb schaltet Wärmeregie das Zeitprogramm (Chrono) und Eco des Ofens aus und wählt die Leistungsstufe selbst. Im Schattenbetrieb gibt es nur Hinweise.`,"house.chrono_switch":`Zeitprogramm (Chrono)`,"house.chrono_switch_hint":`Optional. Schalter für das eigene Zeitprogramm des Ofens.`,"house.eco_switch":`Eco`,"house.eco_switch_hint":`Optional. Schalter für den Eco-Modus des Ofens.`,"house.error_sensor":`Störung`,"house.error_sensor_hint":`Optional. Meldet der Ofen eine Störung, wird er nicht gestartet.`,"house.water_sensor":`Wassertemperatur`,"house.water_sensor_hint":`Optional. Nur zur Anzeige.`,"house.ignitions_sensor":`Zündzähler`,"house.ignitions_sensor_hint":`Optional. Nur zur Anzeige.`,"house.environment":`Wetter und Kalender`,"house.weather":`Wetter`,"house.weather_hint":`Optional. Für die Vorhersage.`,"house.outdoor_sensor":`Außenfühler`,"house.outdoor_sensor_hint":`Optional. Genauer als die Wettervorhersage.`,"house.workday":`Arbeitstag`,"house.workday_hint":`Optional. Erkennt Feiertage (Integration „Arbeitstag“).`,"house.people":`Bewohner`,"house.persons":`Personen`,"house.persons_hint":`Ist niemand zu Hause, wird gespart.`,"house.pet":`Haustier`,"house.pet_hint":`Optional. Ist ein Tier zu Hause, wird nicht unter die Frostgrenze abgesenkt.`,"house.notify":`Benachrichtigungen`,"house.notify_hint":`Wohin sollen Hinweise geschickt werden?`,"house.notify_none":`Keine Benachrichtigungsdienste gefunden.`,"house.notify_unknown":`nicht mehr vorhanden`,"house.parameters":`Regelwerte`,"house.parameters_hint":`Die Voreinstellungen passen für die meisten Häuser. Nur ändern, wenn nötig.`,"house.out_of_range":`Erlaubt: {min} bis {max}`,"pgroup.stove":`Ofen starten und stoppen`,"pgroup.openings":`Fenster und Türen`,"pgroup.sensors":`Ausfall von Sensoren`,"pgroup.radiators":`Heizkörper`,"pgroup.limits":`Untergrenzen`,"pgroup.presence":`Anwesenheit`,"pgroup.pellets":`Pellets`,"param.pellet_bag_kg":`Gewicht eines Sacks`,"param.pellet_bag_kg_hint":`So viel zählt der Knopf „Sack Pellets nachgefüllt“ dazu.`,"param.pellet_capacity_kg":`Fassungsvermögen des Behälters`,"param.pellet_capacity_kg_hint":`Mehr passt nicht hinein; der Vorrat wird darauf begrenzt.`,"param.pellet_rate_kg_h":`Verbrauch pro Brennstunde (Startwert)`,"param.pellet_rate_kg_h_hint":`Gilt, bis die Wärmeregie aus einem leeren Behälter den echten Wert gelernt hat.`,"param.pellet_reminder_kg":`Erinnern ab Vorrat`,"param.pellet_reminder_kg_hint":`Fällt die Schätzung darunter, kommt eine Nachricht.`,"stove.pellets":`Pellets`,"stove.pellets_empty":`leer`,"pgroup.power":`Leistungsstufe`,"pgroup.other":`Weitere`,"param.start_below_k":`Start, wenn so viel unter Ziel`,"param.start_below_k_hint":`Der Ofen startet erst, wenn die Wohnräume so viel kälter als gewünscht sind.`,"param.stop_above_k":`Stopp, wenn so viel über Ziel`,"param.stop_above_k_hint":`Der Heizblock endet, wenn es so viel wärmer als gewünscht ist.`,"param.min_burn_min":`Kürzeste Brenndauer`,"param.min_burn_min_hint":`Ein Heizblock läuft mindestens so lange. Schont den Ofen.`,"param.max_burn_min":`Längste Brenndauer`,"param.max_burn_min_hint":`Danach wird ein Heizblock immer beendet.`,"param.min_pause_min":`Kürzeste Pause`,"param.min_pause_min_hint":`So lange bleibt der Ofen nach einem Heizblock mindestens aus.`,"param.max_starts_per_day":`Starts pro Tag höchstens`,"param.max_starts_per_day_hint":`Wenige lange Heizblöcke sind besser als häufiges An und Aus.`,"param.opening_grace_min":`Kurz lüften erlaubt`,"param.opening_grace_min_hint":`So lange darf ein Fenster offen sein, ohne dass etwas passiert.`,"param.opening_stop_min":`Ofen stoppt bei offenem Fenster nach`,"param.opening_stop_min_hint":`Bleibt ein Fenster länger offen, wird der Heizblock beendet.`,"param.opening_empty_room_min":`Leerer Raum: Heizkörper zu nach`,"param.opening_empty_room_min_hint":`In einem leeren Raum mit offenem Fenster wird der Heizkörper schon so früh abgedreht.`,"param.radiator_boost_k":`Heizkörper-Vorlauf`,"param.radiator_boost_k_hint":`Während der Ofen brennt, werden die Heizkörper so viel höher gestellt.`,"param.frost_c":`Frostgrenze`,"param.frost_c_hint":`Kälter darf es nie werden. Gilt auch bei Szenen, in denen der Ofen sonst aus bleibt.`,"param.night_floor_c":`Nachtuntergrenze`,"param.night_floor_c_hint":`Nachts wird mindestens auf diese Temperatur geheizt.`,"param.stove_block_setpoint_c":`Ofen-Sollwert im Heizblock`,"param.stove_block_setpoint_c_hint":`Auf diesen Wert wird das Ofen-Thermostat gestellt, damit er sicher durchbrennt.`,"param.presence_empty_min":`Raum gilt als leer nach`,"param.presence_empty_min_hint":`So lange ohne Bewegung, dann gilt ein Raum als leer.`,"param.power_min":`Kleinste Leistungsstufe`,"param.power_min_hint":`Mit dieser Stufe läuft ein Heizblock bei mildem Wetter (1 bis 5).`,"param.power_max":`Größte Leistungsstufe`,"param.power_max_hint":`Höchste Stufe, die Wärmeregie wählt (1 bis 5).`,"param.power_cold_c":`Volle Leistung unter`,"param.power_cold_c_hint":`Ist es draußen kälter, wird die größte Leistungsstufe gewählt.`,"log.title":`Protokoll`,"log.empty":`Noch keine Einträge.`,"log.shadow":`Schatten`,"log.shadow_hint":`Nur berechnet, nicht geschaltet`,"picker.search":`Suchen …`,"picker.no_results":`Keine passenden Entitäten.`,"picker.show_all":`auch andere Arten anzeigen`,"picker.missing":`nicht gefunden`,"picker.more":`Weitere Treffer – bitte genauer suchen.`,"hero.inside":`Drinnen`,"hero.target":`Ziel {temp}`,"hero.error":`Der Ofen meldet eine Störung.`,"hero.prepare":`Heizkörper öffnen, Ofen zündet um {time}`,"hero.self_off":`Ofen hat selbst abgeschaltet (Wasser heiß), wartet auf Neustart`,"hero.burning":`Ofen brennt seit {time}`,"hero.block":`Heizblock seit {time}`,"hero.warmup_planned":`Aufheizen beginnt um {time}`,"hero.paused":`Ofen pausiert bis {time}`,"hero.pause":`Ofen aus, Pause bis {time}`,"hero.idle_warm":`Ofen aus, es ist warm genug`,"hero.idle":`Ofen aus`,"warmup.button":`Aufheizen`,"warmup.title":`Haus aufheizen`,"warmup.intro":`Der Ofen startet auch, wenn es noch warm genug ist, und alle Heizkörper gehen auf. Danach geht es wieder nach Tagesablauf.`,"warmup.now":`Jetzt aufheizen`,"warmup.for":`für {time}`,"warmup.arrive":`Ich komme um`,"warmup.plan":`Planen`,"warmup.arrive_hint":`Wärmeregie beginnt etwa {lead} min vorher und hält das Haus danach noch eine Stunde warm.`,"warmup.cancel":`Aufheizen abbrechen`,"warmup.active_until":`Aufheizen bis {time}`,"warmup.planned":`Aufheizen ab {time}`,"warmup.planned_arrive":`Aufheizen ab {time} (Ankunft {arrive})`,"pause.button":`Pause`,"pause.title":`Ofen pausieren`,"pause.intro":`Solange startet Wärmeregie den Ofen nicht. Ein laufender Heizblock wird beendet.`,"pause.for":`{h} h`,"pause.cancel":`Pause aufheben`,"more.title":`Mehr`,"actions.clear_all":`Alles von Hand aufheben`,"chart.title":`Verlauf 24 Stunden`,"chart.aria":`Temperaturverlauf drinnen, {from} bis {to} Grad`,"chart.house":`Drinnen`,"chart.target":`Ziel`,"chart.burning":`Ofen brennt`,"pellets.title":`Pellets`,"pellets.until":`reicht bis {time}`,"pellets.low":`Bald nachfüllen`,"pellets.estimate":`Verbrauch noch geschätzt`,"pellets.refill":`Sack nachgefüllt`,"pellets.refill_done":`Ein Sack wurde dazugezählt.`,"pellets.aria":`Pelletbehälter {pct} Prozent voll`,"details.title":`Details`,"details.day_type":`Tagesart`,"stove.phase.prepare":`Sanfter Start`,"house.mode_hint":`Im Schattenbetrieb rechnet Wärmeregie nur mit. Im aktiven Betrieb schaltet sie Ofen und Heizkörper.`,"house.sect_stove_hint":`Thermostat, Leistungsstufe und Funktionen des Ofens`,"house.sect_env_hint":`Wetter, Außenfühler, Feiertage`,"house.sect_people_hint":`Personen, Haustier, Benachrichtigungen`,"house.warmup_scene":`Ziele beim Aufheizen`,"house.warmup_scene_hint":`Diese Szene bestimmt die Zieltemperaturen beim Aufheizen.`,"house.warmup_scene_auto":`automatisch (erste Szene mit Ofen erlaubt)`,"pgroup.stove_hint":`Wann der Ofen startet und wie lange er brennt`,"pgroup.softstart":`Sanfter Start`,"pgroup.softstart_hint":`Heizkörper vor dem Zünden öffnen, Verhalten bei heißem Wasser`,"pgroup.warmup":`Aufheizen`,"pgroup.warmup_hint":`„Haus aufheizen“ und „Ich komme um …“`,"pgroup.openings_hint":`Lüften, offene Türen, Prüfung der Melder`,"pgroup.sensors_hint":`Was passiert, wenn ein Fühler weg ist`,"pgroup.power_hint":`Nur mit einer Entität für die Leistungsstufe`,"pgroup.radiators_hint":`Wie weit die Heizkörper im Heizblock aufgehen`,"pgroup.limits_hint":`Frostschutz und Nacht`,"pgroup.presence_hint":`Leere Räume etwas kühler`,"pgroup.pellets_hint":`Sackgewicht, Behälter, Verbrauch`,"pgroup.other_hint":`Weitere Werte`,"param.soft_start_min":`Heizkörper vorher öffnen`,"param.soft_start_min_hint":`So lange vor dem Zünden gehen die Heizkörper auf, damit das Wasser im Ofen nicht zu schnell heiß wird. 0 = aus.`,"param.self_off_wait_min":`Warten nach Selbstabschaltung`,"param.self_off_wait_min_hint":`Schaltet der Ofen im Heizblock selbst ab, weil das Wasser heiß ist, wartet Wärmeregie so lange auf den Neustart. 0 = Block endet sofort.`,"param.warmup_extra_k":`Aufheizen: wärmer als Ziel`,"param.warmup_extra_k_hint":`So viel über den Zielen der Aufheiz-Szene.`,"param.warmup_lead_min":`Vorlauf vor der Ankunft`,"param.warmup_lead_min_hint":`So lange vor „Ich komme um …“ beginnt das Aufheizen.`,"room.offset":`Korrektur`,"room.offset_hint":`Korrektur in K, wird zum Messwert addiert (z. B. -0,5, wenn der Fühler zu warm misst).`,"card.chart":`Verlauf`,"card.name":`Wärmeregie`,"card.description":`Ofen, Szene und Räume auf einen Blick.`,"card.no_rooms":`Keine Räume ausgewählt.`,"card.open_panel":`Wärmeregie öffnen`},Xe={title:`Wärmeregie`,"tab.overview":`Overview`,"tab.rooms":`Rooms`,"tab.schedule":`Schedule`,"tab.scenes":`Scenes`,"tab.house":`Stove & house`,"tab.log":`Log`,menu:`Menu`,loading:`Loading …`,load_error:`Could not load Wärmeregie data.`,retry:`Try again`,not_admin:`Only administrators can change this.`,error:`Error`,close:`Close`,cancel:`Cancel`,delete:`Delete`,add:`Add`,remove:`Remove`,none:`–`,id:`ID`,"mode.shadow_banner":`Shadow mode: nothing is being switched`,"mode.shadow_banner_hint":`Wärmeregie only calculates and shows what it would do. Stove and radiators are left alone.`,"mode.label":`Mode`,"mode.shadow":`Shadow`,"mode.active":`Active`,"mode.confirm_active":`Switch to “Active”? Wärmeregie will then control the stove and set the radiators.`,"mode.confirm_shadow":`Switch to “Shadow”? Nothing will be switched any more, Wärmeregie only calculates.`,"mode.confirm_yes_active":`Yes, go active`,"mode.confirm_yes_shadow":`Yes, only calculate`,"scene.title":`Scene`,"scene.auto":`Automatic`,"scene.auto_hint":`by schedule`,"scene.override_until":`manual until {time}`,"scene.next_change":`next change {time}`,"scene.override_hint":`A tapped scene applies for 3 hours.`,"day_type.today":`Today: {name}`,"stove.title":`Stove`,"stove.phase.idle":`Ready`,"stove.phase.block":`Heating block running`,"stove.phase.pause":`Pause`,"stove.phase.blocked":`Blocked`,"stove.action.start":`wants to start`,"stove.action.stop":`wants to stop`,"stove.action.keep":`no change`,"stove.burning":`burning`,"stove.not_burning":`not burning`,"stove.unavailable":`Stove not reachable`,"stove.starts_today":`Starts today`,"stove.pause_until":`Pause until`,"stove.block_since":`Block since`,"stove.reason":`Reason`,"stove.chrono_warning":`The stove's own timer (chrono) is on. In active mode Wärmeregie switches it off; in shadow mode please keep an eye on it yourself.`,"stove.eco_warning":`Eco is switched on at the stove. In active mode Wärmeregie switches it off.`,"stove.error":`The stove reports a fault. Wärmeregie will not start it until it is cleared.`,"stove.error_short":`Fault`,"stove.power_level":`Power level`,"stove.water":`Water`,"stove.ignitions":`Ignitions`,"stove.no_status":`No stove status yet.`,"house.outdoor":`Outdoor`,"house.deficit":`Heat demand`,"rooms.title":`Rooms`,"room.current":`Now`,"room.target":`Target`,"room.radiator":`Radiator`,"room.open":`open`,"room.open_for":`open for {time}`,"room.occupied":`occupied`,"room.empty":`empty`,"room.sensors_missing":`{n} sensors missing`,"room.sensor_missing":`1 sensor missing`,"room.too_cold":`too cold`,"rooms.none":`No rooms set up yet.`,"alerts.title":`Notices`,"alerts.none":`All fine.`,"actions.title":`Quick actions`,"actions.boost":`+1 °C for 1 hour`,"actions.boost_short":`+1 °C`,"actions.pause":`Pause stove for 2 hours`,"actions.pause_short":`Pause 2 h`,"actions.clear":`Cancel`,"actions.clear_hint":`Cancels manual scene, pause and +1 °C.`,"actions.boost_active":`+{delta} °C active`,"actions.pause_active":`Stove paused until {time}`,"actions.done":`Done.`,"editor.unsaved":`Unsaved changes`,"editor.saved":`All saved`,"editor.save":`Save`,"editor.saving":`Saving …`,"editor.discard":`Discard`,"editor.save_error":`Saving failed: {message}`,"editor.save_ok":`Saved.`,"editor.fix_errors":`Please fix the entries marked in red first.`,"editor.leave_warning":`There are unsaved changes.`,"rooms.add_placeholder":`Name of the new room, e.g. Living room`,"rooms.add":`Add room`,"rooms.select":`Select room`,"room.name":`Name`,"room.importance":`Importance`,"room.importance_hint":`Important rooms count more when deciding whether the stove starts.`,"importance.1":`low`,"importance.2":`medium`,"importance.3":`high`,"room.radiators":`Radiator thermostats`,"room.radiators_hint":`Thermostats in this room (e.g. Tado).`,"room.sensors":`Temperature sensors`,"room.sensors_hint":`Without a sensor the thermostat temperature is used. The first field is the weight (how much a sensor counts), the second a correction in K.`,"room.weight":`Weight`,"room.openings":`Windows and doors`,"room.openings_hint":`While something is open, this room is not heated.`,"room.presence":`Presence`,"room.presence_hint":`Motion or presence sensors. Optional.`,"room.targets":`Target temperature per scene`,"room.targets_hint":`Leave empty = scene default.`,"room.devices":`Devices`,"room.devices_hint":`Paused devices stay configured but are not used, e.g. while a sensor is offline.`,"room.recovering":`recovering from airing until {time}`,"dev.pause":`Pause`,"dev.resume":`Use again`,"dev.paused":`paused`,"dev.unavailable":`unavailable`,"dev.add":`Add device`,"dev.open":`open`,"dev.closed":`closed`,"dev.occupied":`occupied`,"dev.empty":`empty`,"dev.none":`none`,"dev.unavail_count":`{n} devices unavailable`,"dev.unavail_one":`1 device unavailable`,"dev.pause_unavail":`Pause unavailable ones`,"dev.held":`briefly gone, last value used`,"dev.drops":`{n}× gone (24 h)`,"param.opening_check_min":`Check windows after`,"param.opening_check_min_hint":`If a window reports open this long and the room does not cool down, a notice is sent to the phone: check the sensor. The room still stays on frost protection. 0 = off.`,"param.sensor_hold_min":`Bridge dropouts for up to`,"param.sensor_hold_min_hint":`If a sensor is briefly unreachable, its last value is used this long. An open window stays open. After that a window counts as closed and a temperature sensor is left out. 0 = off.`,"param.sensor_alert_min":`Report outage after`,"param.sensor_alert_min_hint":`If a sensor is unreachable this long, a message is sent to the phone, at most once a day per sensor. 0 = no message.`,"param.opening_recovery_min":`Wait after airing`,"param.opening_recovery_min_hint":`For this long after closing, an aired room does not count for starting the stove. The air warms up again quickly by itself. 0 = off.`,"room.delete":`Delete room`,"room.delete_confirm":`Really delete room “{name}”? This cannot be undone after saving.`,"schedule.day_types":`Day types`,"schedule.day_types_hint":`A day type sets from when which scene applies. Before the first time, the last scene of the previous day applies.`,"schedule.add_placeholder":`Name of the new day type, e.g. Home office`,"schedule.add":`Add day type`,"schedule.slot_from":`from`,"schedule.add_slot":`Add time`,"schedule.week":`Week`,"schedule.week_hint":`Which day type applies on which day?`,"schedule.delete_day_type":`Delete day type`,"schedule.delete_confirm":`Really delete day type “{name}”?`,"schedule.in_use":`Used in the week ({days}). Please choose another day type there first.`,"schedule.no_scenes":`Please create a scene under “Scenes” first.`,"slot.time_format":`Please enter the time as HH:MM.`,"slot.not_ascending":`Times must be in ascending order.`,"slot.scene_missing":`Please choose a scene.`,"slot.scene_unknown":`This scene no longer exists.`,"slot.empty":`At least one time is required.`,"week.mon":`Monday`,"week.tue":`Tuesday`,"week.wed":`Wednesday`,"week.thu":`Thursday`,"week.fri":`Friday`,"week.sat":`Saturday`,"week.sun":`Sunday`,"week.holiday":`Holiday`,"week.unset":`– please choose –`,"scenes.title":`Scenes`,"scenes.hint":`A scene is a heat wish, e.g. comfort or eco.`,"scenes.add_placeholder":`Name of the new scene, e.g. Comfort`,"scenes.add":`Add scene`,"scene.name":`Name`,"scene.icon":`Icon`,"scene.icon_hint":`e.g. mdi:sofa`,"scene.stove":`Stove`,"scene.stove.allow":`may heat`,"scene.stove.frost_only":`only against cold (frost/night)`,"scene.stove.deny":`stays off`,"scene.default_target":`Default target`,"scene.delete":`Delete scene`,"scene.delete_confirm":`Really delete scene “{name}”? Room targets for this scene will be removed.`,"scene.in_use":`Used in the schedule ({names}). Please replace it there first.`,"scenes.matrix":`Target temperatures room × scene`,"scenes.matrix_hint":`Empty fields use the scene default.`,"scenes.none":`No scenes yet.`,"house.stove":`Stove`,"house.stove_climate":`Stove thermostat`,"house.stove_climate_hint":`Required. The thermostat entity of the pellet stove.`,"house.stove_climate_active_hint":`Without a stove thermostat Wärmeregie can only run in shadow mode.`,"house.power":`Power level`,"house.power_hint":`Optional. Select or number entity for level 1 to 5.`,"house.stove_functions":`Stove functions`,"house.stove_functions_hint":`In active mode Wärmeregie switches off the stove's own timer (chrono) and eco mode and chooses the power level itself. In shadow mode there are only notices.`,"house.chrono_switch":`Timer (chrono)`,"house.chrono_switch_hint":`Optional. Switch for the stove's own timer.`,"house.eco_switch":`Eco`,"house.eco_switch_hint":`Optional. Switch for the stove's eco mode.`,"house.error_sensor":`Fault`,"house.error_sensor_hint":`Optional. While the stove reports a fault, it is not started.`,"house.water_sensor":`Water temperature`,"house.water_sensor_hint":`Optional. Display only.`,"house.ignitions_sensor":`Ignition counter`,"house.ignitions_sensor_hint":`Optional. Display only.`,"house.environment":`Weather and calendar`,"house.weather":`Weather`,"house.weather_hint":`Optional. Used for the forecast.`,"house.outdoor_sensor":`Outdoor sensor`,"house.outdoor_sensor_hint":`Optional. More precise than the weather forecast.`,"house.workday":`Workday`,"house.workday_hint":`Optional. Detects holidays (“Workday” integration).`,"house.people":`Residents`,"house.persons":`Persons`,"house.persons_hint":`If nobody is home, energy is saved.`,"house.pet":`Pet`,"house.pet_hint":`Optional. If a pet is home, temperature is never lowered below the frost limit.`,"house.notify":`Notifications`,"house.notify_hint":`Where should notices be sent?`,"house.notify_none":`No notification services found.`,"house.notify_unknown":`no longer available`,"house.parameters":`Control values`,"house.parameters_hint":`The defaults suit most houses. Only change them if needed.`,"house.out_of_range":`Allowed: {min} to {max}`,"pgroup.stove":`Starting and stopping the stove`,"pgroup.openings":`Windows and doors`,"pgroup.sensors":`Sensor outages`,"pgroup.radiators":`Radiators`,"pgroup.limits":`Lower limits`,"pgroup.presence":`Presence`,"pgroup.pellets":`Pellets`,"param.pellet_bag_kg":`Weight of one bag`,"param.pellet_bag_kg_hint":`The button “Pellet bag refilled” adds this much.`,"param.pellet_capacity_kg":`Hopper capacity`,"param.pellet_capacity_kg_hint":`No more fits in; the stock is capped at this.`,"param.pellet_rate_kg_h":`Consumption per burn hour (start value)`,"param.pellet_rate_kg_h_hint":`Used until the real value is learned from an empty hopper.`,"param.pellet_reminder_kg":`Remind below`,"param.pellet_reminder_kg_hint":`When the estimate drops below this, a message is sent.`,"stove.pellets":`Pellets`,"stove.pellets_empty":`empty`,"pgroup.power":`Power level`,"pgroup.other":`Other`,"param.start_below_k":`Start when this far below target`,"param.start_below_k_hint":`The stove only starts when the living rooms are this much colder than wanted.`,"param.stop_above_k":`Stop when this far above target`,"param.stop_above_k_hint":`The heating block ends when it is this much warmer than wanted.`,"param.min_burn_min":`Shortest burn time`,"param.min_burn_min_hint":`A heating block runs at least this long. Easier on the stove.`,"param.max_burn_min":`Longest burn time`,"param.max_burn_min_hint":`After this a heating block always ends.`,"param.min_pause_min":`Shortest pause`,"param.min_pause_min_hint":`The stove stays off at least this long after a heating block.`,"param.max_starts_per_day":`Max starts per day`,"param.max_starts_per_day_hint":`A few long heating blocks are better than frequent on and off.`,"param.opening_grace_min":`Short airing allowed`,"param.opening_grace_min_hint":`A window may be open this long without anything happening.`,"param.opening_stop_min":`Stove stops with open window after`,"param.opening_stop_min_hint":`If a window stays open longer, the heating block ends.`,"param.opening_empty_room_min":`Empty room: radiator off after`,"param.opening_empty_room_min_hint":`In an empty room with an open window the radiator is turned down this early.`,"param.radiator_boost_k":`Radiator lead`,"param.radiator_boost_k_hint":`While the stove burns, radiators are set this much higher.`,"param.frost_c":`Frost limit`,"param.frost_c_hint":`It never gets colder than this, even in scenes where the stove otherwise stays off.`,"param.night_floor_c":`Night minimum`,"param.night_floor_c_hint":`At night it is heated to at least this temperature.`,"param.stove_block_setpoint_c":`Stove setpoint during block`,"param.stove_block_setpoint_c_hint":`The stove thermostat is set to this value so it keeps burning.`,"param.presence_empty_min":`Room counts as empty after`,"param.presence_empty_min_hint":`After this long without motion a room counts as empty.`,"param.power_min":`Lowest power level`,"param.power_min_hint":`A heating block runs at this level in mild weather (1 to 5).`,"param.power_max":`Highest power level`,"param.power_max_hint":`Highest level Wärmeregie will choose (1 to 5).`,"param.power_cold_c":`Full power below`,"param.power_cold_c_hint":`If it is colder outside, the highest power level is chosen.`,"log.title":`Log`,"log.empty":`No entries yet.`,"log.shadow":`Shadow`,"log.shadow_hint":`Only calculated, not switched`,"picker.search":`Search …`,"picker.no_results":`No matching entities.`,"picker.show_all":`also show other kinds`,"picker.missing":`not found`,"picker.more":`More results – please refine your search.`,"hero.inside":`Inside`,"hero.target":`Target {temp}`,"hero.error":`The stove reports a fault.`,"hero.prepare":`Opening radiators, stove ignites at {time}`,"hero.self_off":`Stove switched itself off (water hot), waiting for restart`,"hero.burning":`Stove burning since {time}`,"hero.block":`Heating block since {time}`,"hero.warmup_planned":`Warm-up starts at {time}`,"hero.paused":`Stove paused until {time}`,"hero.pause":`Stove off, pause until {time}`,"hero.idle_warm":`Stove off, warm enough`,"hero.idle":`Stove off`,"warmup.button":`Warm up`,"warmup.title":`Warm up the house`,"warmup.intro":`The stove starts even if it is still warm enough, and all radiators open. Afterwards the daily schedule applies again.`,"warmup.now":`Warm up now`,"warmup.for":`for {time}`,"warmup.arrive":`I'll be home at`,"warmup.plan":`Plan`,"warmup.arrive_hint":`Wärmeregie starts about {lead} min earlier and keeps the house warm for another hour.`,"warmup.cancel":`Cancel warm-up`,"warmup.active_until":`Warm-up until {time}`,"warmup.planned":`Warm-up from {time}`,"warmup.planned_arrive":`Warm-up from {time} (arrival {arrive})`,"pause.button":`Pause`,"pause.title":`Pause stove`,"pause.intro":`Wärmeregie will not start the stove meanwhile. A running heating block ends.`,"pause.for":`{h} h`,"pause.cancel":`End pause`,"more.title":`More`,"actions.clear_all":`Cancel all manual changes`,"chart.title":`Last 24 hours`,"chart.aria":`Indoor temperature, {from} to {to} degrees`,"chart.house":`Inside`,"chart.target":`Target`,"chart.burning":`Stove burning`,"pellets.title":`Pellets`,"pellets.until":`lasts until {time}`,"pellets.low":`Refill soon`,"pellets.estimate":`Consumption still estimated`,"pellets.refill":`Bag refilled`,"pellets.refill_done":`One bag was added.`,"pellets.aria":`Pellet hopper {pct} percent full`,"details.title":`Details`,"details.day_type":`Day type`,"stove.phase.prepare":`Soft start`,"house.mode_hint":`In shadow mode Wärmeregie only calculates. In active mode it switches the stove and radiators.`,"house.sect_stove_hint":`Thermostat, power level and functions of the stove`,"house.sect_env_hint":`Weather, outdoor sensor, holidays`,"house.sect_people_hint":`Persons, pet, notifications`,"house.warmup_scene":`Targets when warming up`,"house.warmup_scene_hint":`This scene sets the target temperatures during warm-up.`,"house.warmup_scene_auto":`automatic (first scene with stove allowed)`,"pgroup.stove_hint":`When the stove starts and how long it burns`,"pgroup.softstart":`Soft start`,"pgroup.softstart_hint":`Open radiators before ignition, behaviour with hot water`,"pgroup.warmup":`Warm-up`,"pgroup.warmup_hint":`“Warm up the house” and “I'll be home at …”`,"pgroup.openings_hint":`Airing, open doors, sensor checks`,"pgroup.sensors_hint":`What happens when a sensor is gone`,"pgroup.power_hint":`Only with an entity for the power level`,"pgroup.radiators_hint":`How far radiators open during a heating block`,"pgroup.limits_hint":`Frost protection and night`,"pgroup.presence_hint":`Empty rooms a bit cooler`,"pgroup.pellets_hint":`Bag weight, hopper, consumption`,"pgroup.other_hint":`Other values`,"param.soft_start_min":`Open radiators first`,"param.soft_start_min_hint":`Radiators open this long before ignition so the water in the stove does not heat up too fast. 0 = off.`,"param.self_off_wait_min":`Wait after self switch-off`,"param.self_off_wait_min_hint":`If the stove switches itself off during a block because the water is hot, Wärmeregie waits this long for the restart. 0 = block ends at once.`,"param.warmup_extra_k":`Warm-up: above target`,"param.warmup_extra_k_hint":`This much above the targets of the warm-up scene.`,"param.warmup_lead_min":`Lead time before arrival`,"param.warmup_lead_min_hint":`Warm-up starts this long before “I'll be home at …”.`,"room.offset":`Correction`,"room.offset_hint":`Correction in K, added to the reading (e.g. -0.5 if the sensor reads too warm).`,"card.chart":`History`,"card.name":`Wärmeregie`,"card.description":`Stove, scene and rooms at a glance.`,"card.no_rooms":`No rooms selected.`,"card.open_panel":`Open Wärmeregie`};function Ze(e,t,n){let r=(e===`en`?Xe[t]:void 0)??Ye[t]??t;if(n)for(let[e,t]of Object.entries(n))r=r.split(`{${e}}`).join(String(t));return r}function Qe(e){return(t,n)=>Ze(e,t,n)}var $e=o`
   :host {
     --wr-heat: var(--state-climate-heat-color, #e8590c);
     --wr-cold: var(--state-climate-cool-color, #1c7ed6);
@@ -354,138 +354,814 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
     margin-right: 4px;
     vertical-align: -1px;
   }
-`,V=1440,Ie=/^([01]\d|2[0-3]):([0-5]\d)$/;function H(e){let t=Ie.exec(String(e??``).trim());return t?Number(t[1])*60+Number(t[2]):null}function U(e){let t=(Math.floor(e)%V+V)%V;return`${String(Math.floor(t/60)).padStart(2,`0`)}:${String(t%60).padStart(2,`0`)}`}function W(e){return(e??[]).map(e=>({start:H(e.start),scene:e.scene})).filter(e=>e.start!==null&&!!e.scene).sort((e,t)=>e.start-t.start)}function Le(e,t,n){let r=typeof t==`number`?t:H(t);if(r===null)return null;let i=W(e),a=null;for(let e of i)if(e.start<=r)a=e.scene;else break;if(a!==null)return a;let o=W(n??e);return o.length?o[o.length-1].scene:null}function Re(e,t){let n=W(e);if(!n.length)return[];let r=[];if(n[0].start>0){let i=Le(e,0,t);i&&r.push({from:0,to:n[0].start,scene:i})}return n.forEach((e,t)=>{let i=t+1<n.length?n[t+1].start:V;i>e.start&&r.push({from:e.start,to:i,scene:e.scene})}),r.reduce((e,t)=>{let n=e[e.length-1];return n&&n.scene===t.scene&&n.to===t.from?n.to=t.to:e.push({...t}),e},[])}function ze(e){return e.startsWith(`de`)?`,`:`.`}function Be(e,t,n=1){if(e==null||!Number.isFinite(e))return`–`;let r=e.toFixed(n);return ze(t)===`,`?r.replace(`.`,`,`):r}function G(e,t){let n=Be(e,t,1);return n===`–`?n:`${n} °C`}function Ve(e,t,n=!1){let r=Be(e,t,1);return r===`–`?r:`${n&&e>0?`+`:``}${r} K`}function He(e){if(e==null||!Number.isFinite(e))return`–`;let t=Math.max(0,Math.round(e));if(t<60)return`${t} min`;let n=Math.floor(t/60),r=t%60;return r?`${n} h ${r} min`:`${n} h`}var K=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/;function q(e){if(!e)return`–`;let t=K.exec(e);if(t)return`${t[4]}:${t[5]}`;let n=H(e);return n===null?`–`:U(n)}function Ue(e,t){let n=e?K.exec(e):null;return n?t.startsWith(`de`)?`${n[3]}.${n[2]}.`:`${n[2]}/${n[3]}`:``}function J(e){let t=e?K.exec(e):null;return t?`${t[1]}-${t[2]}-${t[3]}`:null}function We(e){let t=e?K.exec(e):null;return t?Number(t[4])*60+Number(t[5]):null}function Y(e,t,n){let r=q(e);if(r===`–`)return r;let i=J(e);if(i&&t&&i===J(t))return r;let a=Ue(e,n);return a?`${a} ${r}`:r}function Ge(e){let t=String(e??`de`).toLowerCase();return t.startsWith(`de`)||t===``?`de`:`en`}var Ke=[`#e8590c`,`#1c7ed6`,`#2f9e44`,`#7048e8`,`#0c8599`,`#f08c00`,`#c2255c`,`#5c940d`,`#868e96`];function qe(e,t){let n=t.indexOf(e);return n<0?`#868e96`:Ke[n%Ke.length]}function Je(e){let t=e??{};return{...t,stove:{...t.stove??{},climate:t.stove?.climate??null,power:t.stove?.power??null,chrono_switch:t.stove?.chrono_switch??null,eco_switch:t.stove?.eco_switch??null,error_sensor:t.stove?.error_sensor??null,water_sensor:t.stove?.water_sensor??null,ignitions_sensor:t.stove?.ignitions_sensor??null},weather:t.weather??null,outdoor_sensor:t.outdoor_sensor??null,workday:t.workday??null,persons:t.persons??[],pet:t.pet??null,notify:t.notify??[],rooms:(t.rooms??[]).map(e=>({...e,importance:e.importance??2,radiators:e.radiators??[],temperature_sensors:e.temperature_sensors??[],openings:e.openings??[],presence:e.presence??[],paused:e.paused??[],targets:e.targets??{}})),scenes:t.scenes??[],day_types:(t.day_types??[]).map(e=>({...e,slots:e.slots??[]})),week:t.week??{},parameters:t.parameters??{},mode:t.mode??`shadow`}}function X(e){if(!e)return``;if(typeof e==`string`)return e;if(typeof e==`object`){let t=e;if(typeof t.message==`string`&&t.message)return t.message;if(t.error&&typeof t.error.message==`string`)return t.error.message;if(typeof t.code==`string`)return t.code}return String(e)}function Ye(e,t,n={}){let r=t.map(e=>e.id),i=e=>t.find(t=>t.id===e)?.name??e,a=Re(e),o=[...new Set(a.map(e=>e.scene))],s=e=>`${e/V*100}%`;return k`
-    <div class="timeline" role="img" aria-label=${a.map(e=>`${U(e.from)} ${i(e.scene)}`).join(`, `)}>
-      ${a.map(e=>k`<div
-          class="seg"
-          style="left:${s(e.from)};width:${s(e.to-e.from)};background:${qe(e.scene,r)}"
-          title="${U(e.from)}–${e.to>=1440?`24:00`:U(e.to)} ${i(e.scene)}"
-        >
-          ${n.labels!==!1&&e.to-e.from>=150?k`<span>${i(e.scene)}</span>`:j}
-        </div>`)}
-      ${n.nowMinutes!==null&&n.nowMinutes!==void 0?k`<div class="now" style="left:calc(${s(n.nowMinutes)} - 1px)"></div>`:j}
-    </div>
-    <div class="timeline-scale" aria-hidden="true"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
-    ${n.legend?k`<div class="legend">
-          ${o.map(e=>k`<span><i style="background:${qe(e,r)}"></i>${i(e)}</span>`)}
-        </div>`:j}
-  `}function Xe(e,t=!1){return e.status?.mode===`shadow`?k`<div class="banner shadow" role="status">
+`;function et(e,t=!1){return e.status?.mode===`shadow`?M`<div class="banner shadow" role="status">
     <ha-icon icon="mdi:eye-outline"></ha-icon>
     <div>
       <strong>${e.t(`mode.shadow_banner`)}</strong>
-      ${t?j:k`<span class="muted">${e.t(`mode.shadow_banner_hint`)}</span>`}
+      ${t?F:M`<span class="muted">${e.t(`mode.shadow_banner_hint`)}</span>`}
     </div>
-  </div>`:j}function Ze(e,t){let{t:n,status:r,config:i}=e,a=i?.scenes??[],o=r?.scene,s=o?.source===`override`,c=!e.isAdmin||e.busy,l=e.isAdmin?``:n(`not_admin`);return k`
-    <div class="chips" role="group" aria-label=${n(`scene.title`)}>
-      <button
-        class="chip auto ${s?``:`selected`}"
-        aria-pressed=${!s}
-        ?disabled=${c}
-        title=${l||n(`scene.auto_hint`)}
-        @click=${()=>s&&t(null)}
-      >
-        <ha-icon icon="mdi:calendar-clock"></ha-icon>${n(`scene.auto`)}
-      </button>
-      ${a.map(e=>{let n=o?.id===e.id;return k`<button
-          class="chip ${n?`selected`:``}"
-          aria-pressed=${n}
-          ?disabled=${c}
-          title=${l}
-          @click=${()=>!(n&&s)&&t(e.id)}
-        >
-          ${e.icon?k`<ha-icon icon=${e.icon}></ha-icon>`:j}${e.name}
-        </button>`})}
-    </div>
-    ${o?k`<div class="hint">
-          ${o.name}
-          ${s&&o.until?k` · ${n(`scene.override_until`,{time:q(o.until)})}`:j}
-          ${s?j:k` · ${n(`scene.auto_hint`)}`}
-          ${o.next_change&&!s?k` · ${n(`scene.next_change`,{time:q(o.next_change)})}`:j}
-          ${r?.day_type?k` · ${n(`day_type.today`,{name:r.day_type.name})}`:j}
-        </div>`:j}
-  `}function Qe(e,t={}){let{t:n,status:r,lang:i}=e,a=r?.stove;if(!a)return k`<div class="card stove"><h3>${n(`stove.title`)}</h3><div class="muted">${n(`stove.no_status`)}</div></div>`;let o=a.phase===`block`?`mdi:fire`:a.phase===`pause`?`mdi:pause-circle-outline`:a.phase===`blocked`?`mdi:fire-off`:`mdi:fireplace-off`,s=r?.day_type?e.config?.day_types.find(e=>e.id===r.day_type?.id):void 0;return k`<div class="card stove ${a.burning?`burning`:``}">
-    <div class="row">
-      <ha-icon class="flame" icon=${a.burning?`mdi:fire`:o}></ha-icon>
-      <h3 style="margin:0">${n(`stove.title`)}</h3>
-      <span class="spacer"></span>
-      ${a.available?j:k`<span class="badge warn">${n(`stove.unavailable`)}</span>`}
-      ${a.error?k`<span class="badge err">${n(`stove.error_short`)}</span>`:j}
-      <span class="badge ${a.burning?`heat`:``}">${a.burning?n(`stove.burning`):n(`stove.not_burning`)}</span>
-    </div>
-    <div class="phase" style="margin-top:6px">
-      ${n(`stove.phase.${a.phase}`)}
-      <span class="muted" style="font-size:14px"> · ${n(`stove.action.${a.action}`)}</span>
-    </div>
-    ${a.reason?k`<div class="muted">${a.reason}</div>`:j}
-    <dl class="kv">
-      <dt>${n(`stove.starts_today`)}</dt>
-      <dd>${a.starts_today??0} / ${a.max_starts_per_day??`–`}</dd>
-      ${a.block_start?k`<dt>${n(`stove.block_since`)}</dt><dd>${q(a.block_start)}</dd>`:j}
-      ${a.power_level!==null&&a.power_level!==void 0?k`<dt>${n(`stove.power_level`)}</dt><dd>${a.power_level} / 5</dd>`:j}
-      ${a.water_c!==null&&a.water_c!==void 0?k`<dt>${n(`stove.water`)}</dt><dd>${G(a.water_c,i)}</dd>`:j}
-      ${!t.compact&&a.ignitions!==null&&a.ignitions!==void 0?k`<dt>${n(`stove.ignitions`)}</dt><dd>${a.ignitions.toLocaleString(i.startsWith(`de`)?`de-DE`:`en-US`)}</dd>`:j}
-      ${a.pause_until?k`<dt>${n(`stove.pause_until`)}</dt><dd>${Y(a.pause_until,r?.now,i)}</dd>`:j}
-      ${r?.pellets&&r.pellets.stock_kg!==null&&r.pellets.stock_kg!==void 0?k`<dt>${n(`stove.pellets`)}</dt><dd>${r.pellets.stock_kg.toLocaleString(i.startsWith(`de`)?`de-DE`:`en-US`,{maximumFractionDigits:1})} kg${r.pellets.empty_at?k` · ${n(`stove.pellets_empty`)} ${Y(r.pellets.empty_at,r.now,i)}`:j}</dd>`:j}
-      ${!t.compact&&r?.house?.outdoor_c!==null&&r?.house?.outdoor_c!==void 0?k`<dt>${n(`house.outdoor`)}</dt><dd>${G(r.house.outdoor_c,i)}</dd>`:j}
-      ${!t.compact&&r?.house?.deficit_k!==null&&r?.house?.deficit_k!==void 0?k`<dt>${n(`house.deficit`)}</dt><dd>${Ve(r.house.deficit_k,i)}</dd>`:j}
-    </dl>
-    ${t.timeline&&s&&e.config?k`<div style="margin-top:10px">
-          <div class="hint">${s.name}</div>
-          ${Ye(s.slots,e.config.scenes,{nowMinutes:We(r?.now),labels:!1,legend:!0})}
-        </div>`:j}
-  </div>`}function $e(e){if(e.temperature===null||e.temperature===void 0||e.target===null||e.target===void 0)return``;let t=e.target-e.temperature;return t>.3?`cold`:t<-.5?`warm`:`ok`}function et(e,t){let{t:n,lang:r}=e,i=$e(t),a=t.sensors_missing??0;return k`<div class="card room ${i}">
-    <div class="row">
-      <span class="name">${t.name}</span>
-      <span class="spacer"></span>
-      ${t.occupied===!0?k`<ha-icon icon="mdi:account" title=${n(`room.occupied`)}></ha-icon>`:j}
-    </div>
-    <div class="row" style="align-items:baseline">
-      <span class="temp">${G(t.temperature,r)}</span>
-      <span class="muted">${n(`room.target`)} ${G(t.target,r)}</span>
-    </div>
-    <div class="row" style="margin-top:4px">
-      ${t.radiator_setpoint!==null&&t.radiator_setpoint!==void 0?k`<span class="badge" title=${n(`room.radiator`)}><ha-icon icon="mdi:radiator" style="--mdc-icon-size:14px"></ha-icon>${G(t.radiator_setpoint,r)}</span>`:j}
-      ${t.open?k`<span class="badge cold"><ha-icon icon="mdi:window-open-variant" style="--mdc-icon-size:14px"></ha-icon>${t.open_minutes?n(`room.open_for`,{time:He(t.open_minutes)}):n(`room.open`)}</span>`:j}
-      ${t.recover_until&&!t.open?k`<span class="badge"><ha-icon icon="mdi:weather-windy" style="--mdc-icon-size:14px"></ha-icon>${n(`room.recovering`,{time:q(t.recover_until)})}</span>`:j}
-      ${t.occupied===!0?k`<span class="badge">${n(`room.occupied`)}</span>`:j}
-      ${i===`cold`?k`<span class="badge cold">${n(`room.too_cold`)}</span>`:j}
-      ${a>0?k`<span class="badge warn">${a===1?n(`room.sensor_missing`):n(`room.sensors_missing`,{n:a})}</span>`:j}
-    </div>
-  </div>`}function tt(e,t){let n=e.status?.rooms??[];return t?.length&&(n=t.map(e=>n.find(t=>t.id===e)).filter(e=>!!e)),n.length?k`<div class="grid">${n.map(t=>et(e,t))}</div>`:k`<div class="muted">${t?.length?e.t(`card.no_rooms`):e.t(`rooms.none`)}</div>`}function nt(e){switch(e.kind){case`opening`:return`mdi:window-open-variant`;case`opening_check`:return`mdi:window-shutter-alert`;case`sensor`:case`sensors_missing`:return`mdi:access-point-network-off`;case`stove`:return`mdi:fireplace-off`;case`chrono`:case`chrono_warning`:return`mdi:timer-alert-outline`;case`eco`:case`eco_warning`:return`mdi:leaf`;case`error`:case`stove_error`:return`mdi:alert-octagon`;default:return`mdi:alert-circle-outline`}}function rt(e,t){let n=[...e?.alerts??[]],r=e?.stove,i=(...e)=>n.some(t=>e.includes(t.kind));return r?.error&&!i(`error`,`stove_error`)&&n.unshift({kind:`stove_error`,message:t(`stove.error`)}),r?.chrono_warning&&!i(`chrono`,`chrono_warning`)&&n.push({kind:`chrono`,message:t(`stove.chrono_warning`)}),r?.eco_warning&&!i(`eco`,`eco_warning`)&&n.push({kind:`eco`,message:t(`stove.eco_warning`)}),n}function it(e,t={}){let n=rt(e.status,e.t);return n.length?k`<div role="list">
-    ${n.map(e=>k`<div class="alert ${e.kind}" role="listitem"><ha-icon icon=${nt(e)}></ha-icon><span>${e.message}</span></div>`)}
-  </div>`:t.showEmpty?k`<div class="muted">${e.t(`alerts.none`)}</div>`:j}function at(e){let t=e?.overrides;return t&&!!(t.scene||t.pause_until||t.boost)||e?.scene?.source===`override`}function ot(e){let t=e?.overrides?.boost;return t?typeof t==`number`?t:typeof t==`object`&&t&&typeof t.delta==`number`?t.delta:1:null}function st(e,t,n=!1){let{t:r,status:i,lang:a}=e,o=!e.isAdmin||e.busy,s=e.isAdmin?``:r(`not_admin`),c=ot(i),l=i?.overrides?.pause_until??null;return k`
-    <div class="row">
-      <button ?disabled=${o} title=${s} @click=${t.boost}>
-        <ha-icon icon="mdi:thermometer-plus"></ha-icon>${r(n?`actions.boost_short`:`actions.boost`)}
-      </button>
-      <button ?disabled=${o} title=${s} @click=${t.pause}>
-        <ha-icon icon="mdi:pause"></ha-icon>${r(n?`actions.pause_short`:`actions.pause`)}
-      </button>
-      ${at(i)?k`<button ?disabled=${o} title=${s||r(`actions.clear_hint`)} @click=${t.clear}>
-            <ha-icon icon="mdi:undo-variant"></ha-icon>${r(`actions.clear`)}
-          </button>`:j}
-    </div>
-    ${c||l?k`<div class="row" style="margin-top:6px">
-          ${c?k`<span class="badge heat">${r(`actions.boost_active`,{delta:String(c).replace(`.`,a.startsWith(`de`)?`,`:`.`)})}</span>`:j}
-          ${l?k`<span class="badge">${r(`actions.pause_active`,{time:Y(l,i?.now,a)})}</span>`:j}
-        </div>`:j}
-  `}var Z,Q=class extends R{constructor(){super(),this._unsub=null,this._connection=null,this._configLoading=!1,this._config={type:`custom:waermeregie-card`},this._status=null,this._wrConfig=null,this._error=null,this._busy=!1}static getStubConfig(){return{}}setConfig(e){if(!e||typeof e!=`object`)throw Error(`Invalid configuration`);if(e.rooms!==void 0&&!Array.isArray(e.rooms))throw Error(`rooms: list of room ids expected`);this._config={...e}}getCardSize(){let e=this._config?.rooms?.length??this._status?.rooms?.length??2;return 4+Math.ceil(e/2)}get _lang(){return Ge(this.hass?.locale?.language??this.hass?.language)}connectedCallback(){super.connectedCallback(),this.hass&&this._ensure()}disconnectedCallback(){super.disconnectedCallback(),this._unsub?.(),this._unsub=null,this._connection=null}willUpdate(e){e.has(`hass`)&&this.hass&&this._ensure()}_ensure(){this.isConnected&&this.hass?.connection&&(this._connection!==this.hass.connection&&(this._unsub?.(),this._connection=this.hass.connection,this._unsub=ke(this.hass,e=>{this._status=e,this._error=null},e=>this._error=X(e))),!this._wrConfig&&!this._configLoading&&(this._configLoading=!0,De(this.hass).then(e=>this._wrConfig=Je(e.config)).catch(e=>this._error=X(e)).finally(()=>this._configLoading=!1)))}async _action(e){this._busy=!0;try{let t=await e();t&&typeof t==`object`&&`mode`in t&&(this._status=t),this._error=null}catch(e){this._error=X(e)}finally{this._busy=!1}}render(){let e=Pe(this._lang),t={t:e,lang:this._lang,status:this._status,config:this._wrConfig,isAdmin:this.hass?.user?.is_admin!==!1,busy:this._busy};return k`<ha-card>
-      <div class="wrap">
-        <div class="row head">
-          <ha-icon icon="mdi:fireplace" style="color:var(--wr-heat)"></ha-icon>
-          <span class="title">${this._config.title??e(`card.name`)}</span>
-        </div>
-        ${this._error?k`<div class="banner error"><ha-icon icon="mdi:alert-circle-outline"></ha-icon><div>${this._error}</div></div>`:j}
-        ${this._status?k`
-              ${Xe(t,!0)}
-              ${this._wrConfig?Ze(t,e=>this._action(()=>z(this.hass,e,180))):j}
-              ${it(t)}
-              ${Qe(t,{timeline:!0,compact:!0})}
-              ${tt(t,this._config.rooms)}
-              ${this._config.show_actions===!1?j:st(t,{boost:()=>this._action(()=>Oe(this.hass,1,60)),pause:()=>this._action(()=>B(this.hass,120)),clear:()=>this._action(()=>Ae(this.hass,this._status))},!0)}
-            `:this._error?j:k`<div class="muted">${e(`loading`)}</div>`}
+  </div>`:F}function tt(e,t){let n=[...e?.alerts??[]],r=e?.stove,i=(...e)=>n.some(t=>e.includes(t.kind));return r?.error&&!i(`error`,`stove_error`)&&n.unshift({kind:`stove_error`,message:t(`stove.error`)}),r?.chrono_warning&&!i(`chrono`,`chrono_warning`)&&n.push({kind:`chrono`,message:t(`stove.chrono_warning`)}),r?.eco_warning&&!i(`eco`,`eco_warning`)&&n.push({kind:`eco`,message:t(`stove.eco_warning`)}),n}function nt(e){let t=e?.overrides;return t&&!!(t.scene||t.pause_until||t.boost)||e?.scene?.source===`override`}function rt(e){let t=e?.overrides?.boost;return t?typeof t==`number`?t:typeof t==`object`&&t&&typeof t.delta==`number`?t.delta:1:null}var it,at=[60,90,120,180],ot=[60,120,240],st=class extends H{constructor(){super(),this.status=null,this.config=null,this.lang=`de`,this.compact=!1,this._dialog=null,this._arrive=``,this._busy=!1,this._error=null}get _t(){return Qe(this.lang)}get _isAdmin(){return this.hass?.user?.is_admin!==!1}updated(e){if(e.has(`_dialog`)){let e=this.renderRoot.querySelector(`dialog`);if(e&&this._dialog&&!e.open)try{e.showModal()}catch{e.setAttribute(`open`,``)}}}_open(e){this._error=null,e===`warmup`&&(this._arrive=Ge(this.status?.now)),this._dialog=e}_close(){let e=this.renderRoot.querySelector(`dialog`);e?.open&&e.close(),this._dialog=null}async _run(e,t=!0){this._busy=!0,this._error=null;try{let n=await e();n&&typeof n==`object`&&`mode`in n&&this.dispatchEvent(new CustomEvent(`wr-status`,{detail:n,bubbles:!0,composed:!0})),t&&this._close()}catch(e){this._error=Z(e)||this._t(`error`)}finally{this._busy=!1}}_warmup(e){return this._run(()=>Ee(this.hass,e))}render(){let e=this._t,t=this.status,n=!this._isAdmin||this._busy||!t,r=this._isAdmin?``:e(`not_admin`),i=t?.scene,a=this.config?.scenes.find(e=>e.id===i?.id),o=Je(t,e),s=t?.overrides?.pause_until??null,c=rt(t),l=i?.source===`override`;return M`
+      <div class="main ${this.compact?`compact`:``}">
+        <button class="big heat ${o?`on`:``}" ?disabled=${n} title=${r} @click=${()=>this._open(`warmup`)}>
+          <ha-icon icon="mdi:home-thermometer-outline"></ha-icon><span>${e(`warmup.button`)}</span>
+        </button>
+        <button class="big" ?disabled=${n} title=${r} @click=${()=>this._open(`scene`)}>
+          <ha-icon icon=${l?a?.icon||`mdi:palette-outline`:`mdi:calendar-clock`}></ha-icon>
+          <span class="two"
+            ><span>${i?.name??e(`scene.title`)}</span><small>${l&&i?.until?e(`scene.override_until`,{time:Y(i.until)}):e(`scene.auto`)}</small></span
+          >
+        </button>
+        <button class="big ${s?`on`:``}" ?disabled=${n} title=${r} @click=${()=>this._open(`pause`)}>
+          <ha-icon icon=${s?`mdi:pause-circle`:`mdi:pause`}></ha-icon><span>${e(`pause.button`)}</span>
+        </button>
       </div>
-    </ha-card>`}};Z=Q,Z.properties={hass:{attribute:!1},_config:{state:!0},_status:{state:!0},_wrConfig:{state:!0},_error:{state:!0},_busy:{state:!0}},Z.styles=[Fe,o`
+      ${o||s||c?M`<div class="active">
+            ${o?M`<span class="pill heat"
+                  ><ha-icon icon="mdi:home-thermometer"></ha-icon>${o}<button
+                    class="x"
+                    ?disabled=${n}
+                    aria-label=${e(`warmup.cancel`)}
+                    title=${e(`warmup.cancel`)}
+                    @click=${()=>this._warmup({cancel:!0})}
+                  ><ha-icon icon="mdi:close"></ha-icon></button
+                ></span>`:F}
+            ${s?M`<span class="pill"
+                  ><ha-icon icon="mdi:pause"></ha-icon>${e(`actions.pause_active`,{time:X(s,t?.now,this.lang)})}<button
+                    class="x"
+                    ?disabled=${n}
+                    aria-label=${e(`pause.cancel`)}
+                    title=${e(`pause.cancel`)}
+                    @click=${()=>this._run(()=>W(this.hass,0),!1)}
+                  ><ha-icon icon="mdi:close"></ha-icon></button
+                ></span>`:F}
+            ${c?M`<span class="pill heat"
+                  >${e(`actions.boost_active`,{delta:String(c).replace(`.`,this.lang===`de`?`,`:`.`)})}<button
+                    class="x"
+                    ?disabled=${n}
+                    aria-label=${e(`actions.clear`)}
+                    title=${e(`actions.clear`)}
+                    @click=${()=>this._run(()=>G(this.hass,0,0),!1)}
+                  ><ha-icon icon="mdi:close"></ha-icon></button
+                ></span>`:F}
+          </div>`:F}
+      ${this._error&&!this._dialog?M`<div class="error-text" role="alert">${this._error}</div>`:F}
+      ${this._dialog?this._renderDialog():F}
+    `}_renderDialog(){let e=this._t,t={warmup:e(`warmup.title`),pause:e(`pause.title`),scene:e(`scene.title`)},n=this._dialog;return M`<dialog
+      aria-label=${t[n]}
+      @close=${()=>this._dialog=null}
+      @click=${e=>{e.target===e.currentTarget&&this._close()}}
+    >
+      <div class="sheet">
+        <div class="head">
+          <h3>${t[n]}</h3>
+          <button class="icon" aria-label=${e(`close`)} @click=${this._close}><ha-icon icon="mdi:close"></ha-icon></button>
+        </div>
+        ${n===`warmup`?this._renderWarmup():n===`pause`?this._renderPause():this._renderScene()}
+        ${this._error?M`<div class="error-text" role="alert">${this._error}</div>`:F}
+      </div>
+    </dialog>`}_renderWarmup(){let e=this._t,t=this.config?.parameters?.warmup_lead_min??60,n=je(this._arrive)!==null,r=Je(this.status,e);return M`
+      <p class="muted">${e(`warmup.intro`)}</p>
+      ${r?M`<div class="now">
+            <span>${r}</span>
+            <button class="danger" ?disabled=${this._busy} @click=${()=>this._warmup({cancel:!0})}>${e(`warmup.cancel`)}</button>
+          </div>`:F}
+      <h4>${e(`warmup.now`)}</h4>
+      <div class="opts">
+        ${at.map(t=>M`<button class="opt" ?disabled=${this._busy} @click=${()=>this._warmup({minutes:t})}>${e(`warmup.for`,{time:t%60?`${t} min`:`${t/60} h`})}</button>`)}
+      </div>
+      <h4>${e(`warmup.arrive`)}</h4>
+      <form
+        class="arrive"
+        @submit=${e=>{e.preventDefault(),n&&this._warmup({arrive:this._arrive})}}
+      >
+        <input
+          inputmode="numeric"
+          maxlength="5"
+          placeholder="18:30"
+          aria-label=${e(`warmup.arrive`)}
+          class=${n?``:`invalid`}
+          .value=${this._arrive}
+          @input=${e=>this._arrive=e.target.value}
+          @change=${e=>this._arrive=Me(e.target.value)}
+        />
+        <button class="primary" type="submit" ?disabled=${this._busy||!n}>${e(`warmup.plan`)}</button>
+      </form>
+      <div class="hint">${e(`warmup.arrive_hint`,{lead:String(t)})}</div>
+    `}_renderPause(){let e=this._t,t=this.status?.overrides?.pause_until;return M`
+      <p class="muted">${e(`pause.intro`)}</p>
+      ${t?M`<div class="now">
+            <span>${e(`actions.pause_active`,{time:X(t,this.status?.now,this.lang)})}</span>
+            <button class="danger" ?disabled=${this._busy} @click=${()=>this._run(()=>W(this.hass,0))}>${e(`pause.cancel`)}</button>
+          </div>`:F}
+      <div class="opts">
+        ${ot.map(t=>M`<button class="opt" ?disabled=${this._busy} @click=${()=>this._run(()=>W(this.hass,t))}>${e(`pause.for`,{h:String(t/60)})}</button>`)}
+      </div>
+    `}_renderScene(){let e=this._t,t=this.status,n=t?.scene,r=n?.source===`override`,i=this.config?.scenes??[];return M`
+      <p class="muted">${e(`scene.override_hint`)}</p>
+      <div class="list">
+        <button class="item ${r?``:`sel`}" ?disabled=${this._busy} @click=${()=>this._run(()=>U(this.hass,null))}>
+          <ha-icon icon="mdi:calendar-clock"></ha-icon><span>${e(`scene.auto`)}<small>${e(`scene.auto_hint`)}</small></span>
+        </button>
+        ${i.map(e=>M`<button
+            class="item ${r&&n?.id===e.id?`sel`:``}"
+            ?disabled=${this._busy}
+            @click=${()=>this._run(()=>U(this.hass,e.id,180))}
+          >
+            <ha-icon icon=${e.icon||`mdi:palette-outline`}></ha-icon><span>${e.name}</span>
+          </button>`)}
+      </div>
+      <h4>${e(`more.title`)}</h4>
+      <div class="opts">
+        <button class="opt" ?disabled=${this._busy} @click=${()=>this._run(()=>G(this.hass,1,60))}>
+          <ha-icon icon="mdi:thermometer-plus"></ha-icon>${e(`actions.boost`)}
+        </button>
+        ${nt(t)?M`<button class="opt" ?disabled=${this._busy} title=${e(`actions.clear_hint`)} @click=${()=>this._run(()=>ke(this.hass,t))}>
+              <ha-icon icon="mdi:undo-variant"></ha-icon>${e(`actions.clear_all`)}
+            </button>`:F}
+      </div>
+    `}};it=st,it.properties={hass:{attribute:!1},status:{attribute:!1},config:{attribute:!1},lang:{type:String},compact:{type:Boolean},_dialog:{state:!0},_arrive:{state:!0},_busy:{state:!0},_error:{state:!0}},it.styles=[$e,o`
+      :host {
+        display: block;
+      }
+      .main {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      button.big {
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+        min-height: 64px;
+        border-radius: 14px;
+        padding: 8px 6px;
+        text-align: center;
+        background: var(--wr-input-bg);
+        border-color: transparent;
+        font-weight: 500;
+        line-height: 1.2;
+      }
+      button.big ha-icon {
+        --mdc-icon-size: 24px;
+      }
+      button.big.heat {
+        color: var(--wr-heat);
+      }
+      button.big.on {
+        background: color-mix(in srgb, var(--wr-heat) 16%, transparent);
+        border-color: var(--wr-heat);
+      }
+      .compact button.big {
+        min-height: 52px;
+        font-size: 13px;
+      }
+      .compact button.big ha-icon {
+        --mdc-icon-size: 20px;
+      }
+      .two {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        max-width: 100%;
+      }
+      .two span,
+      .two small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .two small {
+        font-weight: 400;
+        color: var(--wr-text2);
+        font-size: 11px;
+      }
+      .active {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        border-radius: 16px;
+        padding: 2px 2px 2px 10px;
+        background: rgba(127, 127, 127, 0.15);
+      }
+      .pill.heat {
+        background: color-mix(in srgb, var(--wr-heat) 18%, transparent);
+      }
+      .pill ha-icon {
+        --mdc-icon-size: 16px;
+      }
+      .pill button.x {
+        min-height: 26px;
+        min-width: 26px;
+        padding: 0;
+        justify-content: center;
+        border: 0;
+        border-radius: 50%;
+      }
+      dialog {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        max-width: min(440px, calc(100vw - 24px));
+        width: 100%;
+        color: var(--wr-text);
+      }
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.45);
+      }
+      .sheet {
+        background: var(--wr-card);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+      .sheet .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+      }
+      .sheet .head h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .sheet p {
+        margin: 0 0 8px;
+      }
+      .sheet h4 {
+        margin: 14px 0 8px;
+      }
+      .opts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      button.opt {
+        min-height: 44px;
+        padding: 6px 16px;
+      }
+      .arrive {
+        display: flex;
+        gap: 8px;
+      }
+      .arrive input {
+        max-width: 110px;
+        font-size: 18px;
+        text-align: center;
+      }
+      .now {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--wr-heat) 12%, transparent);
+        margin-bottom: 4px;
+      }
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .list .item {
+        justify-content: flex-start;
+        border-radius: 10px;
+        border-color: transparent;
+        min-height: 44px;
+        text-align: left;
+      }
+      .list .item span {
+        display: flex;
+        flex-direction: column;
+      }
+      .list .item small {
+        color: var(--wr-text2);
+        font-size: 12px;
+      }
+      .list .item.sel {
+        background: color-mix(in srgb, var(--wr-heat) 16%, transparent);
+        border-color: var(--wr-heat);
+      }
+      .error-text {
+        margin-top: 8px;
+        font-size: 13px;
+      }
+    `];function ct(){let e=window.customElements;e.get(`wr-controls`)||e.define(`wr-controls`,st)}function lt(e){let t=e.size??88;return M`<svg
+    class="house-art ${e.burning?`burning`:``} ${e.warm?`warm`:``}"
+    width=${t}
+    height=${t}
+    viewBox="0 0 100 100"
+    aria-hidden="true"
+  >
+    <path class="glow" d="M50 18 L88 50 V88 H12 V50 Z" />
+    <path class="walls" d="M14 50 V88 H86 V50" />
+    <path class="roof" d="M6 54 L50 16 L94 54" />
+    <rect class="chimney" x="66" y="24" width="9" height="16" rx="1.5" />
+    <rect class="stove" x="34" y="56" width="32" height="32" rx="4" />
+    <rect class="window" x="40" y="62" width="20" height="14" rx="2" />
+    <g class="flame">
+      <path class="f1" d="M50 75 C44 71 45 66 48.5 63 C48 66 50 67 51 65.5 C52.5 63.5 51 61 52 59 C56 62.5 57 70 50 75 Z" />
+      <path class="f2" d="M50 75 C47.5 73 47.5 70.5 49.5 68.5 C49.5 70 50.5 70.5 51 69.5 C53 71.5 52.5 74 50 75 Z" />
+    </g>
+    <g class="smoke">
+      <circle cx="71" cy="17" r="3" />
+      <circle cx="74" cy="10" r="2.2" />
+    </g>
+  </svg>`}var ut=o`
+  .house-art {
+    flex: none;
+    color: var(--wr-text2);
+  }
+  .house-art .walls,
+  .house-art .roof {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 4;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .house-art .glow {
+    fill: transparent;
+    transition: fill 0.6s;
+  }
+  .house-art.warm .glow {
+    fill: color-mix(in srgb, var(--wr-heat) 10%, transparent);
+  }
+  .house-art.burning .glow {
+    fill: color-mix(in srgb, var(--wr-heat) 20%, transparent);
+  }
+  .house-art .chimney {
+    fill: currentColor;
+  }
+  .house-art .stove {
+    fill: color-mix(in srgb, currentColor 25%, transparent);
+    stroke: currentColor;
+    stroke-width: 2.5;
+  }
+  .house-art .window {
+    fill: color-mix(in srgb, var(--wr-text) 70%, transparent);
+  }
+  .house-art .flame {
+    opacity: 0;
+    transition: opacity 0.4s;
+    transform-origin: 50px 75px;
+  }
+  .house-art .f1 {
+    fill: var(--wr-heat);
+  }
+  .house-art .f2 {
+    fill: #ffd43b;
+  }
+  .house-art .smoke {
+    fill: color-mix(in srgb, currentColor 45%, transparent);
+    opacity: 0;
+  }
+  .house-art.burning {
+    color: var(--wr-heat);
+  }
+  .house-art.burning .window {
+    fill: #3b1d0e;
+  }
+  .house-art.burning .flame,
+  .house-art.burning .smoke {
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .house-art.burning .flame {
+      animation: wr-flicker 1.3s ease-in-out infinite alternate;
+    }
+    .house-art.burning .smoke {
+      animation: wr-smoke 3s ease-in infinite;
+    }
+  }
+  @keyframes wr-flicker {
+    0% {
+      transform: scale(1, 1);
+    }
+    50% {
+      transform: scale(0.92, 1.08);
+    }
+    100% {
+      transform: scale(1.05, 0.95);
+    }
+  }
+  @keyframes wr-smoke {
+    0% {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    40% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+`;function dt(e,t,n,r={}){let i=r.height??160,a=r.axis!==!1,o=Ue(e,{width:600,height:i,padLeft:4,padRight:4,padTop:8,padBottom:a?20:4});if(!o)return F;let s=t(`chart.aria`,{from:q(o.yMin,n,0),to:q(o.yMax,n,0)});return M`<figure class="trend"><div class="plot ${a?`axis`:``}">
+    <svg viewBox="0 0 ${600} ${i}" preserveAspectRatio="none" role="img" aria-label=${s} style="height:${i}px">
+      ${o.bands.map(e=>N`<rect class="band" x=${e.x} y=${o.top} width=${e.w} height=${o.bottom-o.top}></rect>`)}
+      ${a?o.yTicks.map(e=>N`<line class="grid" x1=${o.left} x2=${o.right} y1=${e.y} y2=${e.y}></line>`):F}
+      ${o.target?N`<path class="target" d=${o.target}></path>`:F}
+      <path class="house" d=${o.house}></path>
+    </svg>
+    ${o.last?M`<span class="dot" style="left:calc(var(--pl) + (100% - var(--pl)) * ${o.last.x/600});top:${o.last.y/i*100}%"></span>`:F}
+    ${a?M`<div class="ylabels" aria-hidden="true">
+            ${o.yTicks.map(e=>M`<span style="top:${e.y/i*100}%">${e.value}°</span>`)}
+          </div>
+          <div class="xlabels" aria-hidden="true">
+            ${o.xTicks.map(e=>M`<span style="left:calc(var(--pl) + (100% - var(--pl)) * ${e.x/600})">${e.label}</span>`)}
+          </div>`:F}
+    </div>
+    ${a&&r.legend!==!1?M`<figcaption class="legend">
+          <span><i class="lg house"></i>${t(`chart.house`)}</span>
+          <span><i class="lg target"></i>${t(`chart.target`)}</span>
+          <span><i class="lg band"></i>${t(`chart.burning`)}</span>
+        </figcaption>`:F}
+  </figure>`}var ft=o`
+  .trend {
+    margin: 0;
+  }
+  .trend .plot {
+    position: relative;
+    --pl: 0px;
+  }
+  .trend .plot.axis {
+    --pl: 30px;
+    padding-left: var(--pl);
+  }
+  .trend svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+  .trend .band {
+    fill: color-mix(in srgb, var(--wr-heat) 18%, transparent);
+  }
+  .trend .grid {
+    stroke: var(--wr-div);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .trend .house {
+    fill: none;
+    stroke: var(--wr-heat);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .trend .target {
+    fill: none;
+    stroke: var(--wr-text2);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+    vector-effect: non-scaling-stroke;
+  }
+  .trend .dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 50%;
+    background: var(--wr-heat);
+    border: 2px solid var(--wr-card);
+    pointer-events: none;
+  }
+  .trend .ylabels span,
+  .trend .xlabels span {
+    position: absolute;
+    font-size: 11px;
+    color: var(--wr-text2);
+    line-height: 1;
+    pointer-events: none;
+  }
+  .trend .ylabels span {
+    left: 0;
+    transform: translateY(-50%);
+  }
+  .trend .xlabels span {
+    bottom: 3px;
+    transform: translateX(-50%);
+  }
+  .trend .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font-size: 12px;
+    color: var(--wr-text2);
+    margin-top: 4px;
+  }
+  .trend .lg {
+    display: inline-block;
+    width: 14px;
+    height: 10px;
+    margin-right: 5px;
+    vertical-align: -1px;
+    border-radius: 2px;
+  }
+  .trend .lg.house {
+    height: 3px;
+    vertical-align: 3px;
+    background: var(--wr-heat);
+  }
+  .trend .lg.target {
+    height: 0;
+    border-top: 2px dashed var(--wr-text2);
+    vertical-align: 3px;
+  }
+  .trend .lg.band {
+    background: color-mix(in srgb, var(--wr-heat) 25%, transparent);
+  }
+`;function pt(e,t={}){let n=t.size??64,r=e===null?0:Math.max(0,Math.min(100,e)),i=78*r/100;return M`<svg class="tank ${t.low?`low`:``}" width=${n*.75} height=${n} viewBox="0 0 75 100" aria-hidden="true">
+    <defs>
+      <clipPath id="wr-tank-clip"><rect x="10" y=${14} width="55" height=${78} rx="6" /></clipPath>
+    </defs>
+    <rect class="lid" x="6" y="4" width="63" height="8" rx="3" />
+    <rect class="body" x="8" y="12" width="59" height="82" rx="8" />
+    <g clip-path="url(#wr-tank-clip)">
+      <rect class="fill" x="10" y=${92-i} width="55" height=${i} />
+      ${r>6?N`<g class="grains">
+            ${[18,30,42,54].map((e,t)=>N`<ellipse cx=${e+t%2*3} cy=${92-i+4} rx="4" ry="2.2"></ellipse>`)}
+          </g>`:F}
+    </g>
+    ${e===null?F:N`<text x="37.5" y="60" text-anchor="middle">${Math.round(r)}%</text>`}
+  </svg>`}var mt=o`
+  .tank {
+    flex: none;
+  }
+  .tank .lid {
+    fill: var(--wr-text2);
+  }
+  .tank .body {
+    fill: var(--wr-input-bg);
+    stroke: var(--wr-text2);
+    stroke-width: 3;
+  }
+  .tank .fill {
+    fill: #b07d3c;
+    transition: all 0.6s;
+  }
+  .tank.low .fill {
+    fill: var(--wr-warn);
+  }
+  .tank .grains ellipse {
+    fill: #8a5a24;
+  }
+  .tank text {
+    font-size: 17px;
+    font-weight: 600;
+    fill: var(--wr-text);
+    paint-order: stroke;
+    stroke: var(--wr-card);
+    stroke-width: 4px;
+  }
+`;function ht(e,t){let n=qe(e);switch(n.key){case`error`:return t(`hero.error`);case`unavailable`:return t(`stove.unavailable`);case`prepare`:return t(`hero.prepare`,{time:n.time});case`self_off`:return t(`hero.self_off`);case`burning`:return t(`hero.burning`,{time:n.time});case`block`:return t(`hero.block`,{time:n.time});case`warmup_planned`:return t(`hero.warmup_planned`,{time:n.time});case`paused`:return t(`hero.paused`,{time:n.time});case`pause`:return t(`hero.pause`,{time:n.time});case`idle_warm`:return t(`hero.idle_warm`);default:return t(`hero.idle`)}}function gt(e,t={}){let{t:n,lang:r,status:i}=e,{temp:a,target:o}=Ke(i),s=!!i?.stove?.burning,c=qe(i);return M`<div class="hero-head">
+    ${lt({burning:s,warm:s||c.key===`prepare`||c.key===`block`,size:t.size})}
+    <div class="hero-text">
+      <div class="hero-label">${n(`hero.inside`)}</div>
+      <div class="hero-temp">${Fe(a,r)}</div>
+      <div class="hero-target">${o===null?F:n(`hero.target`,{temp:Fe(o,r)})}${i?.scene?M` · ${i.scene.name}`:F}</div>
+      <div class="hero-status ${i?.stove?.error?`err`:s?`heat`:``}">${ht(i,n)}</div>
+    </div>
+  </div>`}function _t(e){let t=tt(e.status,e.t);return t.length?M`<div class="alert-strip" role="status">
+    ${t.map(e=>M`<div class="as ${e.kind}">
+        <ha-icon icon=${e.kind===`opening`?`mdi:window-open-variant`:e.kind.includes(`error`)?`mdi:alert-octagon`:`mdi:alert-circle-outline`}></ha-icon>
+        <span>${e.message}</span>
+      </div>`)}
+  </div>`:F}function vt(e,t,n={}){let{t:r,lang:i,status:a,config:o}=e,s=a?.pellets;if(!s||s.stock_kg===null||s.stock_kg===void 0)return F;let c=We(s,o?.parameters?.pellet_capacity_kg),l=o?.parameters?.pellet_reminder_kg??5,u=s.stock_kg<=l,d=q(s.stock_kg,i,1),f=s.empty_at?bt(s.empty_at,a?.now,i):null;return n.compact?M`<div class="pellet-mini ${u?`low`:``}">
+      <ha-icon icon="mdi:grain"></ha-icon>
+      <div class="bar" role="img" aria-label=${r(`pellets.aria`,{pct:String(c??0)})}><i style="width:${c??0}%"></i></div>
+      <span>${d} kg${f?M` · ${r(`pellets.until`,{time:f})}`:F}</span>
+    </div>`:M`<div class="card pellets ${u?`low`:``}">
+    <h3>${r(`pellets.title`)}</h3>
+    <div class="prow">
+      ${pt(c,{low:u,size:84})}
+      <div class="ptext">
+        <div class="pkg">${d} kg</div>
+        ${f?M`<div>${r(`pellets.until`,{time:f})}</div>`:F}
+        ${u?M`<div class="warn-text">${r(`pellets.low`)}</div>`:F}
+        ${s.rate_learned?F:M`<div class="hint">${r(`pellets.estimate`)}</div>`}
+      </div>
+    </div>
+    ${t?M`<button ?disabled=${!e.isAdmin||e.busy} title=${e.isAdmin?``:r(`not_admin`)} @click=${t}>
+          <ha-icon icon="mdi:sack"></ha-icon>${r(`pellets.refill`)}
+        </button>`:F}
+  </div>`}var yt={de:[`So`,`Mo`,`Di`,`Mi`,`Do`,`Fr`,`Sa`],en:[`Sun`,`Mon`,`Tue`,`Wed`,`Thu`,`Fri`,`Sat`]};function bt(e,t,n){let r=/^(\d{4})-(\d{2})-(\d{2})/.exec(e),i=t?/^(\d{4})-(\d{2})-(\d{2})/.exec(t):null;if(!r)return X(e,t,n);let a=Date.UTC(+r[1],r[2]-1,+r[3]),o=i?Date.UTC(+i[1],i[2]-1,+i[3]):null,s=o===null?null:Math.round((a-o)/864e5);return s===0?Y(e):s!==null&&s>0&&s<7?`${yt[n.startsWith(`de`)?`de`:`en`][new Date(a).getUTCDay()]} ${Y(e)}`:X(e,t,n)}function xt(e){if(e.temperature===null||e.temperature===void 0||e.target===null||e.target===void 0)return``;let t=e.target-e.temperature;return t>.3?`cold`:t<-.5?`warm`:`ok`}function St(e,t){let{t:n,lang:r}=e,i=e.status?.rooms??[];return t?.length&&(i=t.map(e=>i.find(t=>t.id===e)).filter(e=>!!e)),i.length?M`<div class="tiles">
+    ${i.map(e=>{let t=e.sensors_missing??0;return M`<div class="tile ${xt(e)}">
+        <div class="tname">${e.name}</div>
+        <div class="ttemp">${Fe(e.temperature,r)}</div>
+        <div class="tsub">
+          <span>${n(`room.target`)} ${q(e.target,r,1)}°</span>
+          <span class="ticons">
+            ${e.open?M`<ha-icon class="cold" icon="mdi:window-open-variant" title=${e.open_minutes?n(`room.open_for`,{time:`${e.open_minutes} min`}):n(`room.open`)}></ha-icon>`:F}
+            ${e.recover_until&&!e.open?M`<ha-icon icon="mdi:weather-windy" title=${n(`room.recovering`,{time:Y(e.recover_until)})}></ha-icon>`:F}
+            ${e.occupied===!0?M`<ha-icon icon="mdi:account" title=${n(`room.occupied`)}></ha-icon>`:F}
+            ${t>0?M`<ha-icon class="warn" icon="mdi:access-point-network-off" title=${t===1?n(`room.sensor_missing`):n(`room.sensors_missing`,{n:t})}></ha-icon>`:F}
+          </span>
+        </div>
+      </div>`})}
+  </div>`:M`<div class="muted">${t?.length?n(`card.no_rooms`):n(`rooms.none`)}</div>`}var Ct=o`
+  .hero-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .hero-text {
+    min-width: 0;
+  }
+  .hero-label {
+    color: var(--wr-text2);
+    font-size: 13px;
+  }
+  .hero-temp {
+    font-size: 44px;
+    font-weight: 500;
+    line-height: 1.05;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-target {
+    color: var(--wr-text2);
+  }
+  .hero-status {
+    margin-top: 6px;
+    font-weight: 500;
+  }
+  .hero-status.heat {
+    color: var(--wr-heat);
+  }
+  .hero-status.err {
+    color: var(--wr-err);
+  }
+  .alert-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .alert-strip .as {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--wr-warn) 14%, transparent);
+    font-size: 13px;
+  }
+  .alert-strip .as ha-icon {
+    color: var(--wr-warn);
+    --mdc-icon-size: 18px;
+  }
+  .alert-strip .as.opening {
+    background: color-mix(in srgb, var(--wr-cold) 14%, transparent);
+  }
+  .alert-strip .as.opening ha-icon {
+    color: var(--wr-cold);
+  }
+  .alert-strip .as.stove_error,
+  .alert-strip .as.error {
+    background: color-mix(in srgb, var(--wr-err) 14%, transparent);
+  }
+  .alert-strip .as.stove_error ha-icon,
+  .alert-strip .as.error ha-icon {
+    color: var(--wr-err);
+  }
+  .pellets .prow {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .pellets .pkg {
+    font-size: 26px;
+    font-weight: 500;
+  }
+  .warn-text {
+    color: var(--wr-warn);
+    font-weight: 500;
+  }
+  .pellet-mini {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--wr-text2);
+  }
+  .pellet-mini .bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--wr-input-bg);
+    overflow: hidden;
+    min-width: 40px;
+  }
+  .pellet-mini .bar i {
+    display: block;
+    height: 100%;
+    background: #b07d3c;
+  }
+  .pellet-mini.low .bar i {
+    background: var(--wr-warn);
+  }
+  details.more {
+    margin-top: 8px;
+  }
+  details.more summary {
+    cursor: pointer;
+    color: var(--wr-primary);
+    font-weight: 500;
+    padding: 4px 0;
+  }
+  .tiles {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+  }
+  .tile {
+    background: var(--wr-card);
+    border: 1px solid var(--wr-div);
+    border-left: 4px solid var(--wr-div);
+    border-radius: 10px;
+    padding: 8px 10px;
+    min-width: 0;
+  }
+  .tile.cold {
+    border-left-color: var(--wr-cold);
+  }
+  .tile.warm {
+    border-left-color: var(--wr-heat);
+  }
+  .tile.ok {
+    border-left-color: var(--wr-ok);
+  }
+  .tname {
+    font-size: 13px;
+    color: var(--wr-text2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ttemp {
+    font-size: 22px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .tsub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--wr-text2);
+    min-height: 18px;
+  }
+  .ticons {
+    display: inline-flex;
+    gap: 2px;
+  }
+  .ticons ha-icon {
+    --mdc-icon-size: 16px;
+  }
+  .ticons .cold {
+    color: var(--wr-cold);
+  }
+  .ticons .warn {
+    color: var(--wr-warn);
+  }
+  @media (max-width: 480px) {
+    .hero-temp {
+      font-size: 38px;
+    }
+  }
+`,wt,Tt=class extends H{constructor(){super(),this._unsub=null,this._connection=null,this._configLoading=!1,this._config={type:`custom:waermeregie-card`},this._status=null,this._wrConfig=null,this._error=null,this._busy=!1,this._history=null}static getStubConfig(){return{}}setConfig(e){if(!e||typeof e!=`object`)throw Error(`Invalid configuration`);if(e.rooms!==void 0&&!Array.isArray(e.rooms))throw Error(`rooms: list of room ids expected`);this._config={...e}}getCardSize(){let e=this._config?.show_rooms===!1?0:this._config?.rooms?.length??this._status?.rooms?.length??2;return 5+(this._config?.chart===!1?0:2)+Math.ceil(e/2)}get _lang(){return ze(this.hass?.locale?.language??this.hass?.language)}connectedCallback(){super.connectedCallback(),this.hass&&this._ensure(),this._historyTimer=window.setInterval(()=>void this._loadHistory(),6e5)}disconnectedCallback(){super.disconnectedCallback(),window.clearInterval(this._historyTimer),this._unsub?.(),this._unsub=null,this._connection=null}willUpdate(e){e.has(`hass`)&&this.hass&&this._ensure()}_ensure(){this.isConnected&&this.hass?.connection&&(this._connection!==this.hass.connection&&(this._unsub?.(),this._connection=this.hass.connection,this._unsub=Oe(this.hass,e=>{this._status=e,this._error=null},e=>this._error=Z(e)),this._loadHistory()),!this._wrConfig&&!this._configLoading&&(this._configLoading=!0,Te(this.hass).then(e=>this._wrConfig=Be(e.config)).catch(e=>this._error=Z(e)).finally(()=>this._configLoading=!1)))}async _loadHistory(){if(this._config?.chart!==!1&&this.hass?.connection)try{this._history=await De(this.hass,24)}catch{this._history=null}}render(){let e=Qe(this._lang),t={t:e,lang:this._lang,status:this._status,config:this._wrConfig,isAdmin:this.hass?.user?.is_admin!==!1,busy:this._busy},n=this._config;return M`<ha-card>
+      <div class="wrap">
+        ${n.title?M`<div class="head">${n.title}</div>`:F}
+        ${this._error?M`<div class="banner error"><ha-icon icon="mdi:alert-circle-outline"></ha-icon><div>${this._error}</div></div>`:F}
+        ${this._status?M`
+              ${et(t,!0)}
+              ${gt(t,{size:64})}
+              ${_t(t)}
+              ${n.show_actions===!1?F:M`<wr-controls
+                    compact
+                    .hass=${this.hass}
+                    .status=${this._status}
+                    .config=${this._wrConfig}
+                    .lang=${this._lang}
+                    @wr-status=${e=>this._status=e.detail}
+                  ></wr-controls>`}
+              ${n.chart!==!1&&this._history?.length?dt(this._history,e,this._lang,{height:90,legend:!1}):F}
+              ${n.show_pellets===!1?F:vt(t,null,{compact:!0})}
+              ${n.show_rooms===!1?F:St(t,n.rooms)}
+            `:this._error?F:M`<div class="muted">${e(`loading`)}</div>`}
+      </div>
+    </ha-card>`}};wt=Tt,wt.properties={hass:{attribute:!1},_config:{state:!0},_status:{state:!0},_wrConfig:{state:!0},_error:{state:!0},_busy:{state:!0},_history:{state:!0}},wt.styles=[$e,ut,ft,mt,Ct,o`
       :host {
         display: block;
       }
@@ -499,24 +1175,23 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
         flex-direction: column;
         gap: 12px;
       }
-      .head .title {
+      .head {
         font-size: 18px;
         font-weight: 500;
       }
-      .card {
-        padding: 12px;
+      .hero-temp {
+        font-size: 34px;
       }
-      .grid {
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
-        gap: 8px;
+      .tiles {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 110px), 1fr));
       }
-      .room .temp {
-        font-size: 20px;
+      .tile {
+        padding: 6px 8px;
       }
-      .stove .phase {
-        font-size: 16px;
+      .ttemp {
+        font-size: 18px;
       }
       .banner {
         padding: 8px 12px;
       }
-    `];function $(){let e=window.customElements;e.get(`waermeregie-card`)||e.define(`waermeregie-card`,Q)}if(window.customElements.get(`home-assistant`)?$():window.customElements.whenDefined(`home-assistant`).then($,$),window.customCards=window.customCards||[],!window.customCards.some(e=>e.type===`waermeregie-card`)){let e=Pe(Ge(typeof navigator<`u`?navigator.language:`de`));window.customCards.push({type:`waermeregie-card`,name:e(`card.name`),description:e(`card.description`),preview:!1})}export{Q as WaermeregieCard};
+    `];function $(){ct();let e=window.customElements;e.get(`waermeregie-card`)||e.define(`waermeregie-card`,Tt)}if(window.customElements.get(`home-assistant`)?$():window.customElements.whenDefined(`home-assistant`).then($,$),window.customCards=window.customCards||[],!window.customCards.some(e=>e.type===`waermeregie-card`)){let e=Qe(ze(typeof navigator<`u`?navigator.language:`de`));window.customCards.push({type:`waermeregie-card`,name:e(`card.name`),description:e(`card.description`),preview:!1})}export{Tt as WaermeregieCard};

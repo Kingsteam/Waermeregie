@@ -346,7 +346,7 @@ export function normalizeConfig(raw: Partial<Config> | null | undefined): Config
       ...r,
       importance: r.importance ?? 2,
       radiators: r.radiators ?? [],
-      temperature_sensors: r.temperature_sensors ?? [],
+      temperature_sensors: (r.temperature_sensors ?? []).map((x) => ({ ...x, weight: x.weight ?? 1, offset: x.offset ?? 0 })),
       openings: r.openings ?? [],
       presence: r.presence ?? [],
       paused: r.paused ?? [],
@@ -355,6 +355,7 @@ export function normalizeConfig(raw: Partial<Config> | null | undefined): Config
     scenes: c.scenes ?? [],
     day_types: (c.day_types ?? []).map((d) => ({ ...d, slots: d.slots ?? [] })),
     week: c.week ?? {},
+    warmup_scene: c.warmup_scene ?? null,
     parameters: c.parameters ?? {},
     mode: c.mode ?? "shadow",
   };

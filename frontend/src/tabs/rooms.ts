@@ -238,7 +238,8 @@ export class WrRoomsEditor extends EditorBase {
         const ok = isAvailable(st);
         const isPaused = paused.has(entity);
         const note = isPaused ? null : healthNote(this.devices?.[entity], t);
-        const weight = k.kind === "temperature_sensors" ? room.temperature_sensors.find((s) => s.entity === entity)?.weight : undefined;
+        const sensor = k.kind === "temperature_sensors" ? room.temperature_sensors.find((s) => s.entity === entity) : undefined;
+        const weight = sensor?.weight;
         return html`<div class="dev ${isPaused ? "paused" : ""} ${ok ? "" : "unavail"}">
           <span class="dot" aria-hidden="true"></span>
           <span class="dname">
@@ -263,6 +264,24 @@ export class WrRoomsEditor extends EditorBase {
                     const x = r.temperature_sensors.find((y) => y.entity === entity);
                     const n = readNumber(e);
                     if (x) x.weight = n === null || n <= 0 ? 1 : n;
+                  })}
+              />
+              <input
+                class="w off"
+                type="number"
+                min="-5"
+                max="5"
+                step="0.1"
+                placeholder="±0"
+                title=${t("room.offset_hint")}
+                aria-label="${t("room.offset")}: ${entity}"
+                ?disabled=${ro}
+                .value=${sensor?.offset ? String(sensor.offset) : ""}
+                @change=${(e: Event) =>
+                  this._updateRoom(room.id, (r) => {
+                    const x = r.temperature_sensors.find((y) => y.entity === entity);
+                    const n = readNumber(e);
+                    if (x) x.offset = n === null ? 0 : Math.max(-5, Math.min(5, Math.round(n * 10) / 10));
                   })}
               />`
             : nothing}

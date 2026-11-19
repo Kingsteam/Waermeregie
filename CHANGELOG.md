@@ -6,10 +6,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [0.5.0] - 2026-11-19
 ### Hinzugefügt
-- **Haus aufheizen:** Knopf *Aufheizen* in Panel und Karte, Knopf-Entität *Haus aufheizen*, Dienste `waermeregie.warmup` und `cancel_warmup`. Der Ofen startet einen ganzen Heizblock, auch wenn es gerade warm genug ist oder die Szene „Abwesend“ gilt. Es gelten die Ziele der Aufheiz-Szene (Standard: erste Szene, in der der Ofen heizen darf) plus 1 K (Parameter *Aufheizen: zusätzlich*). Mindestpause, Starts pro Tag, offene Türen und Störungen gelten weiter; eine Pause von Hand wird aufgehoben.
-- **„Ich komme um …“:** Aufheizen mit Ankunftszeit. Die Wärmeregie beginnt rechtzeitig vorher (Parameter *Aufheizen: so früh beginnen*, Standard 60 min) und hält das Haus bis eine Stunde nach der Ankunft warm. Leere Räume werden dabei nicht abgesenkt.
-- **Sanfter Start:** Vor dem Zünden werden zuerst die Heizkörper geöffnet (Parameter *Sanfter Start*, Standard 5 min, 0 = aus). Neue Phase *Heizkörper öffnen* (`prepare`). Ohne Pufferspeicher wurde das Wasser sonst in wenigen Minuten so heiß, dass der Ofen selbst abschaltete (19.11.2026: 22 → 61 °C in 6 Minuten).
-- **Ofen schaltet selbst ab:** Geht der Ofen im Heizblock von selbst aus, während das Wasser heiß ist (ab 50 °C), endet der Block nicht mehr. Die Wärmeregie wartet bis zu 30 Minuten auf den Neustart des Ofens (Parameter *Selbstabschaltung abwarten*, 0 = aus) und zählt ihn nicht als neuen Start.
+- **Haus aufheizen:** Knopf *Aufheizen* in Panel und Karte, Knopf-Entität *Haus aufheizen*, Dienste `waermeregie.warmup` und `cancel_warmup`. Der Ofen startet einen ganzen Heizblock, auch wenn es gerade warm genug ist oder die Szene „Abwesend“ gilt. Es gelten die Ziele der Aufheiz-Szene (Standard: erste Szene, in der der Ofen heizen darf) plus 1 K (Parameter *Aufheizen: wärmer als Ziel*). Mindestpause, Starts pro Tag, offene Türen und Störungen gelten weiter; eine Pause von Hand wird aufgehoben.
+- **„Ich komme um …“:** Aufheizen mit Ankunftszeit. Die Wärmeregie beginnt rechtzeitig vorher (Parameter *Vorlauf vor der Ankunft*, Standard 60 min) und hält das Haus bis eine Stunde nach der Ankunft warm. Leere Räume werden dabei nicht abgesenkt.
+- **Sanfter Start:** Vor dem Zünden werden zuerst die Heizkörper geöffnet (Parameter *Heizkörper vorher öffnen*, Standard 5 min, 0 = aus). Neue Phase *Heizkörper öffnen* (`prepare`). Ohne Pufferspeicher wurde das Wasser sonst in wenigen Minuten so heiß, dass der Ofen selbst abschaltete (19.11.2026: 22 → 61 °C in 6 Minuten).
+- **Ofen schaltet selbst ab:** Geht der Ofen im Heizblock von selbst aus, während das Wasser heiß ist (ab 50 °C), endet der Block nicht mehr. Die Wärmeregie wartet bis zu 30 Minuten auf den Neustart des Ofens (Parameter *Warten nach Selbstabschaltung*, 0 = aus) und zählt ihn nicht als neuen Start.
 - **Korrektur je Temperaturfühler:** Feld *Korrektur* (−5 bis +5 K) neben dem Gewicht, z. B. für ein Heizkörperthermostat, das immer zu warm misst.
 - **Verlauf für Grafiken:** Alle 10 Minuten merkt sich die Wärmeregie Innen-, Ziel- und Außentemperatur, ob der Ofen brannte und den Pelletvorrat (48 Stunden, übersteht Neustarts). WebSocket `waermeregie/history`.
 - Status: mittlere Innentemperatur und mittleres Ziel (`house.temperature_c`, `house.target_c`), Aufheizen (`warmup`), Füllstand (`pellets.fill_pct`, `capacity_kg`), Zündzeitpunkt beim sanften Start (`stove.start_at`), Selbstabschaltung (`stove.self_off`).
@@ -18,7 +18,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - **Übersicht neu:** großer Haus-Kopf mit Innentemperatur, Grafik und Temperaturverlauf, große Knöpfe *Aufheizen*, *Pause* und *Szene* (Auswahl im Dialog), Pellet-Behälter als Grafik, kompakte Räume. Selten Gebrauchtes (Ofen-Details, Tages-Zeitleiste) steht unter *Details*. Die Betriebsart schaltet man jetzt oben in *Ofen & Haus* um.
 - **Pause nur noch mit Auswahl** (1, 2 oder 4 Stunden) statt mit einem Klick.
 - **Ofen & Haus aufgeräumt:** Zuordnungen und Regelwerte in aufklappbaren Abschnitten.
-- **Dashboard-Karte** mit denselben Bausteinen, kompakt (Option `chart: false` blendet den Verlauf aus).
+- **Dashboard-Karte** mit denselben Bausteinen, kompakt (neue Optionen `chart`, `show_pellets`, `show_rooms`).
 - *Pellets leer voraussichtlich* ändert sich nur noch stündlich (vorher bei jeder Auswertung, fast 5000 Einträge am Tag).
 
 ### Behoben

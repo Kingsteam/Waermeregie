@@ -7,6 +7,8 @@ export type WeekKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun" | "h
 export interface TemperatureSensor {
   entity: string;
   weight: number;
+  /** Korrektur in K, wird zum Messwert addiert (-5 … +5) */
+  offset?: number;
 }
 
 export interface Room {
@@ -62,6 +64,8 @@ export interface Config {
   scenes: Scene[];
   day_types: DayType[];
   week: Partial<Record<WeekKey, string>>;
+  /** Szene, deren Ziele beim Aufheizen gelten (null = erste mit Ofen erlaubt) */
+  warmup_scene?: string | null;
   parameters: Record<string, number>;
   mode: Mode;
 }
@@ -81,7 +85,7 @@ export interface ConfigResponse {
   defaults: Defaults;
 }
 
-export type StovePhase = "idle" | "block" | "pause" | "blocked";
+export type StovePhase = "idle" | "prepare" | "block" | "pause" | "blocked";
 export type StoveAction = "start" | "stop" | "keep";
 
 export interface RoomStatus {
@@ -150,10 +154,23 @@ export interface Status {
     power_level?: number | null;
     water_c?: number | null;
     ignitions?: number | null;
+    /** bei phase "prepare": Uhrzeit der Zündung */
+    start_at?: string | null;
+    /** Ofen hat im Block selbst abgeschaltet (Wasser heiß), Regel wartet */
+    self_off?: boolean;
   } | null;
-  house: { deficit_k: number | null; outdoor_c: number | null } | null;
+  house: {
+    deficit_k: number | null;
+    outdoor_c: number | null;
+    /** Mittel der Wohnräume (nach Wichtigkeit) */
+    temperature_c?: number | null;
+    target_c?: number | null;
+  } | null;
+  warmup?: Warmup | null;
   pellets?: {
     stock_kg: number | null;
+    capacity_kg?: number | null;
+    fill_pct?: number | null;
     rate_kg_h: number;
     rate_learned: boolean;
     hours_left: number | null;
@@ -171,6 +188,24 @@ export interface Status {
   log: LogEntry[];
 }
 
+export interface Warmup {
+  start_at: string | null;
+  until: string | null;
+  /** Ankunft (bei „Ich komme um …“) */
+  arrive: string | null;
+  active: boolean;
+}
+
+/** Ein Punkt des Verlaufs (alle 10 min). */
+export interface HistoryPoint {
+  t: string;
+  house_c: number | null;
+  target_c: number | null;
+  outdoor_c?: number | null;
+  burning?: boolean | null;
+  pellets_kg?: number | null;
+}
+
 // Minimaler Ausschnitt des Home-Assistant-Objekts, den wir brauchen.
 export interface HassEntity {
   entity_id: string;
@@ -186,6 +221,7 @@ export interface Hass {
   user?: { is_admin?: boolean; name?: string };
   themes?: { darkMode?: boolean };
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
+  callService?(domain: string, service: string, data?: Record<string, unknown>): Promise<unknown>;
   connection: {
     subscribeMessage<T>(cb: (msg: T) => void, msg: Record<string, unknown>): Promise<() => void | Promise<void>>;
   };
