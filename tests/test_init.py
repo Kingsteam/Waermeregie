@@ -375,3 +375,37 @@ async def test_error_with_low_stock_counts_as_empty(
     assert mgr.pellets["learned"] == 1
     assert mgr.pellets["rate_kg_h"] == 1.6  # 4 kg / 2,5 h
     assert any("fast leerem Behälter" in e["text"] for e in mgr.log)
+
+
+async def test_paused_opening_ignored_and_recovery_after_closing(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    cfg = room_config((await client.receive_json())["result"]["config"])
+    cfg["rooms"][0]["paused"] = ["binary_sensor.terrassentuer"]
+    assert (await save(hass, client, cfg))["success"]
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    stored = (await client.receive_json())["result"]["config"]
+    assert stored["rooms"][0]["paused"] == ["binary_sensor.terrassentuer"]
+    mgr = hass.data[DOMAIN]
+    hass.states.async_set("binary_sensor.terrassentuer", "on")
+    freezer.tick(15 * 60)
+    status = await mgr.async_evaluate()
+    assert status["rooms"][0]["open"] is False  # pausiert: zählt nicht
+    assert not status["alerts"]
+
+    # Pause aufheben: Tür offen, dann zu -> Erholungszeit
+    cfg["rooms"][0]["paused"] = []
+    assert (await save(hass, client, cfg))["success"]
+    freezer.tick(60)
+    status = await mgr.async_evaluate()
+    assert status["rooms"][0]["open"] is True
+    hass.states.async_set("binary_sensor.terrassentuer", "off")
+    freezer.tick(60)
+    status = await mgr.async_evaluate()
+    assert status["rooms"][0]["open"] is False
+    assert status["rooms"][0]["recover_until"] is not None
+    freezer.tick(21 * 60)
+    status = await mgr.async_evaluate()
+    assert status["rooms"][0]["recover_until"] is None

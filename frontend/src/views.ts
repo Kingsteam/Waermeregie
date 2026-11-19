@@ -198,6 +198,9 @@ export function renderRoom(ctx: ViewCtx, r: RoomStatus): TemplateResult {
             ? t("room.open_for", { time: formatMinutes(r.open_minutes) })
             : t("room.open")}</span>`
         : nothing}
+      ${r.recover_until && !r.open
+        ? html`<span class="badge"><ha-icon icon="mdi:weather-windy" style="--mdc-icon-size:14px"></ha-icon>${t("room.recovering", { time: clockFromIso(r.recover_until) })}</span>`
+        : nothing}
       ${r.occupied === true ? html`<span class="badge">${t("room.occupied")}</span>` : nothing}
       ${cls === "cold" ? html`<span class="badge cold">${t("room.too_cold")}</span>` : nothing}
       ${missing > 0

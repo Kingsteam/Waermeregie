@@ -64,12 +64,34 @@ def _paths(config: dict) -> list[tuple[Any, Any]]:
     for i in range(len(config["persons"])):
         out.append((config["persons"], i))
     for room in config["rooms"]:
-        for key in ("radiators", "openings", "presence"):
-            for i in range(len(room[key])):
+        for key in ("radiators", "openings", "presence", "paused"):
+            for i in range(len(room.get(key) or [])):
                 out.append((room[key], i))
         for sensor in room["temperature_sensors"]:
             out.append((sensor, "entity"))
     return out
+
+
+def effective_config(config: dict) -> dict:
+    """Config ohne pausierte Geräte: so sieht sie die Regel."""
+    cfg = {**config, "rooms": []}
+    for room in config["rooms"]:
+        paused = set(room.get("paused") or [])
+        if not paused:
+            cfg["rooms"].append(room)
+            continue
+        cfg["rooms"].append(
+            {
+                **room,
+                "radiators": [e for e in room["radiators"] if e not in paused],
+                "openings": [e for e in room["openings"] if e not in paused],
+                "presence": [e for e in room["presence"] if e not in paused],
+                "temperature_sensors": [
+                    s for s in room["temperature_sensors"] if s["entity"] not in paused
+                ],
+            }
+        )
+    return cfg
 
 
 def referenced_entities(config: dict) -> set[str]:
@@ -95,6 +117,9 @@ class WaermeregieManager:
         self._notified: set[str] = set()
         self.pellets: dict[str, Any] = pellets.empty()
         self._was_error = False
+        # Lüften: seit wann offen (zuletzt gesehen) und wann wieder geschlossen
+        self._open_seen: dict[str, datetime] = {}
+        self._closed: dict[str, tuple[datetime, float]] = {}
 
     # --- Laden und Speichern ---------------------------------------------------
     async def async_load(self, initial_stove: str | None = None) -> None:
@@ -141,8 +166,8 @@ class WaermeregieManager:
             if entry is None:
                 missing.append(reg_id)
         for room in cfg["rooms"]:
-            for key in ("radiators", "openings", "presence"):
-                room[key] = [e for e in room[key] if e]
+            for key in ("radiators", "openings", "presence", "paused"):
+                room[key] = [e for e in room.get(key) or [] if e]
             room["temperature_sensors"] = [s for s in room["temperature_sensors"] if s["entity"]]
         cfg["persons"] = [p for p in cfg["persons"] if p]
         if missing:
@@ -230,9 +255,10 @@ class WaermeregieManager:
         except TypeError, ValueError:
             return None
 
-    def observe(self, now: datetime) -> engine.Observation:
+    def observe(self, now: datetime, config: dict | None = None) -> engine.Observation:
+        config = config or effective_config(self.config)
         rooms = {}
-        for room in self.config["rooms"]:
+        for room in config["rooms"]:
             total = weight = 0.0
             missing = 0
             for sensor in room["temperature_sensors"]:
@@ -254,6 +280,11 @@ class WaermeregieManager:
                     open_since = st.last_changed
                     open_entity = entity_id
                     open_name = st.name
+            if open_since is not None:
+                self._open_seen[room["id"]] = open_since
+            elif (opened := self._open_seen.pop(room["id"], None)) is not None:
+                self._closed[room["id"]] = (now, (now - opened).total_seconds() / 60)
+            closed_at, open_minutes = self._closed.get(room["id"], (None, 0.0))
             occupied = empty_since = None
             presence_states = [self.hass.states.get(e) for e in room["presence"]]
             presence_states = [s for s in presence_states if s and s.state not in BAD_STATES]
@@ -267,6 +298,8 @@ class WaermeregieManager:
                 open_since=open_since,
                 open_entity=open_entity,
                 open_name=open_name,
+                closed_at=closed_at,
+                last_open_minutes=open_minutes,
                 occupied=occupied,
                 empty_since=empty_since,
             )
@@ -307,8 +340,9 @@ class WaermeregieManager:
     # --- Auswerten und Schalten ---------------------------------------------------
     async def async_evaluate(self) -> dict:
         now = dt_util.now()
-        obs = self.observe(now)
-        result = engine.evaluate(self.config, self.state, obs)
+        config = effective_config(self.config)
+        obs = self.observe(now, config)
+        result = engine.evaluate(config, self.state, obs)
         self.state = result.state
         shadow = self.config["mode"] != MODE_ACTIVE
         for text in result.log:

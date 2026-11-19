@@ -36,6 +36,8 @@ class RoomObs:
     open_since: datetime | None = None  # seit wann (irgend)eine Öffnung offen ist
     open_entity: str | None = None
     open_name: str | None = None
+    closed_at: datetime | None = None  # wann zuletzt alles wieder zu war
+    last_open_minutes: float = 0.0  # wie lange es davor offen war
     occupied: bool | None = None  # None = keine Melder
     empty_since: datetime | None = None
 
@@ -235,12 +237,24 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         if ro.open_since is not None and open_min >= p["opening_stop_min"]:
             long_opening = True
 
+        # Nach dem Lüften: Raum eine Weile nicht für den Ofenstart zählen,
+        # die Luft erwärmt sich schnell wieder (Fühler beim Fenster misst zu kalt)
+        recover_until = None
+        if (
+            ro.open_since is None
+            and ro.closed_at is not None
+            and ro.last_open_minutes >= grace
+            and p["opening_recovery_min"] > 0
+        ):
+            until = ro.closed_at + timedelta(minutes=p["opening_recovery_min"])
+            if now < until:
+                recover_until = until
         deficit = None
         if ro.temperature is not None:
             deficit = round(target - ro.temperature, 2)
             if ro.temperature < floor:
                 frost_need = True
-            if not is_open:
+            if not is_open and recover_until is None:
                 weighted_sum += room["importance"] * deficit
                 weight_total += room["importance"]
         room_status.append(
@@ -253,6 +267,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 "radiator_setpoint": None,  # unten ergänzt
                 "open": is_open,
                 "open_minutes": int(open_min),
+                "recover_until": recover_until.isoformat() if recover_until else None,
                 "occupied": ro.occupied,
                 "sensors_missing": ro.sensors_missing,
             }

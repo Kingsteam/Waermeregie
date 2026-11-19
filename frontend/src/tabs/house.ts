@@ -34,6 +34,7 @@ const PARAM_GROUPS: { group: I18nKey; params: ParamDef[] }[] = [
       { key: "opening_grace_min", unit: "min", step: 1 },
       { key: "opening_stop_min", unit: "min", step: 1 },
       { key: "opening_empty_room_min", unit: "min", step: 1 },
+      { key: "opening_recovery_min", unit: "min", step: 1 },
     ],
   },
   {

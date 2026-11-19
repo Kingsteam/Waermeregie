@@ -2,6 +2,8 @@ import { html, css, nothing } from "lit";
 import "../components/entity-picker";
 import { baseStyles } from "../styles";
 import type { Room } from "../types";
+import { addDevice, DEVICE_KINDS, deviceValue, isAvailable, removeDevice, roomDevices, togglePaused, unavailableDevices } from "../devices";
+import { friendlyName } from "../entities";
 import { makeId } from "../util";
 import { EditorBase, inputValue, readNumber } from "./editor-base";
 
@@ -11,17 +13,21 @@ export class WrRoomsEditor extends EditorBase {
     _selected: { state: true },
     _newName: { state: true },
     _confirmDelete: { state: true },
+    _adding: { state: true },
   };
 
   declare _selected: string | null;
   declare _newName: string;
   declare _confirmDelete: boolean;
+  /** „raum:art“, für die gerade ein Gerät hinzugefügt wird */
+  declare _adding: string | null;
 
   constructor() {
     super();
     this._selected = null;
     this._newName = "";
     this._confirmDelete = false;
+    this._adding = null;
   }
 
   private get _room(): Room | undefined {
@@ -41,7 +47,7 @@ export class WrRoomsEditor extends EditorBase {
     if (!name) return;
     const id = makeId(name, this.config.rooms.map((r) => r.id), "raum");
     this.change((c) => {
-      c.rooms.push({ id, name, importance: 2, radiators: [], temperature_sensors: [], openings: [], presence: [], targets: {} });
+      c.rooms.push({ id, name, importance: 2, radiators: [], temperature_sensors: [], openings: [], presence: [], paused: [], targets: {} });
     });
     this._selected = id;
     this._newName = "";
@@ -78,6 +84,9 @@ export class WrRoomsEditor extends EditorBase {
                     }}
                   >
                     <ha-icon icon="mdi:door"></ha-icon><span>${r.name}</span>
+                    ${unavailableDevices(r, this.hass.states).length
+                      ? html`<ha-icon class="warnicon" icon="mdi:alert-circle-outline" title=${t("dev.unavailable")}></ha-icon>`
+                      : nothing}
                   </button>`,
                 )}
               </div>`
@@ -108,15 +117,10 @@ export class WrRoomsEditor extends EditorBase {
   private _renderRoom(room: Room) {
     const t = this.t;
     const ro = this.readonly;
-    const weights = new Map(room.temperature_sensors.map((s) => [s.entity, s.weight]));
+    const unavail = unavailableDevices(room, this.hass.states);
     return html`<div class="card editor">
-      <div class="row">
-        <h3 style="margin:0">${room.name || room.id}</h3>
-        <span class="spacer"></span>
-        <span class="muted" style="font-size:12px">${t("id")}: ${room.id}</span>
-      </div>
-      <div class="two">
-        <label class="field">
+      <div class="head">
+        <label class="field grow">
           <span class="lbl">${t("room.name")}</span>
           <input
             .value=${room.name}
@@ -125,7 +129,7 @@ export class WrRoomsEditor extends EditorBase {
             @change=${(e: Event) => this._updateRoom(room.id, (r) => (r.name = inputValue(e).trim()))}
           />
         </label>
-        <label class="field">
+        <label class="field" title=${t("room.importance_hint")}>
           <span class="lbl">${t("room.importance")}</span>
           <select
             ?disabled=${ro}
@@ -135,89 +139,29 @@ export class WrRoomsEditor extends EditorBase {
               (n) => html`<option value=${n} ?selected=${room.importance === n}>${n} – ${t(`importance.${n}` as "importance.1")}</option>`,
             )}
           </select>
-          <div class="hint">${t("room.importance_hint")}</div>
         </label>
+        <span class="muted rid">${t("id")}: ${room.id}</span>
       </div>
 
-      <wr-entity-picker
-        .hass=${this.hass}
-        .lang=${this.lang}
-        multiple
-        ?disabled=${ro}
-        .domains=${["climate"]}
-        .value=${room.radiators}
-        .label=${t("room.radiators")}
-        .helper=${t("room.radiators_hint")}
-        @value-changed=${(e: CustomEvent) => this._updateRoom(room.id, (r) => (r.radiators = e.detail.value))}
-      ></wr-entity-picker>
-
-      <wr-entity-picker
-        .hass=${this.hass}
-        .lang=${this.lang}
-        multiple
-        ?disabled=${ro}
-        .domains=${["sensor"]}
-        .deviceClasses=${["temperature"]}
-        .value=${room.temperature_sensors.map((s) => s.entity)}
-        .label=${t("room.sensors")}
-        .helper=${t("room.sensors_hint")}
-        @value-changed=${(e: CustomEvent) =>
-          this._updateRoom(room.id, (r) => {
-            r.temperature_sensors = (e.detail.value as string[]).map((entity) => ({ entity, weight: weights.get(entity) ?? 1 }));
-          })}
-      ></wr-entity-picker>
-      ${room.temperature_sensors.length > 1 || room.temperature_sensors.some((s) => s.weight !== 1)
-        ? html`<div class="weights">
-            ${room.temperature_sensors.map(
-              (s) => html`<label class="row weight">
-                <span class="wname">${this.hass.states[s.entity]?.attributes.friendly_name ?? s.entity}</span>
-                <span class="muted">${t("room.weight")}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="0.1"
-                  ?disabled=${ro}
-                  .value=${String(s.weight)}
-                  @change=${(e: Event) =>
+      <div class="row sect">
+        <span class="lbl" style="margin:0">${t("room.devices")}</span>
+        <span class="spacer"></span>
+        ${unavail.length
+          ? html`<span class="badge warn">${unavail.length === 1 ? t("dev.unavail_one") : t("dev.unavail_count", { n: unavail.length })}</span>
+              ${ro
+                ? nothing
+                : html`<button class="small" @click=${() =>
                     this._updateRoom(room.id, (r) => {
-                      const x = r.temperature_sensors.find((y) => y.entity === s.entity);
-                      const n = readNumber(e);
-                      if (x) x.weight = n === null || n < 0 ? 1 : n;
-                    })}
-                />
-              </label>`,
-            )}
-          </div>`
-        : nothing}
+                      for (const e of unavail) if (!(r.paused ?? []).includes(e)) togglePaused(r, e);
+                    })}>
+                    <ha-icon icon="mdi:pause"></ha-icon>${t("dev.pause_unavail")}
+                  </button>`}`
+          : nothing}
+      </div>
+      <div class="hint">${t("room.devices_hint")}</div>
+      <div class="groups">${DEVICE_KINDS.map((k) => this._renderGroup(room, k))}</div>
 
-      <wr-entity-picker
-        .hass=${this.hass}
-        .lang=${this.lang}
-        multiple
-        ?disabled=${ro}
-        .domains=${["binary_sensor"]}
-        .deviceClasses=${["door", "window", "opening", "garage_door"]}
-        .value=${room.openings}
-        .label=${t("room.openings")}
-        .helper=${t("room.openings_hint")}
-        @value-changed=${(e: CustomEvent) => this._updateRoom(room.id, (r) => (r.openings = e.detail.value))}
-      ></wr-entity-picker>
-
-      <wr-entity-picker
-        .hass=${this.hass}
-        .lang=${this.lang}
-        multiple
-        ?disabled=${ro}
-        .domains=${["binary_sensor"]}
-        .deviceClasses=${["occupancy", "motion", "presence"]}
-        .value=${room.presence}
-        .label=${t("room.presence")}
-        .helper=${t("room.presence_hint")}
-        @value-changed=${(e: CustomEvent) => this._updateRoom(room.id, (r) => (r.presence = e.detail.value))}
-      ></wr-entity-picker>
-
-      <span class="lbl">${t("room.targets")}</span>
+      <span class="lbl" style="margin-top:14px">${t("room.targets")}</span>
       <div class="hint">${t("room.targets_hint")}</div>
       ${this.config.scenes.length
         ? html`<div class="targets">
@@ -262,6 +206,99 @@ export class WrRoomsEditor extends EditorBase {
     </div>`;
   }
 
+  private _renderGroup(room: Room, k: (typeof DEVICE_KINDS)[number]) {
+    const t = this.t;
+    const ro = this.readonly;
+    const list = roomDevices(room, k.kind);
+    const paused = new Set(room.paused ?? []);
+    const adding = this._adding === `${room.id}:${k.kind}`;
+    return html`<div class="group">
+      <div class="ghead" title=${t(k.hint)}>
+        <ha-icon icon=${k.icon}></ha-icon>
+        <span class="gname">${t(k.label)}</span>
+        <span class="muted">${list.length || t("dev.none")}</span>
+        <span class="spacer"></span>
+        ${ro
+          ? nothing
+          : html`<button
+              class="icon"
+              title=${t("dev.add")}
+              aria-label="${t("dev.add")}: ${t(k.label)}"
+              @click=${() => (this._adding = adding ? null : `${room.id}:${k.kind}`)}
+            >
+              <ha-icon icon=${adding ? "mdi:close" : "mdi:plus"}></ha-icon>
+            </button>`}
+      </div>
+      ${list.map((entity) => {
+        const st = this.hass.states[entity];
+        const ok = isAvailable(st);
+        const isPaused = paused.has(entity);
+        const weight = k.kind === "temperature_sensors" ? room.temperature_sensors.find((s) => s.entity === entity)?.weight : undefined;
+        return html`<div class="dev ${isPaused ? "paused" : ""} ${ok ? "" : "unavail"}">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="dname">
+            <span>${friendlyName(this.hass.states, entity)}</span>
+            <span class="did">${entity}</span>
+          </span>
+          <span class="dval">${isPaused ? t("dev.paused") : deviceValue(st, k.kind, t, this.lang)}</span>
+          ${weight !== undefined
+            ? html`<input
+                class="w"
+                type="number"
+                min="0.1"
+                max="10"
+                step="0.1"
+                title=${t("room.weight")}
+                aria-label="${t("room.weight")}: ${entity}"
+                ?disabled=${ro}
+                .value=${String(weight)}
+                @change=${(e: Event) =>
+                  this._updateRoom(room.id, (r) => {
+                    const x = r.temperature_sensors.find((y) => y.entity === entity);
+                    const n = readNumber(e);
+                    if (x) x.weight = n === null || n <= 0 ? 1 : n;
+                  })}
+              />`
+            : nothing}
+          ${ro
+            ? nothing
+            : html`<button
+                  class="icon"
+                  title=${isPaused ? t("dev.resume") : t("dev.pause")}
+                  aria-label="${isPaused ? t("dev.resume") : t("dev.pause")}: ${entity}"
+                  @click=${() => this._updateRoom(room.id, (r) => togglePaused(r, entity))}
+                >
+                  <ha-icon icon=${isPaused ? "mdi:play" : "mdi:pause"}></ha-icon>
+                </button>
+                <button
+                  class="icon"
+                  title=${t("remove")}
+                  aria-label="${t("remove")}: ${entity}"
+                  @click=${() => this._updateRoom(room.id, (r) => removeDevice(r, k.kind, entity))}
+                >
+                  <ha-icon icon="mdi:close"></ha-icon>
+                </button>`}
+        </div>`;
+      })}
+      ${adding
+        ? html`<wr-entity-picker
+            class="adder"
+            .hass=${this.hass}
+            .lang=${this.lang}
+            multiple
+            .domains=${k.domains}
+            .deviceClasses=${k.classes}
+            .value=${[]}
+            .exclude=${list}
+            @value-changed=${(e: CustomEvent) => {
+              const picked = (e.detail.value as string[]).filter((x) => !list.includes(x));
+              this._updateRoom(room.id, (r) => picked.forEach((x) => addDevice(r, k.kind, x)));
+            }}
+          ></wr-entity-picker>`
+        : nothing}
+    </div>`;
+  }
+
   static override styles = [
     baseStyles,
     css`
@@ -303,33 +340,124 @@ export class WrRoomsEditor extends EditorBase {
         flex-direction: column;
         gap: 6px;
       }
-      .two {
-        display: grid;
+      .head {
+        display: flex;
+        flex-wrap: wrap;
         gap: 12px;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-        margin-top: 12px;
+        align-items: flex-end;
       }
-      .weights {
-        margin: -6px 0 12px;
+      .head .grow {
+        flex: 1 1 220px;
+      }
+      .head .field {
+        margin: 0;
+      }
+      .rid {
+        font-size: 12px;
+        padding-bottom: 10px;
+      }
+      .sect {
+        margin-top: 16px;
+      }
+      button.small {
+        min-height: 30px;
+        padding: 2px 10px;
+        font-size: 13px;
+      }
+      .warnicon {
+        color: var(--wr-warn);
+        margin-left: auto;
+        --mdc-icon-size: 18px;
+      }
+      .groups {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 10px;
+        margin-top: 8px;
       }
-      .weight {
-        flex-wrap: nowrap;
+      .group {
+        border: 1px solid var(--wr-div);
+        border-radius: 10px;
+        overflow: hidden;
       }
-      .wname {
+      .ghead {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 2px 4px 2px 10px;
+        background: var(--wr-input-bg);
+      }
+      .ghead ha-icon {
+        --mdc-icon-size: 18px;
+        color: var(--wr-text2);
+      }
+      .gname {
+        font-weight: 500;
+      }
+      .dev {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 2px 4px 2px 10px;
+        border-top: 1px solid var(--wr-div);
+        min-height: 40px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex: none;
+        background: var(--wr-ok);
+      }
+      .dev.unavail .dot {
+        background: var(--wr-warn);
+      }
+      .dev.paused .dot {
+        background: var(--wr-text2);
+      }
+      .dev.paused .dname,
+      .dev.paused .dval {
+        opacity: 0.55;
+      }
+      .dname {
         flex: 1;
         min-width: 0;
-        overflow-wrap: anywhere;
+        display: flex;
+        flex-direction: column;
+        overflow-wrap: break-word;
+        line-height: 1.25;
       }
-      .weight input {
-        max-width: 90px;
+      .did {
+        font-size: 11px;
+        color: var(--wr-text2);
+      }
+      .dval {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        font-size: 13px;
+      }
+      .dev.unavail:not(.paused) .dval {
+        color: var(--wr-warn);
+      }
+      input.w {
+        width: 58px;
+        min-height: 32px;
+        padding: 2px 6px;
+      }
+      .adder {
+        display: block;
+        padding: 8px 10px 0;
+        border-top: 1px solid var(--wr-div);
+      }
+      @media (max-width: 480px) {
+        .did {
+          display: none;
+        }
       }
       .targets {
         display: grid;
         gap: 8px;
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
       }
       .target {
         display: flex;

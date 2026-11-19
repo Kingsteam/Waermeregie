@@ -53,3 +53,4 @@ cd frontend && npm ci && npm run typecheck && npm test && npm run build
 
 ## Stand
 - 0.1.0: Python-Teil vollständig mit Tests, Panel und Karte, Simulator-Testinstanz. **Nicht mit echter Hardware getestet.**
+- 0.1.1 Störung nicht als Start übernehmen · 0.2.0 Pelletvorrat · 0.3.0 Geräte pausieren (`room.paused`, `manager.effective_config` entfernt sie vor Beobachten/Regel), Erholzeit nach dem Lüften (`opening_recovery_min`, Manager merkt sich Schließzeitpunkt nur im Speicher), kompakte Raum-Seite (`frontend/src/devices.ts`).

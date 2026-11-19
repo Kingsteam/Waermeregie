@@ -22,6 +22,14 @@ const TABS: { id: Tab; icon: string }[] = [
   { id: "log", icon: "mdi:format-list-bulleted" },
 ];
 const EDITOR_TABS: Tab[] = ["rooms", "schedule", "scenes", "house"];
+/** Welche Teile der Einstellungen zu welchem Reiter gehören („rest“ = alles andere). */
+const TAB_KEYS: Partial<Record<Tab, (keyof Config)[] | "rest">> = {
+  rooms: ["rooms"],
+  schedule: ["day_types", "week"],
+  scenes: ["scenes"],
+  house: "rest",
+};
+const OWN_KEYS = new Set<string>(["rooms", "day_types", "week", "scenes", "mode"]);
 
 /** Prüft den Entwurf vor dem Speichern; liefert Anzahl der Probleme. */
 export function draftProblems(c: Config, defaults: Defaults | null): number {
@@ -108,6 +116,18 @@ export class WaermeregiePanel extends LitElement {
 
   private get _dirty(): boolean {
     return !!this._draft && !!this._saved && !sameData(this._draft, this._saved);
+  }
+
+  /** Wurde der Bereich dieses Reiters geändert? */
+  private _tabDirty(tab: Tab): boolean {
+    if (!this._dirty || !this._draft || !this._saved) return false;
+    const keys = TAB_KEYS[tab];
+    if (!keys) return false;
+    const pick = (c: Config) =>
+      keys === "rest"
+        ? Object.fromEntries(Object.entries(c).filter(([k]) => !OWN_KEYS.has(k)))
+        : Object.fromEntries(keys.map((k) => [k, c[k]]));
+    return !sameData(pick(this._draft), pick(this._saved));
   }
 
   private _beforeUnload = (e: BeforeUnloadEvent) => {
@@ -268,7 +288,7 @@ export class WaermeregiePanel extends LitElement {
             @click=${() => this._selectTab(tab.id)}
           >
             <ha-icon icon=${tab.icon}></ha-icon><span>${t(`tab.${tab.id}` as I18nKey)}</span>
-            ${EDITOR_TABS.includes(tab.id) && this._dirty ? html`<i class="dot" aria-hidden="true"></i>` : nothing}
+            ${EDITOR_TABS.includes(tab.id) && this._tabDirty(tab.id) ? html`<i class="dot" aria-hidden="true"></i>` : nothing}
           </button>`,
         )}
       </nav>

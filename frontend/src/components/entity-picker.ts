@@ -14,6 +14,7 @@ export class WrEntityPicker extends LitElement {
     multiple: { type: Boolean },
     domains: { attribute: false },
     deviceClasses: { attribute: false },
+    exclude: { attribute: false },
     label: { type: String },
     helper: { type: String },
     lang: { type: String },
@@ -31,6 +32,8 @@ export class WrEntityPicker extends LitElement {
   declare multiple: boolean;
   declare domains: string[];
   declare deviceClasses: string[] | undefined;
+  /** zusätzlich ausblenden (z. B. schon anderswo gewählt) */
+  declare exclude: string[] | undefined;
   declare label: string;
   declare helper: string;
   declare lang: Lang;
@@ -70,7 +73,7 @@ export class WrEntityPicker extends LitElement {
       domains: this.domains,
       deviceClasses: this._showAll ? undefined : this.deviceClasses,
       query: this._query,
-      exclude: this._selected,
+      exclude: [...this._selected, ...(this.exclude ?? [])],
       limit: MAX_RESULTS + 1,
     });
     return { list: all.slice(0, MAX_RESULTS), more: all.length > MAX_RESULTS };

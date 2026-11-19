@@ -391,3 +391,45 @@ def test_error_is_not_adopted_as_manual_start():
         assert not [a for a in r.actions if a[0].startswith("stove")]
     assert r.state["starts"] == []
     assert not any("von Hand" in t for t in r.log)
+
+
+def test_recovery_after_airing_delays_start():
+    cfg = sample_config()
+    now = at(16, "06:30")
+    o = obs(now, wz=19.0, sz=19.0)
+    # Wohnzimmer 10 min gelüftet, vor 5 min geschlossen: zählt noch nicht
+    o.rooms["wohnzimmer"].closed_at = now - timedelta(minutes=5)
+    o.rooms["wohnzimmer"].last_open_minutes = 10
+    r = run(cfg, engine.empty_state(), o)
+    assert ("stove_start",) not in r.actions
+    wz = next(x for x in r.status["rooms"] if x["id"] == "wohnzimmer")
+    assert wz["recover_until"] == (now + timedelta(minutes=15)).isoformat()
+    # Heizkörper bleibt normal (nicht Frostschutz)
+    assert wz["radiator_setpoint"] == 21.0
+    # nach 20 min zählt der Raum wieder
+    later = now + timedelta(minutes=16)
+    o2 = obs(later, wz=19.0, sz=19.0)
+    o2.rooms["wohnzimmer"].closed_at = now - timedelta(minutes=5)
+    o2.rooms["wohnzimmer"].last_open_minutes = 10
+    r = run(cfg, engine.empty_state(), o2)
+    assert ("stove_start",) in r.actions
+
+
+def test_short_opening_has_no_recovery():
+    cfg = sample_config()
+    now = at(16, "06:30")
+    o = obs(now, wz=19.0, sz=19.0)
+    o.rooms["wohnzimmer"].closed_at = now - timedelta(minutes=1)
+    o.rooms["wohnzimmer"].last_open_minutes = 1  # kürzer als „kurz lüften erlaubt“
+    r = run(cfg, engine.empty_state(), o)
+    assert ("stove_start",) in r.actions
+
+
+def test_recovery_can_be_switched_off():
+    params = {**sample_config()["parameters"], "opening_recovery_min": 0}
+    cfg = sample_config(parameters=params)
+    now = at(16, "06:30")
+    o = obs(now, wz=19.0, sz=19.0)
+    o.rooms["wohnzimmer"].closed_at = now - timedelta(minutes=1)
+    o.rooms["wohnzimmer"].last_open_minutes = 10
+    assert ("stove_start",) in run(cfg, engine.empty_state(), o).actions

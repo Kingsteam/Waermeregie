@@ -51,3 +51,27 @@ def test_targets_of_deleted_scene_are_dropped():
     cfg = sample_config()
     cfg["rooms"][0]["targets"]["alt"] = 20
     assert "alt" not in model.validate(cfg)["rooms"][0]["targets"]
+
+
+def test_paused_entities_are_kept_but_only_if_in_room():
+    from custom_components.waermeregie.manager import effective_config
+
+    cfg = sample_config()
+    cfg["rooms"][0]["openings"] = ["binary_sensor.terrassentuer", "binary_sensor.alarm_tuer"]
+    cfg["rooms"][0]["paused"] = ["binary_sensor.alarm_tuer", "binary_sensor.fremd"]
+    out = model.validate(cfg)
+    room = out["rooms"][0]
+    assert room["paused"] == ["binary_sensor.alarm_tuer"]  # fremde fallen weg
+    assert room["openings"] == ["binary_sensor.terrassentuer", "binary_sensor.alarm_tuer"]
+    eff = effective_config(out)
+    assert eff["rooms"][0]["openings"] == ["binary_sensor.terrassentuer"]
+    assert out["rooms"][0]["openings"] == [
+        "binary_sensor.terrassentuer",
+        "binary_sensor.alarm_tuer",
+    ]
+    # Fühler pausieren
+    out["rooms"][0]["paused"] = ["sensor.temp_wohnzimmer", "climate.heizung_wohnzimmer"]
+    eff = effective_config(model.validate(out))
+    assert eff["rooms"][0]["temperature_sensors"] == []
+    assert eff["rooms"][0]["radiators"] == []
+    assert model.validate(sample_config())["rooms"][0]["paused"] == []

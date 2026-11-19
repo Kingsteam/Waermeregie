@@ -1,0 +1,61 @@
+import { describe, expect, it } from "vitest";
+import { addDevice, deviceValue, removeDevice, togglePaused, unavailableDevices } from "../src/devices";
+import { translator } from "../src/i18n";
+import type { HassEntity, Room } from "../src/types";
+
+const st = (entity_id: string, state: string, attributes: Record<string, unknown> = {}): HassEntity =>
+  ({ entity_id, state, attributes }) as HassEntity;
+
+function room(): Room {
+  return {
+    id: "wz",
+    name: "Wohnzimmer",
+    importance: 2,
+    radiators: ["climate.hk"],
+    temperature_sensors: [{ entity: "sensor.t", weight: 1 }],
+    openings: ["binary_sensor.alarm", "binary_sensor.kontakt"],
+    presence: [],
+    paused: [],
+    targets: {},
+  };
+}
+
+describe("Geräte im Raum", () => {
+  const t = translator("de");
+  const states = {
+    "climate.hk": st("climate.hk", "heat", { current_temperature: 21.5, temperature: 22 }),
+    "sensor.t": st("sensor.t", "20.4"),
+    "binary_sensor.alarm": st("binary_sensor.alarm", "unavailable"),
+    "binary_sensor.kontakt": st("binary_sensor.kontakt", "on"),
+  };
+  it("zeigt Werte und erkennt nicht verfügbare", () => {
+    expect(deviceValue(states["sensor.t"], "temperature_sensors", t, "de")).toBe("20,4 °C");
+    expect(deviceValue(states["binary_sensor.kontakt"], "openings", t, "de")).toBe("offen");
+    expect(deviceValue(states["binary_sensor.alarm"], "openings", t, "de")).toBe("nicht verfügbar");
+    expect(deviceValue(undefined, "presence", t, "de")).toBe("nicht verfügbar");
+    expect(deviceValue(states["climate.hk"], "radiators", t, "de")).toBe("21,5 °C → 22,0 °C");
+    expect(unavailableDevices(room(), states)).toEqual(["binary_sensor.alarm"]);
+  });
+  it("pausiert, entfernt und fügt hinzu", () => {
+    const r = room();
+    togglePaused(r, "binary_sensor.alarm");
+    expect(r.paused).toEqual(["binary_sensor.alarm"]);
+    expect(unavailableDevices(r, states)).toEqual([]);
+    togglePaused(r, "binary_sensor.alarm");
+    expect(r.paused).toEqual([]);
+    togglePaused(r, "sensor.t");
+    removeDevice(r, "temperature_sensors", "sensor.t");
+    expect(r.temperature_sensors).toEqual([]);
+    expect(r.paused).toEqual([]);
+    addDevice(r, "temperature_sensors", "sensor.neu");
+    addDevice(r, "temperature_sensors", "sensor.neu");
+    expect(r.temperature_sensors).toEqual([{ entity: "sensor.neu", weight: 1 }]);
+  });
+});
+
+describe("Thermostat als Fühler", () => {
+  it("zeigt die gemessene Temperatur", () => {
+    const s = { entity_id: "climate.hk", state: "heat", attributes: { current_temperature: 19 } } as unknown as HassEntity;
+    expect(deviceValue(s, "temperature_sensors", translator("de"), "de")).toBe("19,0 °C");
+  });
+});

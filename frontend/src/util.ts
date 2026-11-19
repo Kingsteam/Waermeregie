@@ -349,6 +349,7 @@ export function normalizeConfig(raw: Partial<Config> | null | undefined): Config
       temperature_sensors: r.temperature_sensors ?? [],
       openings: r.openings ?? [],
       presence: r.presence ?? [],
+      paused: r.paused ?? [],
       targets: r.targets ?? {},
     })),
     scenes: c.scenes ?? [],

@@ -17,6 +17,8 @@ export interface Room {
   temperature_sensors: TemperatureSensor[];
   openings: string[];
   presence: string[];
+  /** eingetragen, aber vorübergehend nicht verwendet */
+  paused: string[];
   targets: Record<string, number>;
 }
 
@@ -91,6 +93,8 @@ export interface RoomStatus {
   radiator_setpoint: number | null;
   open: boolean;
   open_minutes: number;
+  /** nach dem Lüften: zählt bis dahin nicht für den Ofenstart */
+  recover_until?: string | null;
   occupied: boolean | null;
   sensors_missing: number;
 }

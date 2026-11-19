@@ -291,17 +291,28 @@ def validate(raw: Any) -> dict[str, Any]:
             if sid not in scene_ids:
                 continue  # Ziel einer gelöschten Szene stillschweigend entfernen
             targets[sid] = _target(t, f"{what} Ziel {sid}")
+        radiators = _entities(rm.get("radiators"), ("climate",), f"{what} Heizkörper")
+        openings = _entities(rm.get("openings"), ("binary_sensor",), f"{what} Öffnungen")
+        presence = _entities(rm.get("presence"), ("binary_sensor",), f"{what} Anwesenheit")
+        used = {*radiators, *openings, *presence, *(s["entity"] for s in sensors)}
+        # Pausierte Geräte: bleiben eingetragen, werden aber nicht verwendet
+        paused = [
+            e
+            for e in _entities(
+                rm.get("paused"), ("climate", "sensor", "binary_sensor"), f"{what} pausiert"
+            )
+            if e in used
+        ]
         out["rooms"].append(
             {
                 "id": _id(rm.get("id"), what),
                 "name": _name(rm.get("name"), what),
                 "importance": importance,
-                "radiators": _entities(rm.get("radiators"), ("climate",), f"{what} Heizkörper"),
+                "radiators": radiators,
                 "temperature_sensors": sensors,
-                "openings": _entities(rm.get("openings"), ("binary_sensor",), f"{what} Öffnungen"),
-                "presence": _entities(
-                    rm.get("presence"), ("binary_sensor",), f"{what} Anwesenheit"
-                ),
+                "openings": openings,
+                "presence": presence,
+                "paused": paused,
                 "targets": targets,
             }
         )

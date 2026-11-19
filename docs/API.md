@@ -42,6 +42,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
       "temperature_sensors": [{"entity": "sensor.raum_wz", "weight": 1.0}],
       "openings": ["binary_sensor.terrassentuer"],
       "presence": ["binary_sensor.wz_belegt"],
+      "paused": [],                                                       // eingetragen, aber nicht verwendet (Teilmenge der Geräte oben)
       "targets": {"komfort": 21, "sparen": 19.5}                          // je Szene; fehlt → scene.default_target
     }
   ],
@@ -56,7 +57,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
   "parameters": {
     "start_below_k": 0.5, "stop_above_k": 0.3,
     "min_burn_min": 90, "max_burn_min": 300, "min_pause_min": 60, "max_starts_per_day": 4,
-    "opening_grace_min": 2, "opening_stop_min": 10, "opening_empty_room_min": 1,
+    "opening_grace_min": 2, "opening_stop_min": 10, "opening_empty_room_min": 1, "opening_recovery_min": 20,
     "radiator_boost_k": 1.0, "frost_c": 12, "night_floor_c": 16, "stove_block_setpoint_c": 28,
     "presence_empty_min": 45,
     "power_min": 1, "power_max": 3,    // Leistungsstufen im Heizblock (1-5)
@@ -92,7 +93,7 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
   "house": {"deficit_k": 0.7, "outdoor_c": 4.5},
   "rooms": [
     {"id": "wohnzimmer", "name": "Wohnzimmer", "temperature": 20.3, "target": 21, "deficit_k": 0.7,
-     "radiator_setpoint": 22, "open": false, "open_minutes": 0, "occupied": true, "sensors_missing": 0}
+     "radiator_setpoint": 22, "open": false, "open_minutes": 0, "recover_until": null, "occupied": true, "sensors_missing": 0}
   ],
   "alerts": [{"kind": "opening", "room": "wohnzimmer", "entity": "binary_sensor.terrassentuer", "minutes": 12, "message": "Terrassentür seit 12 min offen"}],
   "overrides": {"scene": null, "pause_until": null, "boost": null},
