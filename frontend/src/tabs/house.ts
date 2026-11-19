@@ -35,6 +35,14 @@ const PARAM_GROUPS: { group: I18nKey; params: ParamDef[] }[] = [
       { key: "opening_stop_min", unit: "min", step: 1 },
       { key: "opening_empty_room_min", unit: "min", step: 1 },
       { key: "opening_recovery_min", unit: "min", step: 1 },
+      { key: "opening_check_min", unit: "min", step: 5 },
+    ],
+  },
+  {
+    group: "pgroup.sensors",
+    params: [
+      { key: "sensor_hold_min", unit: "min", step: 5 },
+      { key: "sensor_alert_min", unit: "min", step: 5 },
     ],
   },
   {

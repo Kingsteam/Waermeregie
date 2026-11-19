@@ -1,8 +1,8 @@
 import { html, css, nothing } from "lit";
 import "../components/entity-picker";
 import { baseStyles } from "../styles";
-import type { Room } from "../types";
-import { addDevice, DEVICE_KINDS, deviceValue, isAvailable, removeDevice, roomDevices, togglePaused, unavailableDevices } from "../devices";
+import type { DeviceHealth, Room } from "../types";
+import { addDevice, DEVICE_KINDS, deviceValue, healthNote, isAvailable, removeDevice, roomDevices, togglePaused, unavailableDevices } from "../devices";
 import { friendlyName } from "../entities";
 import { makeId } from "../util";
 import { EditorBase, inputValue, readNumber } from "./editor-base";
@@ -14,6 +14,7 @@ export class WrRoomsEditor extends EditorBase {
     _newName: { state: true },
     _confirmDelete: { state: true },
     _adding: { state: true },
+    devices: { attribute: false },
   };
 
   declare _selected: string | null;
@@ -21,6 +22,8 @@ export class WrRoomsEditor extends EditorBase {
   declare _confirmDelete: boolean;
   /** „raum:art“, für die gerade ein Gerät hinzugefügt wird */
   declare _adding: string | null;
+  /** Ausfälle je Gerät aus dem Status */
+  declare devices: Record<string, DeviceHealth>;
 
   constructor() {
     super();
@@ -28,6 +31,7 @@ export class WrRoomsEditor extends EditorBase {
     this._newName = "";
     this._confirmDelete = false;
     this._adding = null;
+    this.devices = {};
   }
 
   private get _room(): Room | undefined {
@@ -233,12 +237,14 @@ export class WrRoomsEditor extends EditorBase {
         const st = this.hass.states[entity];
         const ok = isAvailable(st);
         const isPaused = paused.has(entity);
+        const note = isPaused ? null : healthNote(this.devices?.[entity], t);
         const weight = k.kind === "temperature_sensors" ? room.temperature_sensors.find((s) => s.entity === entity)?.weight : undefined;
         return html`<div class="dev ${isPaused ? "paused" : ""} ${ok ? "" : "unavail"}">
           <span class="dot" aria-hidden="true"></span>
           <span class="dname">
             <span>${friendlyName(this.hass.states, entity)}</span>
             <span class="did">${entity}</span>
+            ${note ? html`<span class="dnote">${note}</span>` : nothing}
           </span>
           <span class="dval">${isPaused ? t("dev.paused") : deviceValue(st, k.kind, t, this.lang)}</span>
           ${weight !== undefined
@@ -402,6 +408,11 @@ export class WrRoomsEditor extends EditorBase {
         border-top: 1px solid var(--wr-div);
         min-height: 40px;
       }
+      .dnote {
+        color: var(--warning-color, #ff9800);
+        font-size: 0.8em;
+        font-weight: 500;
+      }
       .dot {
         width: 8px;
         height: 8px;
@@ -457,7 +468,7 @@ export class WrRoomsEditor extends EditorBase {
       .targets {
         display: grid;
         gap: 8px;
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
       }
       .target {
         display: flex;
@@ -473,9 +484,18 @@ export class WrRoomsEditor extends EditorBase {
         gap: 4px;
         align-items: center;
         min-width: 0;
+        flex: 1 1 auto;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .target > span:last-child {
+        flex: none;
       }
       .target input {
-        width: 80px;
+        width: 64px;
+        min-width: 0;
+        flex: none;
       }
     `,
   ];

@@ -409,3 +409,64 @@ async def test_paused_opening_ignored_and_recovery_after_closing(
     freezer.tick(21 * 60)
     status = await mgr.async_evaluate()
     assert status["rooms"][0]["recover_until"] is None
+
+
+async def test_sensor_dropout_bridged_then_reported_once(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    notify_calls = async_mock_service(hass, "notify", "handy")
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    cfg = room_config((await client.receive_json())["result"]["config"])
+    cfg["parameters"]["opening_check_min"] = 0
+    assert (await save(hass, client, cfg))["success"]
+    mgr = hass.data[DOMAIN]
+    hass.states.async_set("binary_sensor.terrassentuer", "on")
+    freezer.tick(5 * 60)
+    status = await mgr.async_evaluate()
+    assert status["rooms"][0]["open"] is True
+    # Kurzer Aussetzer: bleibt offen, Öffnungszeit läuft weiter
+    hass.states.async_set("binary_sensor.terrassentuer", "unavailable")
+    freezer.tick(2 * 60)
+    status = await mgr.async_evaluate()
+    assert status["rooms"][0]["open"] is True
+    assert status["rooms"][0]["open_minutes"] == 7
+    assert status["devices"]["binary_sensor.terrassentuer"]["held"] is True
+    assert status["devices"]["binary_sensor.terrassentuer"]["drops_24h"] == 1
+    # Nach 30 min ohne Wert: zählt wieder als zu
+    freezer.tick(29 * 60)
+    status = await mgr.async_evaluate()
+    assert status["rooms"][0]["open"] is False
+    await hass.async_block_till_done()
+    door_msgs = [c for c in notify_calls if "nicht erreichbar" in c.data["message"]]
+    assert not door_msgs
+    # Nach 60 min: eine Meldung, nicht bei jeder Runde
+    freezer.tick(30 * 60)
+    await mgr.async_evaluate()
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    door_msgs = [c for c in notify_calls if "Nicht erreichbar" in c.data["message"]]
+    assert len(door_msgs) == 1
+    assert any(a["kind"] == "sensor" for a in mgr.status["alerts"])
+
+
+async def test_open_window_without_cooling_is_reported(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    notify_calls = async_mock_service(hass, "notify", "handy")
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    cfg = room_config((await client.receive_json())["result"]["config"])
+    assert (await save(hass, client, cfg))["success"]
+    mgr = hass.data[DOMAIN]
+    hass.states.async_set("binary_sensor.terrassentuer", "on")
+    freezer.tick(3 * 60)
+    await mgr.async_evaluate()
+    freezer.tick(61 * 60)
+    await mgr.async_evaluate()
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    msgs = [c for c in notify_calls if "kühlt aber nicht ab" in c.data["message"]]
+    assert len(msgs) == 1
+    assert any(a["kind"] == "opening_check" for a in mgr.status["alerts"])
+    assert mgr.status["rooms"][0]["open"] is True  # bleibt auf Frostschutz

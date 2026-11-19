@@ -1,6 +1,6 @@
 // Geräte eines Raums: Art, aktueller Wert, verfügbar? Reine Funktionen (testbar).
 import type { I18nKey, T } from "./i18n";
-import type { HassEntity, Room } from "./types";
+import type { DeviceHealth, HassEntity, Room } from "./types";
 import { formatTemp } from "./util";
 
 export type DeviceKind = "radiators" | "temperature_sensors" | "openings" | "presence";
@@ -69,6 +69,14 @@ export function deviceValue(st: HassEntity | undefined, kind: DeviceKind, t: T, 
     case "presence":
       return s.state === "on" ? t("dev.occupied") : t("dev.empty");
   }
+}
+
+/** Kurzer Hinweis zur Zuverlässigkeit, z. B. „überbrückt“ oder „3× weg (24 h)“. */
+export function healthNote(h: DeviceHealth | undefined, t: T): string | null {
+  if (!h) return null;
+  if (h.held) return t("dev.held");
+  if (h.drops_24h > 0) return t("dev.drops", { n: h.drops_24h });
+  return null;
 }
 
 /** Eingetragene, nicht pausierte Geräte, die gerade nicht verfügbar sind. */

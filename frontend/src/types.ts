@@ -113,6 +113,14 @@ export interface LogEntry {
   shadow?: boolean;
 }
 
+/** Zustand eines Raum-Geräts (Ausfälle der letzten 24 h). */
+export interface DeviceHealth {
+  drops_24h: number;
+  down_since: string | null;
+  /** nicht erreichbar, der letzte Wert wird noch verwendet */
+  held: boolean;
+}
+
 export interface Status {
   mode: Mode;
   now: string;
@@ -154,6 +162,7 @@ export interface Status {
   } | null;
   rooms: RoomStatus[];
   alerts: Alert[];
+  devices?: Record<string, DeviceHealth>;
   overrides: {
     scene: unknown;
     pause_until: string | null;

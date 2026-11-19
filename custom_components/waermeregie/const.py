@@ -47,6 +47,9 @@ PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "opening_stop_min": (1, 60),
     "opening_empty_room_min": (0, 30),
     "opening_recovery_min": (0, 60),
+    "opening_check_min": (0, 240),  # 0 = keine Prüfung
+    "sensor_hold_min": (0, 120),  # Aussetzer höchstens so lange überbrücken
+    "sensor_alert_min": (0, 720),  # 0 = keine Meldung
     "radiator_boost_k": (0.0, 3.0),
     "frost_c": (5.0, 15.0),
     "night_floor_c": (10.0, 20.0),
@@ -78,6 +81,9 @@ DEFAULT_PARAMETERS: Final[dict[str, float]] = {
     "opening_stop_min": 10,
     "opening_empty_room_min": 1,
     "opening_recovery_min": 20,
+    "opening_check_min": 60,
+    "sensor_hold_min": 30,
+    "sensor_alert_min": 60,
     "radiator_boost_k": 1.0,
     "frost_c": 12.0,
     "night_floor_c": 16.0,
@@ -91,6 +97,9 @@ DEFAULT_PARAMETERS: Final[dict[str, float]] = {
     "pellet_rate_kg_h": 1.5,
     "pellet_reminder_kg": 5.0,
 }
+
+# Sensoren
+OPENING_CHECK_DROP_K: Final = 0.3  # so viel sollte ein Raum bei offenem Fenster abkühlen
 
 # Pelletvorrat
 PELLET_MAX_GAP_S: Final = 15 * 60  # längere Lücken nicht als Brennzeit zählen

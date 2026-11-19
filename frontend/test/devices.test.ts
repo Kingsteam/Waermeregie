@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDevice, deviceValue, removeDevice, togglePaused, unavailableDevices } from "../src/devices";
+import { addDevice, deviceValue, healthNote, removeDevice, togglePaused, unavailableDevices } from "../src/devices";
 import { translator } from "../src/i18n";
 import type { HassEntity, Room } from "../src/types";
 
@@ -57,5 +57,15 @@ describe("Thermostat als Fühler", () => {
   it("zeigt die gemessene Temperatur", () => {
     const s = { entity_id: "climate.hk", state: "heat", attributes: { current_temperature: 19 } } as unknown as HassEntity;
     expect(deviceValue(s, "temperature_sensors", translator("de"), "de")).toBe("19,0 °C");
+  });
+});
+
+describe("healthNote", () => {
+  const t = translator("de");
+  it("zeigt Überbrückung vor Ausfallzahl", () => {
+    expect(healthNote({ drops_24h: 3, down_since: "x", held: true }, t)).toBe("kurz weg, letzter Wert gilt");
+    expect(healthNote({ drops_24h: 3, down_since: null, held: false }, t)).toBe("3× weg (24 h)");
+    expect(healthNote({ drops_24h: 0, down_since: null, held: false }, t)).toBeNull();
+    expect(healthNote(undefined, t)).toBeNull();
   });
 });

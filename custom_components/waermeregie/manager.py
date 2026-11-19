@@ -32,7 +32,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import engine, model, pellets
+from . import engine, health, model, pellets
 from .const import (
     DEBOUNCE_S,
     DOMAIN,
@@ -44,6 +44,7 @@ from .const import (
     MAX_PAUSE_MIN,
     MODE_ACTIVE,
     MODE_SHADOW,
+    OPENING_CHECK_DROP_K,
     STORAGE_KEY_CONFIG,
     STORAGE_KEY_STATE,
     STORAGE_VERSION,
@@ -120,6 +121,9 @@ class WaermeregieManager:
         # Lüften: seit wann offen (zuletzt gesehen) und wann wieder geschlossen
         self._open_seen: dict[str, datetime] = {}
         self._closed: dict[str, tuple[datetime, float]] = {}
+        # Sensorzustand (gespeichert) und Verlauf offener Fenster (nur im Speicher)
+        self.health: dict[str, dict] = {}
+        self._open_track: dict[str, dict] = {}
 
     # --- Laden und Speichern ---------------------------------------------------
     async def async_load(self, initial_stove: str | None = None) -> None:
@@ -134,6 +138,7 @@ class WaermeregieManager:
         state = await self._state_store.async_load() or {}
         self.log = state.pop("log", [])
         self.pellets = {**pellets.empty(), **(state.pop("pellets", None) or {})}
+        self.health = state.pop("health", None) or {}
         self.state = {**engine.empty_state(), **state}
 
     def _to_storage(self, config: dict) -> dict:
@@ -195,7 +200,7 @@ class WaermeregieManager:
         self._state_store.async_delay_save(self._state_data, 2)
 
     def _state_data(self) -> dict:
-        return {**self.state, "log": self.log, "pellets": self.pellets}
+        return {**self.state, "log": self.log, "pellets": self.pellets, "health": self.health}
 
     # --- Start / Stop ------------------------------------------------------------
     async def async_start(self) -> None:
@@ -255,43 +260,77 @@ class WaermeregieManager:
         except TypeError, ValueError:
             return None
 
+    def _reading(
+        self, entity_id: str, now: datetime, temperature: bool = False
+    ) -> tuple[str | None, datetime | None]:
+        """Wert eines Raum-Geräts mit Überbrückung kurzer Aussetzer: (Wert, gilt seit)."""
+        st = self.hass.states.get(entity_id)
+        value = None
+        changed = st.last_changed if st is not None else None
+        if st is not None and st.state not in BAD_STATES:
+            value = st.state
+            if temperature and entity_id.startswith("climate."):
+                raw = st.attributes.get("current_temperature")
+                value = None if raw in BAD_STATES else str(raw)
+        entry = health.track(self.health.get(entity_id), value, changed, now)
+        self.health[entity_id] = entry
+        return health.reading(entry, now, self.config["parameters"]["sensor_hold_min"])
+
+    def _name(self, entity_id: str) -> str:
+        st = self.hass.states.get(entity_id)
+        return st.name if st else entity_id
+
     def observe(self, now: datetime, config: dict | None = None) -> engine.Observation:
         config = config or effective_config(self.config)
         rooms = {}
+        seen: set[str] = set()
         for room in config["rooms"]:
             total = weight = 0.0
             missing = 0
             for sensor in room["temperature_sensors"]:
-                value = self._float(sensor["entity"])
+                seen.add(sensor["entity"])
+                raw, _ = self._reading(sensor["entity"], now, temperature=True)
+                try:
+                    value = float(raw) if raw is not None else None
+                except ValueError:
+                    value = None
                 if value is None:
                     missing += 1
                     continue
                 total += value * sensor["weight"]
                 weight += sensor["weight"]
             temperature = round(total / weight, 2) if weight else None
+            for entity_id in room["radiators"]:
+                seen.add(entity_id)
+                self._reading(entity_id, now)  # nur für die Ausfall-Statistik
             open_since = open_entity = open_name = None
             for entity_id in room["openings"]:
-                st = self.hass.states.get(entity_id)
+                seen.add(entity_id)
+                value, since = self._reading(entity_id, now)
                 if (
-                    st
-                    and st.state == STATE_ON
-                    and (open_since is None or st.last_changed < open_since)
+                    value == STATE_ON
+                    and since is not None
+                    and (open_since is None or since < open_since)
                 ):
-                    open_since = st.last_changed
+                    open_since = since
                     open_entity = entity_id
-                    open_name = st.name
+                    open_name = self._name(entity_id)
             if open_since is not None:
                 self._open_seen[room["id"]] = open_since
             elif (opened := self._open_seen.pop(room["id"], None)) is not None:
                 self._closed[room["id"]] = (now, (now - opened).total_seconds() / 60)
             closed_at, open_minutes = self._closed.get(room["id"], (None, 0.0))
             occupied = empty_since = None
-            presence_states = [self.hass.states.get(e) for e in room["presence"]]
-            presence_states = [s for s in presence_states if s and s.state not in BAD_STATES]
-            if presence_states:
-                occupied = any(s.state == STATE_ON for s in presence_states)
+            presence = []
+            for entity_id in room["presence"]:
+                seen.add(entity_id)
+                value, since = self._reading(entity_id, now)
+                if value is not None and since is not None:
+                    presence.append((value, since))
+            if presence:
+                occupied = any(v == STATE_ON for v, _ in presence)
                 if not occupied:
-                    empty_since = max(s.last_changed for s in presence_states)
+                    empty_since = max(t for _, t in presence)
             rooms[room["id"]] = engine.RoomObs(
                 temperature=temperature,
                 sensors_missing=missing,
@@ -303,6 +342,9 @@ class WaermeregieManager:
                 occupied=occupied,
                 empty_since=empty_since,
             )
+
+        # Geräte, die nicht mehr (oder pausiert) eingetragen sind, vergessen
+        self.health = {k: v for k, v in self.health.items() if k in seen}
 
         sc = self.config["stove"]
         stove = engine.StoveObs()
@@ -350,9 +392,16 @@ class WaermeregieManager:
         if not shadow:
             await self._execute(result.actions, now)
         await self._notify_alerts(result.status["alerts"])
+        sensor_alerts = await self._check_sensors(now, config, obs, result.status)
         pellet_status = await self._track_pellets(now, obs)
+        hold = self.config["parameters"]["sensor_hold_min"]
         self.status = {
             **result.status,
+            "alerts": [*result.status["alerts"], *sensor_alerts],
+            "devices": {
+                entity_id: health.summary(entry, now, hold)
+                for entity_id, entry in self.health.items()
+            },
             "pellets": pellet_status,
             "log": list(reversed(self.log[-50:])),
         }
@@ -452,6 +501,90 @@ class WaermeregieManager:
                     )
                 except Exception as err:
                     _LOGGER.warning("Benachrichtigung über %s fehlgeschlagen: %s", service, err)
+
+    async def _check_sensors(
+        self, now: datetime, config: dict, obs: engine.Observation, status: dict
+    ) -> list[dict]:
+        """Lange Ausfälle und unglaubwürdige Fenster melden (Hinweis, schaltet nichts)."""
+        p = self.config["parameters"]
+        alerts: list[dict] = []
+        room_of = {}
+        for room in config["rooms"]:
+            for e in (
+                room["radiators"]
+                + room["openings"]
+                + room["presence"]
+                + [s["entity"] for s in room["temperature_sensors"]]
+            ):
+                room_of.setdefault(e, room)
+        # Ausfälle: eine Meldung je Sensor und Tag, mehrere gesammelt
+        due = health.due_alerts(self.health, list(room_of), now, p["sensor_alert_min"])
+        for entity_id, entry in self.health.items():
+            if (
+                entity_id in room_of
+                and p["sensor_alert_min"] > 0
+                and health.down_minutes(entry, now) >= p["sensor_alert_min"]
+            ):
+                room = room_of[entity_id]
+                minutes = int(health.down_minutes(entry, now))
+                alerts.append(
+                    {
+                        "kind": "sensor",
+                        "room": room["id"],
+                        "entity": entity_id,
+                        "minutes": minutes,
+                        "message": (
+                            f"{self._name(entity_id)} ({room['name']}) "
+                            f"seit {minutes} min nicht erreichbar"
+                        ),
+                    }
+                )
+        if due:
+            names = ", ".join(f"{self._name(e)} ({room_of[e]['name']})" for e in due)
+            since = f"{p['sensor_alert_min']:g} min"
+            text = (
+                f"Nicht erreichbar seit über {since}: {names}. "
+                "Bis zur Rückkehr zählt ein Fenster als zu, ein Fühler wird weggelassen."
+            )
+            self._add_log(now, text, False)
+            await self._send_notify(text)
+        # Fenster lange offen, Raum kühlt nicht ab: Sensor prüfen
+        rooms_status = {r["id"]: r for r in status["rooms"]}
+        for room in config["rooms"]:
+            rid = room["id"]
+            ro = obs.rooms.get(rid)
+            if ro is None or ro.open_since is None or not rooms_status.get(rid, {}).get("open"):
+                self._open_track.pop(rid, None)
+                continue
+            track = health.opening_check(self._open_track.get(rid), now, ro.temperature)
+            if track is None:
+                continue
+            if health.opening_implausible(track, now, p["opening_check_min"], OPENING_CHECK_DROP_K):
+                track["warned"] = True
+                minutes = int((now - ro.open_since).total_seconds() / 60)
+                text = (
+                    f"{ro.open_name or 'Öffnung'} ({room['name']}) meldet seit {minutes} min "
+                    "offen, der Raum kühlt aber nicht ab. Sensor prüfen? "
+                    "Der Raum bleibt auf Frostschutz, bis das Fenster zu meldet oder du "
+                    "den Sensor pausierst."
+                )
+                self._add_log(now, text, False)
+                await self._send_notify(text)
+            self._open_track[rid] = track
+            if track["warned"]:
+                alerts.append(
+                    {
+                        "kind": "opening_check",
+                        "room": rid,
+                        "entity": ro.open_entity,
+                        "minutes": int((now - ro.open_since).total_seconds() / 60),
+                        "message": (
+                            f"{ro.open_name or 'Öffnung'} ({room['name']}) meldet offen, "
+                            "Raum kühlt nicht ab. Sensor prüfen?"
+                        ),
+                    }
+                )
+        return alerts
 
     # --- Bedienung -----------------------------------------------------------------
     def _next_schedule_change(self, now: datetime) -> datetime:

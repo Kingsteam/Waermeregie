@@ -4,6 +4,16 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-19
+### Hinzugefügt
+- **Kurze Sensor-Aussetzer überbrücken:** Ist ein Fühler, Fenster oder Melder kurz nicht erreichbar, gilt bis zu 30 Minuten sein letzter Wert (Parameter *Aussetzer überbrücken bis*, 0 = aus). Ein offenes Fenster bleibt also offen, die Öffnungszeit läuft weiter. Kommt der Sensor mit demselben Wert zurück, zählt er weiter ab dem ursprünglichen Zeitpunkt. Vorher galt ein nicht erreichbares Fenster sofort als zu.
+- **Ausfälle melden:** Ist ein Sensor länger als 60 Minuten weg (Parameter *Ausfall melden nach*, 0 = aus), kommt eine Nachricht, höchstens einmal am Tag je Sensor; gleichzeitige Ausfälle stehen in einer Nachricht. In der Übersicht steht ein Hinweis.
+- **Fenster-Plausibilität:** Meldet ein Fenster 60 Minuten offen (Parameter *Fenster prüfen nach*, 0 = aus) und der Raum ist dabei nicht um mindestens 0,3 K kühler geworden, kommt einmal eine Nachricht „Sensor prüfen?“. Der Raum bleibt trotzdem auf Frostschutz.
+- **Zuverlässigkeit in der Raum-Seite:** Unter jedem Gerät steht, wie oft es in den letzten 24 Stunden weg war, bzw. „kurz weg, letzter Wert gilt“. Neues Feld `devices` im Status.
+
+### Geändert
+- Zieltemperaturen je Szene: Namen werden nicht mehr abgeschnitten.
+
 ## [0.3.0] - 2026-11-19
 ### Hinzugefügt
 - **Geräte pausieren:** Jedes Gerät eines Raums (Heizkörper, Fühler, Fenster/Tür, Melder) lässt sich pausieren. Es bleibt eingetragen, wird aber nicht verwendet – praktisch, wenn z. B. die Melder einer Alarmanlage offline sind. Neues Feld `paused` je Raum.

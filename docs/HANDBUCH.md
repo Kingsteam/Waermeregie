@@ -33,6 +33,9 @@ Ein Pelletofen ohne Pufferspeicher taktet leicht: Sind die Heizkörperventile zu
 - **Während eines Blocks** werden die Heizkörper 1 K über Ziel gestellt, damit sie öffnen und die Wärme abnehmen.
 - **Fenster/Tür offen:** bis 2 Minuten nichts; danach Heizkörper des Raums auf Frostschutz; ab 10 Minuten kein neuer Ofenstart und eine Nachricht. Ist im Raum laut Meldern niemand, kommt die Nachricht schon nach 1 Minute (z. B. wenn der Hund die Tür aufstößt).
 - **Nach dem Lüften:** Ist das Fenster wieder zu, zählt der Raum noch 20 Minuten nicht für den Ofenstart (Parameter *Nach dem Lüften warten*). So springt der Ofen nicht an, nur weil die Luft am Fenster kurz kalt ist. War es nur kurz offen (unter 2 Minuten), gilt das nicht.
+- **Sensor kurz weg:** Ist ein Fühler, Fenster oder Melder kurz nicht erreichbar (bei Zigbee häufig ein, zwei Minuten), gilt bis zu 30 Minuten sein letzter Wert. Ein offenes Fenster bleibt offen. Danach zählt ein Fenster als zu und ein Fühler wird weggelassen.
+- **Sensor lange weg:** Nach 60 Minuten kommt eine Nachricht, höchstens einmal am Tag je Sensor. In der Raum-Seite steht unter jedem Gerät, wie oft es in den letzten 24 Stunden weg war. Ein unzuverlässiges Gerät lässt sich dort pausieren.
+- **Fenster meldet offen, Raum kühlt nicht ab:** Nach 60 Minuten kommt einmal die Nachricht „Sensor prüfen?“. Der Raum bleibt trotzdem auf Frostschutz, bis das Fenster „zu“ meldet oder du den Sensor pausierst. Absichtlich: Ein falsches „offen“ macht es nur kühler, ein falsches „zu“ würde bei offenem Fenster heizen.
 - **Leere Räume** (laut Meldern seit 45 Minuten niemand) werden 1,5 K kühler gehalten.
 - **Leistungsstufe:** knapp über der Startschwelle kleinste Stufe (Standard 1), ab 2 K Bedarf oder unter 0 °C außen höchste (Standard 3). Bei lange offener Tür kleinste Stufe.
 - **Störung:** Meldet der Ofen eine Störung, startet kein Block, und ein laufender endet.

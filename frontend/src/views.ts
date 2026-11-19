@@ -221,9 +221,11 @@ function alertIcon(a: Alert): string {
   switch (a.kind) {
     case "opening":
       return "mdi:window-open-variant";
+    case "opening_check":
+      return "mdi:window-shutter-alert";
     case "sensor":
     case "sensors_missing":
-      return "mdi:thermometer-off";
+      return "mdi:access-point-network-off";
     case "stove":
       return "mdi:fireplace-off";
     case "chrono":

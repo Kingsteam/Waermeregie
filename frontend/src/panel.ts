@@ -326,6 +326,7 @@ export class WaermeregiePanel extends LitElement {
             .config=${common.config}
             .defaults=${common.defaults}
             .lang=${common.lang}
+            .devices=${this._status?.devices ?? {}}
             ?readonly=${ro}
             @config-changed=${onChange}
           ></wr-rooms-editor>`;

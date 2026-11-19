@@ -57,7 +57,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
   "parameters": {
     "start_below_k": 0.5, "stop_above_k": 0.3,
     "min_burn_min": 90, "max_burn_min": 300, "min_pause_min": 60, "max_starts_per_day": 4,
-    "opening_grace_min": 2, "opening_stop_min": 10, "opening_empty_room_min": 1, "opening_recovery_min": 20,
+    "opening_grace_min": 2, "opening_stop_min": 10, "opening_empty_room_min": 1, "opening_recovery_min": 20, "opening_check_min": 60, "sensor_hold_min": 30, "sensor_alert_min": 60,
     "radiator_boost_k": 1.0, "frost_c": 12, "night_floor_c": 16, "stove_block_setpoint_c": 28,
     "presence_empty_min": 45,
     "power_min": 1, "power_max": 3,    // Leistungsstufen im Heizblock (1-5)
@@ -96,6 +96,8 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
      "radiator_setpoint": 22, "open": false, "open_minutes": 0, "recover_until": null, "occupied": true, "sensors_missing": 0}
   ],
   "alerts": [{"kind": "opening", "room": "wohnzimmer", "entity": "binary_sensor.terrassentuer", "minutes": 12, "message": "Terrassentür seit 12 min offen"}],
+  // weitere kind: "sensor" (Gerät länger als sensor_alert_min weg), "opening_check" (offen, Raum kühlt nicht ab)
+  "devices": {"binary_sensor.terrassentuer": {"drops_24h": 2, "down_since": null, "held": false}},  // je Raum-Gerät (ohne pausierte)
   "overrides": {"scene": null, "pause_until": null, "boost": null},
   "log": [{"time": "…", "text": "Heizblock gestartet: Wohnräume 0,7 K unter Ziel", "shadow": true}]
 }
