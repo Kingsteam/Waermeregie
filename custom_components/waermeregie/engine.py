@@ -18,6 +18,8 @@ from .const import (
     HOT_WATER_C,
     MIN_RADIATOR_STEP_K,
     MODE_ACTIVE,
+    REIGNITE_RESEND_MIN,
+    REIGNITE_WINDOW_MIN,
     ROOM_TARGET_LIMITS,
     START_CONFIRM_MIN,
     STOVE_ALLOW,
@@ -101,11 +103,31 @@ def empty_state() -> dict[str, Any]:
         "prepare_since": None,  # sanfter Start: seit wann die Heizkörper vorlaufen
         "start_cmd": None,  # eigener Startbefehl, noch nicht vom Ofen bestätigt
         "self_off_since": None,  # Ofen hat im Block selbst abgeschaltet (Wasser heiß)
+        "reignite_stop": None,  # Ofen hat ohne Bedarf selbst gezündet: letzter Aus-Befehl
     }
 
 
 def _dt(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value) if value else None
+
+
+def _unwanted_ignition(
+    state: dict, now: datetime, p: dict, house_deficit, warmup_active: bool, frost_need: bool
+) -> bool:
+    """Ofen brennt ohne Block: von selbst gezündet statt von Hand eingeschaltet?
+
+    Gilt, wenn von Hand pausiert ist, oder wenn die Regel den letzten Block erst vor
+    kurzem beendet hat und kein Wärmebedarf besteht (kein Aufheizen, kein Frostschutz).
+    """
+    pause = _dt(state.get("pause_until"))
+    if pause is not None and pause > now:
+        return True
+    last_stop = _dt(state.get("last_stop"))
+    if last_stop is None or now - last_stop >= timedelta(minutes=REIGNITE_WINDOW_MIN):
+        return False
+    if warmup_active or frost_need:
+        return False
+    return house_deficit is not None and house_deficit < p["start_below_k"]
 
 
 def _fmt_k(value: float) -> str:
@@ -341,6 +363,20 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         elif in_block and obs.stove.on and self_off_since is not None:
             state["self_off_since"] = self_off_since = None
             log.append("Ofen hat wieder gezündet, Heizblock läuft weiter")
+        elif (
+            not in_block
+            and obs.stove.on
+            and not obs.stove.error
+            and _unwanted_ignition(state, now, p, house_deficit, warmup_active, frost_need)
+        ):
+            # 20.11.2026: Hydro-Ofen zündet nach dem Abkühlen von selbst wieder, obwohl die
+            # Regel den Block beendet hat. Nicht als Handstart übernehmen (das hielt ihn
+            # mindestens min_burn_min am Brennen), sondern wieder ausschalten.
+            last = _dt(state.get("reignite_stop"))
+            if last is None or now - last >= timedelta(minutes=REIGNITE_RESEND_MIN):
+                state["reignite_stop"] = now.isoformat()
+                actions.append(("stove_stop",))
+                log.append("Ofen hat ohne Wärmebedarf selbst gezündet, Wärmeregie schaltet ihn aus")
         elif not in_block and obs.stove.on and not obs.stove.error:
             # Bei Störung nicht übernehmen: sonst Schleife aus „von Hand ein“ und
             # „Block beendet: Störung“ mit einem Aus-Befehl je Runde (19.11.2026)
@@ -348,6 +384,9 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             state["starts"].append(now.isoformat())
             in_block = True
             log.append("Ofen wurde von Hand eingeschaltet, Wärmeregie übernimmt den Block")
+
+    if not obs.stove.on:
+        state["reignite_stop"] = None
 
     starts_today = sum(1 for s in state["starts"] if _dt(s).date() == now.date())
     last_stop = _dt(state["last_stop"])

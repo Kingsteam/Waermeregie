@@ -622,3 +622,59 @@ def test_house_average_temperature_and_target():
     # Wichtigkeit 3 und 1: (3*20 + 18) / 4
     assert r.status["house"]["temperature_c"] == 19.5
     assert r.status["house"]["target_c"] == 20.5
+
+
+# --- Selbstzündung ohne Bedarf (20.11.2026) ---------------------------------------
+
+
+def test_reignition_without_demand_is_switched_off_not_adopted():
+    """Block endet (Ziel erreicht), Hydro-Ofen zündet nach dem Abkühlen selbst wieder."""
+    cfg = sample_config(mode="active")
+    stop = at(16, "08:32")
+    state = {**engine.empty_state(), "last_stop": stop.isoformat()}
+    later = stop + timedelta(minutes=16)
+    r = run(cfg, state, obs(later, wz=24.5, sz=23.5, stove=_burning(75.0)))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert r.status["stove"]["starts_today"] == 0
+    assert any("selbst gezündet" in t for t in r.log)
+    assert not any("von Hand" in t for t in r.log)
+    # eine Minute später brennt er noch: kein neuer Befehl, kein neuer Eintrag
+    r = run(cfg, r.state, obs(later + timedelta(minutes=1), wz=24.5, sz=23.5, stove=_burning()))
+    assert ("stove_stop",) not in r.actions
+    assert not r.log
+    # nach 5 min noch immer an: Befehl wiederholen
+    r = run(cfg, r.state, obs(later + timedelta(minutes=6), wz=24.5, sz=23.5, stove=_burning()))
+    assert ("stove_stop",) in r.actions
+    # aus: Merker zurück
+    r = run(
+        cfg, r.state, obs(later + timedelta(minutes=8), wz=24.5, sz=23.5, stove=_burning(on=False))
+    )
+    assert r.state["reignite_stop"] is None
+
+
+def test_ignition_during_manual_pause_is_switched_off():
+    cfg = sample_config(mode="active")
+    now = at(16, "11:00")
+    state = {**engine.empty_state(), "pause_until": (now + timedelta(hours=3)).isoformat()}
+    r = run(cfg, state, obs(now, wz=24.0, stove=_burning(70.0)))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert r.state["starts"] == []
+
+
+def test_manual_start_long_after_stop_is_still_adopted():
+    cfg = sample_config(mode="active")
+    stop = at(16, "08:00")
+    state = {**engine.empty_state(), "last_stop": stop.isoformat()}
+    r = run(cfg, state, obs(stop + timedelta(hours=4), wz=21.0, stove=_burning()))
+    assert r.state["block_start"] is not None
+    assert any("von Hand" in t for t in r.log)
+
+
+def test_ignition_with_demand_shortly_after_stop_is_adopted():
+    cfg = sample_config(mode="active")
+    stop = at(16, "17:00")
+    state = {**engine.empty_state(), "last_stop": stop.isoformat()}
+    r = run(cfg, state, obs(stop + timedelta(minutes=40), wz=19.0, sz=17.5, stove=_burning()))
+    assert r.state["block_start"] is not None

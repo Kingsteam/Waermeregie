@@ -77,6 +77,10 @@ MAX_WARMUP_MIN: Final = 6 * 60
 WARMUP_AFTER_ARRIVAL_MIN: Final = 60  # nach der Ankunft noch so lange warm halten
 SENSOR_OFFSET_LIMIT_K: Final = 5.0  # Korrektur je Temperaturfühler höchstens ±5 K
 START_CONFIRM_MIN: Final = 3  # nach dem eigenen Startbefehl so lange auf "an" warten
+REIGNITE_WINDOW_MIN: Final = (
+    180  # so lange nach dem Blockende gilt Zünden ohne Bedarf als Selbstzündung
+)
+REIGNITE_RESEND_MIN: Final = 5  # Aus-Befehl bei Selbstzündung höchstens so oft wiederholen
 HOT_WATER_C: Final = 50.0  # Wasser so heiß: Ofen hat wegen Kesseltemperatur selbst abgeschaltet
 MIN_RADIATOR_STEP_K: Final = 0.5  # Heizkörper erst ab dieser Änderung neu setzen
 

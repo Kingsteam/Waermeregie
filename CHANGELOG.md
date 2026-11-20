@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-20
+### Behoben
+- **Selbstzündung nicht mehr als Handstart übernehmen.** Ein Hydro-Ofen ohne Puffer zündet nach dem Abkühlen von selbst wieder, auch nachdem die Wärmeregie den Block beendet hat. Bisher galt das als „von Hand eingeschaltet“, wurde als neuer Heizblock übernommen und brannte mindestens die Mindestbrenndauer, obwohl das Haus schon zu warm war und die Heizkörper zu waren (Kesselwasser über 90 °C). Jetzt schaltet die Wärmeregie den Ofen wieder aus, wenn er während einer Pause von Hand oder innerhalb von 3 Stunden nach dem letzten Block ohne Wärmebedarf zündet (kein Aufheizen, kein Frostschutz). Der Aus-Befehl wird höchstens alle 5 Minuten wiederholt; das zählt nicht als Start. Ein Handstart später oder bei Wärmebedarf wird weiter übernommen.
+
 ## [0.6.0] - 2026-11-20
 ### Hinzugefügt
 - **Meldungen einstellbar** (*Ofen & Haus → Meldungen*, Config `notifications`): jede Art einzeln ein/aus (Fenster offen, Fenster offen ohne Abkühlen, Geräte nicht erreichbar, Pellets, Ofen-Störung), Fenster erst nach 10 Minuten melden, gleiche Meldung frühestens nach 60 Minuten wieder, Ruhezeit 22:00-07:00 (nur Ofen-Störung, der Rest danach gesammelt in einer Nachricht). Ältere Einstellungen bekommen diese Standardwerte.
