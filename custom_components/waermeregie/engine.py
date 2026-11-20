@@ -42,6 +42,9 @@ class RoomObs:
     last_open_minutes: float = 0.0  # wie lange es davor offen war
     occupied: bool | None = None  # None = keine Melder
     empty_since: datetime | None = None
+    humidity: float | None = None  # höchste Luftfeuchte im Raum (%)
+    ventilating: bool = False  # Fenster offen wegen hoher Feuchte: noch nicht melden
+    alert_from: datetime | None = None  # Feuchte wieder unten: Meldung zählt ab hier
 
 
 @dataclass
@@ -248,13 +251,17 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             grace = min(grace, p["opening_empty_room_min"])
             alert_after = min(alert_after, max(p["opening_empty_room_min"], 1))
         is_open = ro.open_since is not None and open_min >= grace
-        if ro.open_since is not None and open_min >= alert_after:
+        # Lüften wegen Feuchte: keine Meldung; danach zählt die Zeit ab "wieder trocken"
+        alert_min = open_min
+        if ro.open_since is not None and ro.alert_from and ro.alert_from > ro.open_since:
+            alert_min = (now - ro.alert_from).total_seconds() / 60
+        if ro.open_since is not None and not ro.ventilating and alert_min >= alert_after:
             alerts.append(
                 {
                     "kind": "opening",
                     "room": room["id"],
                     "entity": ro.open_entity,
-                    "minutes": int(open_min),
+                    "minutes": int(alert_min),
                     "message": (
                         f"{ro.open_name or 'Öffnung'} ({room['name']}) "
                         f"seit {int(open_min)} min offen"
@@ -300,6 +307,8 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 "recover_until": recover_until.isoformat() if recover_until else None,
                 "occupied": ro.occupied,
                 "sensors_missing": ro.sensors_missing,
+                "humidity": ro.humidity,
+                "ventilating": bool(ro.ventilating and ro.open_since is not None),
             }
         )
     house_deficit = round(weighted_sum / weight_total, 2) if weight_total else None

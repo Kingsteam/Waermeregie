@@ -51,7 +51,7 @@ export class WrRoomsEditor extends EditorBase {
     if (!name) return;
     const id = makeId(name, this.config.rooms.map((r) => r.id), "raum");
     this.change((c) => {
-      c.rooms.push({ id, name, importance: 2, radiators: [], temperature_sensors: [], openings: [], presence: [], paused: [], targets: {} });
+      c.rooms.push({ id, name, importance: 2, radiators: [], temperature_sensors: [], openings: [], presence: [], humidity_sensors: [], paused: [], targets: {} });
     });
     this._selected = id;
     this._newName = "";
@@ -164,6 +164,7 @@ export class WrRoomsEditor extends EditorBase {
       </div>
       <div class="hint">${t("room.devices_hint")}</div>
       <div class="groups">${DEVICE_KINDS.map((k) => this._renderGroup(room, k))}</div>
+      ${(room.humidity_sensors ?? []).length ? this._renderVentilate(room) : nothing}
 
       <span class="lbl" style="margin-top:14px">${t("room.targets")}</span>
       <div class="hint">${t("room.targets_hint")}</div>
@@ -208,6 +209,33 @@ export class WrRoomsEditor extends EditorBase {
               : html`<button class="danger" @click=${() => (this._confirmDelete = true)}><ha-icon icon="mdi:delete-outline"></ha-icon>${t("room.delete")}</button>`}
           </div>`}
     </div>`;
+  }
+
+  private _renderVentilate(room: Room) {
+    const t = this.t;
+    const field = (key: "ventilate_humidity" | "ventilate_rise", def: number, max: number) =>
+      html`<label class="target">
+        <span>${t(`room.${key}`)}</span>
+        <span class="row" style="flex-wrap:nowrap;gap:4px">
+          <input
+            type="number"
+            step="1"
+            min="0"
+            max=${max}
+            ?disabled=${this.readonly}
+            placeholder=${String(def)}
+            .value=${room[key] !== undefined ? String(room[key]) : ""}
+            @change=${(e: Event) =>
+              this._updateRoom(room.id, (r) => {
+                const n = readNumber(e);
+                r[key] = n === null ? def : Math.max(0, Math.min(max, n));
+              })}
+          /><span class="muted">%</span>
+        </span>
+      </label>`;
+    return html`<span class="lbl" style="margin-top:14px">${t("room.ventilate")}</span>
+      <div class="hint">${t("room.ventilate_hint")}</div>
+      <div class="targets">${field("ventilate_humidity", 65, 100)}${field("ventilate_rise", 6, 30)}</div>`;
   }
 
   private _renderGroup(room: Room, k: (typeof DEVICE_KINDS)[number]) {

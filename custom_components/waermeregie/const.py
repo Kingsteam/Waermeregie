@@ -123,3 +123,33 @@ PELLET_DAYS_FOR_FORECAST: Final = 3
 # Verlauf für die Grafik
 HISTORY_STEP_MIN: Final = 10
 HISTORY_HOURS: Final = 48
+
+# Benachrichtigungen (keine Sicherheitsgrenzen: steuern nur, was aufs Handy kommt)
+NOTIFY_KINDS: Final = ("opening", "opening_check", "sensor", "pellets", "stove_error")
+NOTIFY_CRITICAL: Final = ("stove_error",)  # kommen auch in der Ruhezeit
+NOTIFY_LIMITS: Final[dict[str, tuple[float, float]]] = {
+    "opening_delay_min": (0, 240),  # Fenster erst melden, wenn so lange offen
+    "repeat_min": (0, 1440),  # gleiche Meldung frühestens wieder nach
+    "ventilate_max_min": (5, 240),  # Feucht-Lüften höchstens so lange ohne Meldung
+}
+DEFAULT_NOTIFICATIONS: Final[dict] = {
+    "opening": True,
+    "opening_check": True,
+    "sensor": True,
+    "pellets": True,
+    "stove_error": True,
+    "opening_delay_min": 10,
+    "repeat_min": 60,
+    "ventilate_max_min": 30,
+    "quiet_start": "22:00",  # "" = keine Ruhezeit
+    "quiet_end": "07:00",
+    "quiet_hold": True,  # in der Ruhezeit gesammelt, danach eine Nachricht
+}
+
+# Lüften wegen Luftfeuchte (je Raum einstellbar, hier Standard und Grenzen)
+DEFAULT_VENTILATE_HUMIDITY: Final = 65.0  # absolute Schwelle in %, 0 = nicht verwenden
+DEFAULT_VENTILATE_RISE: Final = 6.0  # Prozentpunkte über dem Grundwert, 0 = nicht verwenden
+VENTILATE_HUMIDITY_LIMITS: Final = (0.0, 100.0)
+VENTILATE_RISE_LIMITS: Final = (0.0, 30.0)
+HUMIDITY_BASELINE_MIN: Final = 90  # Grundwert = Tiefstwert der letzten 90 min
+HUMIDITY_HYSTERESIS: Final = 2.0  # Lüften endet bei Grundwert + 2 Punkte

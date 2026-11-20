@@ -11,15 +11,22 @@ import re
 from typing import Any
 
 from .const import (
+    DEFAULT_NOTIFICATIONS,
     DEFAULT_PARAMETERS,
+    DEFAULT_VENTILATE_HUMIDITY,
+    DEFAULT_VENTILATE_RISE,
     MODE_ACTIVE,
     MODE_SHADOW,
+    NOTIFY_KINDS,
+    NOTIFY_LIMITS,
     PARAMETER_LIMITS,
     ROOM_TARGET_LIMITS,
     SENSOR_OFFSET_LIMIT_K,
     STOVE_ALLOW,
     STOVE_DENY,
     STOVE_FROST_ONLY,
+    VENTILATE_HUMIDITY_LIMITS,
+    VENTILATE_RISE_LIMITS,
     WEEKDAYS,
 )
 
@@ -54,6 +61,7 @@ def default_config() -> dict[str, Any]:
         "persons": [],
         "pet": None,
         "notify": [],
+        "notifications": dict(DEFAULT_NOTIFICATIONS),
         "warmup_scene": None,
         "rooms": [],
         "scenes": [
@@ -150,7 +158,49 @@ def limits() -> dict[str, Any]:
     return {
         "parameters": {k: list(v) for k, v in PARAMETER_LIMITS.items()},
         "room_target": list(ROOM_TARGET_LIMITS),
+        "notifications": {k: list(v) for k, v in NOTIFY_LIMITS.items()},
+        "ventilate_humidity": list(VENTILATE_HUMIDITY_LIMITS),
+        "ventilate_rise": list(VENTILATE_RISE_LIMITS),
     }
+
+
+def _notifications(raw: Any) -> dict[str, Any]:
+    """Benachrichtigungs-Einstellungen; fehlende Werte (ältere Config) = Standard."""
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ConfigError("Benachrichtigungen: ungültig")
+    out = dict(DEFAULT_NOTIFICATIONS)
+    for kind in (*NOTIFY_KINDS, "quiet_hold"):
+        if kind in raw:
+            if not isinstance(raw[kind], bool):
+                raise ConfigError(f"Benachrichtigungen: {kind} ein oder aus")
+            out[kind] = raw[kind]
+    for key, (lo, hi) in NOTIFY_LIMITS.items():
+        if key in raw:
+            v = _num(raw[key], f"Benachrichtigungen {key}")
+            if not lo <= v <= hi:
+                raise ConfigError(f"Benachrichtigungen {key}: {v:g} liegt außerhalb {lo:g}-{hi:g}")
+            out[key] = int(v) if float(v).is_integer() else v
+    for key in ("quiet_start", "quiet_end"):
+        if key in raw:
+            v = raw[key] or ""
+            if not isinstance(v, str) or (v and not TIME_RE.match(v)):
+                raise ConfigError("Ruhezeit: Uhrzeit im Format HH:MM")
+            out[key] = v
+    if bool(out["quiet_start"]) != bool(out["quiet_end"]):
+        raise ConfigError("Ruhezeit: Beginn und Ende angeben (oder beide leer)")
+    if out["quiet_start"] and out["quiet_start"] == out["quiet_end"]:
+        raise ConfigError("Ruhezeit: Beginn und Ende dürfen nicht gleich sein")
+    return out
+
+
+def _percent(value: Any, default: float, limits: tuple[float, float], what: str) -> float:
+    v = default if value is None else _num(value, what)
+    lo, hi = limits
+    if not lo <= v <= hi:
+        raise ConfigError(f"{what}: {v:g} % liegt außerhalb {lo:g}-{hi:g}")
+    return round(v, 1)
 
 
 def _num(value: Any, what: str) -> float:
@@ -230,6 +280,7 @@ def validate(raw: Any) -> dict[str, Any]:
     ):
         raise ConfigError("Benachrichtigung: nur Dienste der Form notify.xyz")
     out["notify"] = list(dict.fromkeys(notify))
+    out["notifications"] = _notifications(cfg.get("notifications"))
 
     # Szenen
     scenes = cfg.get("scenes")
@@ -303,7 +354,28 @@ def validate(raw: Any) -> dict[str, Any]:
         radiators = _entities(rm.get("radiators"), ("climate",), f"{what} Heizkörper")
         openings = _entities(rm.get("openings"), ("binary_sensor",), f"{what} Öffnungen")
         presence = _entities(rm.get("presence"), ("binary_sensor",), f"{what} Anwesenheit")
-        used = {*radiators, *openings, *presence, *(s["entity"] for s in sensors)}
+        humidity = _entities(
+            rm.get("humidity_sensors"), ("sensor", "climate"), f"{what} Feuchtefühler"
+        )
+        ventilate_humidity = _percent(
+            rm.get("ventilate_humidity"),
+            DEFAULT_VENTILATE_HUMIDITY,
+            VENTILATE_HUMIDITY_LIMITS,
+            f"{what} Feuchte-Schwelle",
+        )
+        ventilate_rise = _percent(
+            rm.get("ventilate_rise"),
+            DEFAULT_VENTILATE_RISE,
+            VENTILATE_RISE_LIMITS,
+            f"{what} Feuchte-Anstieg",
+        )
+        used = {
+            *radiators,
+            *openings,
+            *presence,
+            *humidity,
+            *(s["entity"] for s in sensors),
+        }
         # Pausierte Geräte: bleiben eingetragen, werden aber nicht verwendet
         paused = [
             e
@@ -321,6 +393,9 @@ def validate(raw: Any) -> dict[str, Any]:
                 "temperature_sensors": sensors,
                 "openings": openings,
                 "presence": presence,
+                "humidity_sensors": humidity,
+                "ventilate_humidity": ventilate_humidity,
+                "ventilate_rise": ventilate_rise,
                 "paused": paused,
                 "targets": targets,
             }

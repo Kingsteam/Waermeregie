@@ -33,7 +33,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import engine, health, model, pellets
+from . import engine, health, humidity, messages, model, pellets
 from .const import (
     DEBOUNCE_S,
     DOMAIN,
@@ -71,7 +71,7 @@ def _paths(config: dict) -> list[tuple[Any, Any]]:
     for i in range(len(config["persons"])):
         out.append((config["persons"], i))
     for room in config["rooms"]:
-        for key in ("radiators", "openings", "presence", "paused"):
+        for key in ("radiators", "openings", "presence", "humidity_sensors", "paused"):
             for i in range(len(room.get(key) or [])):
                 out.append((room[key], i))
         for sensor in room["temperature_sensors"]:
@@ -93,6 +93,9 @@ def effective_config(config: dict) -> dict:
                 "radiators": [e for e in room["radiators"] if e not in paused],
                 "openings": [e for e in room["openings"] if e not in paused],
                 "presence": [e for e in room["presence"] if e not in paused],
+                "humidity_sensors": [
+                    e for e in room.get("humidity_sensors") or [] if e not in paused
+                ],
                 "temperature_sensors": [
                     s for s in room["temperature_sensors"] if s["entity"] not in paused
                 ],
@@ -130,6 +133,12 @@ class WaermeregieManager:
         # Sensorzustand (gespeichert) und Verlauf offener Fenster (nur im Speicher)
         self.health: dict[str, dict] = {}
         self._open_track: dict[str, dict] = {}
+        # Lüften wegen Luftfeuchte je Raum (nur im Speicher)
+        self._humid: dict[str, dict] = {}
+        # Benachrichtigungen: zuletzt gesendet je Schlüssel, gesammelt in der Ruhezeit
+        self._sent: dict[str, datetime] = {}
+        self._held: dict[str, tuple[str, str]] = {}
+        self._was_stove_error = False
         # Verlauf für die Grafik (gespeichert), Brennen seit dem letzten Punkt
         self.history: list[dict[str, Any]] = []
         self._burned_in_step = False
@@ -184,7 +193,7 @@ class WaermeregieManager:
             if entry is None:
                 missing.append(reg_id)
         for room in cfg["rooms"]:
-            for key in ("radiators", "openings", "presence", "paused"):
+            for key in ("radiators", "openings", "presence", "humidity_sensors", "paused"):
                 room[key] = [e for e in room.get(key) or [] if e]
             room["temperature_sensors"] = [s for s in room["temperature_sensors"] if s["entity"]]
         cfg["persons"] = [p for p in cfg["persons"] if p]
@@ -299,6 +308,37 @@ class WaermeregieManager:
         st = self.hass.states.get(entity_id)
         return st.name if st else entity_id
 
+    def _room_humidity(self, room: dict, now: datetime, seen: set[str], is_open: bool) -> dict:
+        """Höchste Feuchte im Raum, Feucht-Lüften erkennen (humidity.py)."""
+        values = []
+        for entity_id in room.get("humidity_sensors") or []:
+            seen.add(entity_id)
+            if entity_id.startswith("climate."):
+                raw = self._float(entity_id, "current_humidity")
+                self._reading(entity_id, now)  # Ausfall-Statistik
+            else:
+                text, _ = self._reading(entity_id, now)
+                try:
+                    raw = float(text) if text is not None else None
+                except ValueError:
+                    raw = None
+            if raw is not None:
+                values.append(raw)
+        if not room.get("humidity_sensors"):
+            self._humid.pop(room["id"], None)
+            return {"humidity": None, "ventilating": False, "alert_from": None}
+        entry, info = humidity.update(
+            self._humid.get(room["id"]),
+            now,
+            max(values) if values else None,
+            is_open,
+            room.get("ventilate_humidity", 0),
+            room.get("ventilate_rise", 0),
+            self.config["notifications"]["ventilate_max_min"],
+        )
+        self._humid[room["id"]] = entry
+        return info
+
     def observe(self, now: datetime, config: dict | None = None) -> engine.Observation:
         config = config or effective_config(self.config)
         rooms = {}
@@ -351,6 +391,7 @@ class WaermeregieManager:
                 occupied = any(v == STATE_ON for v, _ in presence)
                 if not occupied:
                     empty_since = max(t for _, t in presence)
+            hum = self._room_humidity(room, now, seen, open_since is not None)
             rooms[room["id"]] = engine.RoomObs(
                 temperature=temperature,
                 sensors_missing=missing,
@@ -361,6 +402,9 @@ class WaermeregieManager:
                 last_open_minutes=open_minutes,
                 occupied=occupied,
                 empty_since=empty_since,
+                humidity=hum["humidity"],
+                ventilating=hum["ventilating"],
+                alert_from=hum["alert_from"],
             )
 
         # Geräte, die nicht mehr (oder pausiert) eingetragen sind, vergessen
@@ -415,9 +459,11 @@ class WaermeregieManager:
             self._add_log(now, text, shadow)
         if not shadow:
             await self._execute(result.actions, now)
-        await self._notify_alerts(result.status["alerts"])
+        await self._notify_alerts(result.status["alerts"], now)
+        await self._notify_stove_error(obs, now)
         sensor_alerts = await self._check_sensors(now, config, obs, result.status)
         pellet_status = await self._track_pellets(now, obs)
+        await self._flush_held(now, result.status["alerts"])
         self._track_history(now, result.status, obs, pellet_status)
         hold = self.config["parameters"]["sensor_hold_min"]
         self.status = {
@@ -541,22 +587,51 @@ class WaermeregieManager:
                     now,
                 )
 
-    async def _notify_alerts(self, alerts: list[dict]) -> None:
-        keys = {f"{a['kind']}:{a['room']}" for a in alerts}
-        new = [a for a in alerts if f"{a['kind']}:{a['room']}" not in self._notified]
+    # --- Benachrichtigungen ---------------------------------------------------------
+    async def _notify(self, kind: str, key: str, text: str, now: datetime) -> None:
+        """Eine Meldung nach den Einstellungen senden, sammeln oder verwerfen."""
+        decision = messages.decide(self.config["notifications"], kind, self._sent.get(key), now)
+        if decision == "hold":
+            self._held[key] = (kind, text)
+        elif decision == "send":
+            self._sent[key] = now
+            await self._send_notify(text)
+
+    def _opening_due(self, alerts: list[dict]) -> list[dict]:
+        delay = self.config["notifications"]["opening_delay_min"]
+        return [a for a in alerts if a["kind"] == "opening" and a["minutes"] >= delay]
+
+    async def _notify_alerts(self, alerts: list[dict], now: datetime) -> None:
+        due = self._opening_due(alerts)
+        keys = {f"{a['kind']}:{a['room']}" for a in due}
+        new = [a for a in due if f"{a['kind']}:{a['room']}" not in self._notified]
         self._notified = keys
         for alert in new:
-            for service in self.config["notify"]:
-                domain, name = service.split(".", 1)
-                try:
-                    await self.hass.services.async_call(
-                        domain,
-                        name,
-                        {"title": "Wärmeregie", "message": alert["message"]},
-                        blocking=False,
-                    )
-                except Exception as err:
-                    _LOGGER.warning("Benachrichtigung über %s fehlgeschlagen: %s", service, err)
+            key = f"{alert['kind']}:{alert['room']}"
+            await self._notify(alert["kind"], key, alert["message"], now)
+
+    async def _notify_stove_error(self, obs: engine.Observation, now: datetime) -> None:
+        error = bool(obs.stove.available and obs.stove.error)
+        if error and not self._was_stove_error:
+            await self._notify("stove_error", "stove_error", "Der Ofen meldet eine Störung.", now)
+        self._was_stove_error = error
+
+    async def _flush_held(self, now: datetime, alerts: list[dict]) -> None:
+        """Nach der Ruhezeit: Gesammeltes in einer Nachricht schicken."""
+        if not self._held or messages.in_quiet(self.config["notifications"], now):
+            return
+        current = {f"{a['kind']}:{a['room']}": a["message"] for a in self._opening_due(alerts)}
+        texts = []
+        for key, (kind, text) in self._held.items():
+            if kind == "opening":
+                if key not in current:
+                    continue  # inzwischen wieder zu
+                text = current[key]
+            texts.append(text)
+            self._sent[key] = now
+        self._held = {}
+        if texts:
+            await self._send_notify(messages.bundle(texts))
 
     async def _check_sensors(
         self, now: datetime, config: dict, obs: engine.Observation, status: dict
@@ -570,6 +645,7 @@ class WaermeregieManager:
                 room["radiators"]
                 + room["openings"]
                 + room["presence"]
+                + room.get("humidity_sensors", [])
                 + [s["entity"] for s in room["temperature_sensors"]]
             ):
                 room_of.setdefault(e, room)
@@ -603,13 +679,18 @@ class WaermeregieManager:
                 "Bis zur Rückkehr zählt ein Fenster als zu, ein Fühler wird weggelassen."
             )
             self._add_log(now, text, False)
-            await self._send_notify(text)
+            await self._notify("sensor", "sensor:" + ",".join(sorted(due)), text, now)
         # Fenster lange offen, Raum kühlt nicht ab: Sensor prüfen
         rooms_status = {r["id"]: r for r in status["rooms"]}
         for room in config["rooms"]:
             rid = room["id"]
             ro = obs.rooms.get(rid)
-            if ro is None or ro.open_since is None or not rooms_status.get(rid, {}).get("open"):
+            if (
+                ro is None
+                or ro.open_since is None
+                or ro.ventilating
+                or not rooms_status.get(rid, {}).get("open")
+            ):
                 self._open_track.pop(rid, None)
                 continue
             track = health.opening_check(self._open_track.get(rid), now, ro.temperature)
@@ -625,7 +706,7 @@ class WaermeregieManager:
                     "den Sensor pausierst."
                 )
                 self._add_log(now, text, False)
-                await self._send_notify(text)
+                await self._notify("opening_check", f"opening_check:{rid}", text, now)
             self._open_track[rid] = track
             if track["warned"]:
                 alerts.append(
@@ -812,7 +893,7 @@ class WaermeregieManager:
                 + ". Bitte einen Sack nachfüllen."
             )
             self._add_log(now, msg, False)
-            await self._send_notify(msg)
+            await self._notify("pellets", "pellets", msg, now)
         return fc
 
     async def _send_notify(self, message: str) -> None:

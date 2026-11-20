@@ -194,6 +194,7 @@ export function renderRoomTiles(ctx: ViewCtx, filter?: string[] | null): Templat
           <span>${t("room.target")} ${formatNumber(r.target, lang, 1)}°</span>
           <span class="ticons">
             ${r.open ? html`<ha-icon class="cold" icon="mdi:window-open-variant" title=${r.open_minutes ? t("room.open_for", { time: `${r.open_minutes} min` }) : t("room.open")}></ha-icon>` : nothing}
+            ${r.ventilating ? html`<ha-icon icon="mdi:water-percent" title=${t("room.ventilating", { value: formatNumber(r.humidity ?? null, lang, 0) })}></ha-icon>` : nothing}
             ${r.recover_until && !r.open ? html`<ha-icon icon="mdi:weather-windy" title=${t("room.recovering", { time: clockFromIso(r.recover_until) })}></ha-icon>` : nothing}
             ${r.occupied === true ? html`<ha-icon icon="mdi:account" title=${t("room.occupied")}></ha-icon>` : nothing}
             ${missing > 0

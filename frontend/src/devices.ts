@@ -1,9 +1,9 @@
 // Geräte eines Raums: Art, aktueller Wert, verfügbar? Reine Funktionen (testbar).
 import type { I18nKey, T } from "./i18n";
 import type { DeviceHealth, HassEntity, Room } from "./types";
-import { formatTemp } from "./util";
+import { formatNumber, formatTemp } from "./util";
 
-export type DeviceKind = "radiators" | "temperature_sensors" | "openings" | "presence";
+export type DeviceKind = "radiators" | "temperature_sensors" | "openings" | "presence" | "humidity_sensors";
 
 export const DEVICE_KINDS: { kind: DeviceKind; icon: string; label: I18nKey; hint: I18nKey; domains: string[]; classes?: string[] }[] = [
   { kind: "radiators", icon: "mdi:radiator", label: "room.radiators", hint: "room.radiators_hint", domains: ["climate"] },
@@ -31,12 +31,22 @@ export const DEVICE_KINDS: { kind: DeviceKind; icon: string; label: I18nKey; hin
     domains: ["binary_sensor"],
     classes: ["occupancy", "motion", "presence"],
   },
+  {
+    kind: "humidity_sensors",
+    icon: "mdi:water-percent",
+    label: "room.humidity",
+    hint: "room.humidity_hint",
+    domains: ["sensor"],
+    classes: ["humidity"],
+  },
 ];
 
 const BAD = new Set(["unavailable", "unknown"]);
 
 export function roomDevices(room: Room, kind: DeviceKind): string[] {
-  return kind === "temperature_sensors" ? room.temperature_sensors.map((s) => s.entity) : room[kind];
+  if (kind === "temperature_sensors") return room.temperature_sensors.map((s) => s.entity);
+  if (kind === "humidity_sensors") return room.humidity_sensors ?? [];
+  return room[kind];
 }
 
 export function allRoomDevices(room: Room): string[] {
@@ -68,6 +78,10 @@ export function deviceValue(st: HassEntity | undefined, kind: DeviceKind, t: T, 
       return s.state === "on" ? t("dev.open") : t("dev.closed");
     case "presence":
       return s.state === "on" ? t("dev.occupied") : t("dev.empty");
+    case "humidity_sensors": {
+      const n = s.entity_id.startsWith("climate.") ? Number(s.attributes?.current_humidity) : Number(s.state);
+      return Number.isFinite(n) ? `${formatNumber(n, lang, 0)} %` : s.state;
+    }
   }
 }
 
@@ -88,6 +102,7 @@ export function unavailableDevices(room: Room, states: Record<string, HassEntity
 /** Gerät aus dem Raum entfernen (auch aus der Pausenliste). */
 export function removeDevice(room: Room, kind: DeviceKind, entity: string): void {
   if (kind === "temperature_sensors") room.temperature_sensors = room.temperature_sensors.filter((s) => s.entity !== entity);
+  else if (kind === "humidity_sensors") room.humidity_sensors = (room.humidity_sensors ?? []).filter((e) => e !== entity);
   else room[kind] = room[kind].filter((e) => e !== entity);
   room.paused = (room.paused ?? []).filter((e) => e !== entity);
 }
@@ -95,6 +110,7 @@ export function removeDevice(room: Room, kind: DeviceKind, entity: string): void
 export function addDevice(room: Room, kind: DeviceKind, entity: string): void {
   if (roomDevices(room, kind).includes(entity)) return;
   if (kind === "temperature_sensors") room.temperature_sensors.push({ entity, weight: 1 });
+  else if (kind === "humidity_sensors") room.humidity_sensors = [...(room.humidity_sensors ?? []), entity];
   else room[kind].push(entity);
 }
 

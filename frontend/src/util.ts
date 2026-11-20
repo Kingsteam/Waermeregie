@@ -1,10 +1,33 @@
 // Reine Hilfsfunktionen ohne DOM- oder Lit-Abhängigkeit (getestet mit vitest).
-import type { Config, RawLimit, Slot, WeekKey } from "./types";
+import type { Config, Notifications, RawLimit, Slot, WeekKey } from "./types";
 
 export const MINUTES_PER_DAY = 24 * 60;
 export const WEEK_KEYS: WeekKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun", "holiday"];
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/** Standard der Benachrichtigungen (wie DEFAULT_NOTIFICATIONS in const.py). */
+export const DEFAULT_NOTIFICATIONS: Notifications = {
+  opening: true,
+  opening_check: true,
+  sensor: true,
+  pellets: true,
+  stove_error: true,
+  opening_delay_min: 10,
+  repeat_min: 60,
+  ventilate_max_min: 30,
+  quiet_start: "22:00",
+  quiet_end: "07:00",
+  quiet_hold: true,
+};
+
+/** Ruhezeit prüfen: beide leer oder beide HH:MM und verschieden. */
+export function quietValid(n: Pick<Notifications, "quiet_start" | "quiet_end">): boolean {
+  const s = n.quiet_start ?? "";
+  const e = n.quiet_end ?? "";
+  if (!s && !e) return true;
+  return parseTime(s) !== null && parseTime(e) !== null && s !== e;
+}
 
 /** "HH:MM" -> Minuten seit Mitternacht, sonst null. */
 export function parseTime(value: string): number | null {
@@ -342,6 +365,7 @@ export function normalizeConfig(raw: Partial<Config> | null | undefined): Config
     persons: c.persons ?? [],
     pet: c.pet ?? null,
     notify: c.notify ?? [],
+    notifications: { ...DEFAULT_NOTIFICATIONS, ...(c.notifications ?? {}) },
     rooms: (c.rooms ?? []).map((r) => ({
       ...r,
       importance: r.importance ?? 2,
@@ -349,6 +373,9 @@ export function normalizeConfig(raw: Partial<Config> | null | undefined): Config
       temperature_sensors: (r.temperature_sensors ?? []).map((x) => ({ ...x, weight: x.weight ?? 1, offset: x.offset ?? 0 })),
       openings: r.openings ?? [],
       presence: r.presence ?? [],
+      humidity_sensors: r.humidity_sensors ?? [],
+      ventilate_humidity: r.ventilate_humidity ?? 65,
+      ventilate_rise: r.ventilate_rise ?? 6,
       paused: r.paused ?? [],
       targets: r.targets ?? {},
     })),

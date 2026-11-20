@@ -19,6 +19,12 @@ export interface Room {
   temperature_sensors: TemperatureSensor[];
   openings: string[];
   presence: string[];
+  /** Luftfeuchte-Fühler: Fenster offen bei hoher Feuchte = gewolltes Lüften */
+  humidity_sensors?: string[];
+  /** absolute Schwelle in % (0 = aus) */
+  ventilate_humidity?: number;
+  /** Prozentpunkte über dem Grundwert (0 = aus) */
+  ventilate_rise?: number;
   /** eingetragen, aber vorübergehend nicht verwendet */
   paused: string[];
   targets: Record<string, number>;
@@ -43,6 +49,23 @@ export interface DayType {
   slots: Slot[];
 }
 
+export type NotifyKind = "opening" | "opening_check" | "sensor" | "pellets" | "stove_error";
+
+export interface Notifications {
+  opening: boolean;
+  opening_check: boolean;
+  sensor: boolean;
+  pellets: boolean;
+  stove_error: boolean;
+  opening_delay_min: number;
+  repeat_min: number;
+  ventilate_max_min: number;
+  /** "HH:MM" oder "" (keine Ruhezeit) */
+  quiet_start: string;
+  quiet_end: string;
+  quiet_hold: boolean;
+}
+
 export interface Config {
   stove: {
     climate: string | null;
@@ -60,6 +83,7 @@ export interface Config {
   persons: string[];
   pet: string | null;
   notify: string[];
+  notifications?: Notifications;
   rooms: Room[];
   scenes: Scene[];
   day_types: DayType[];
@@ -101,6 +125,10 @@ export interface RoomStatus {
   recover_until?: string | null;
   occupied: boolean | null;
   sensors_missing: number;
+  /** höchste Luftfeuchte im Raum (%) */
+  humidity?: number | null;
+  /** Fenster offen wegen hoher Luftfeuchte (keine Meldung) */
+  ventilating?: boolean;
 }
 
 export interface Alert {

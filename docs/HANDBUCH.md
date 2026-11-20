@@ -40,9 +40,20 @@ Ein Pelletofen ohne Pufferspeicher taktet leicht: Sind die Heizkörperventile zu
 - **Sensor kurz weg:** Ist ein Fühler, Fenster oder Melder kurz nicht erreichbar (bei Zigbee häufig ein, zwei Minuten), gilt bis zu 30 Minuten sein letzter Wert. Ein offenes Fenster bleibt offen. Danach zählt ein Fenster als zu und ein Fühler wird weggelassen.
 - **Sensor lange weg:** Nach 60 Minuten kommt eine Nachricht, höchstens einmal am Tag je Sensor. In der Raum-Seite steht unter jedem Gerät, wie oft es in den letzten 24 Stunden weg war. Ein unzuverlässiges Gerät lässt sich dort pausieren.
 - **Fenster meldet offen, Raum kühlt nicht ab:** Nach 60 Minuten kommt einmal die Nachricht „Sensor prüfen?“. Der Raum bleibt trotzdem auf Frostschutz, bis das Fenster „zu“ meldet oder du den Sensor pausierst. Absichtlich: Ein falsches „offen“ macht es nur kühler, ein falsches „zu“ würde bei offenem Fenster heizen.
+- **Lüften nach dem Duschen:** Hat ein Raum einen Feuchtefühler (Raum-Seite, Gruppe *Luftfeuchte*, auch der Fühler eines Heizkörperthermostats geht), gilt ein offenes Fenster bei hoher Feuchte als gewolltes Lüften. Hoch heißt: über 65 % ODER mindestens 6 Prozentpunkte über dem Tiefstwert der letzten 90 Minuten. Der zweite Wert ist wichtig, weil ein Fühler weit weg von der Dusche oft nur von 40 auf 50 % steigt. Die Heizkörper gehen trotzdem auf Frostschutz, nur die Nachricht „Fenster offen“ wartet, bis die Feuchte wieder fast beim Grundwert ist (2 Punkte darüber). Ab da zählt die normale Wartezeit. Steht das Fenster länger als 30 Minuten feucht offen, kommt die Nachricht trotzdem.
 - **Leere Räume** (laut Meldern seit 45 Minuten niemand) werden 1,5 K kühler gehalten.
 - **Leistungsstufe:** knapp über der Startschwelle kleinste Stufe (Standard 1), ab 2 K Bedarf oder unter 0 °C außen höchste (Standard 3). Bei lange offener Tür kleinste Stufe.
 - **Störung:** Meldet der Ofen eine Störung, startet kein Block, und ein laufender endet.
+
+## Meldungen aufs Handy
+Unter *Ofen & Haus → Meldungen* stellst du ein, was kommt:
+- **Arten einzeln ein/aus:** Fenster länger offen, Fenster offen ohne Abkühlen, Geräte nicht erreichbar, Pellets, Ofen-Störung.
+- **Fenster erst melden nach** 10 Minuten (die Heizung reagiert trotzdem sofort; auch im leeren Raum wartet die Nachricht so lange).
+- **Gleiche Meldung frühestens wieder nach** 60 Minuten: Ein Fenster, das auf und zu geht, meldet nicht jedes Mal.
+- **Ruhezeit** 22:00 bis 07:00: In dieser Zeit kommt nur die Ofen-Störung. Was sonst angefallen wäre, kommt am Morgen in einer Nachricht; ein Fenster, das inzwischen wieder zu ist, fällt weg. Beide Felder leer = keine Ruhezeit.
+- **Lüften wegen Feuchte höchstens** 30 Minuten (siehe oben).
+
+Die Hinweise in der Übersicht bleiben davon unberührt.
 
 Alle Zeiten und Schwellen lassen sich unter *Ofen & Haus* ändern, aber nur innerhalb fester Grenzen (z. B. nie weniger als 30 Minuten Pause).
 

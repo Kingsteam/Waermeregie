@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   activeSceneAt,
+  DEFAULT_NOTIFICATIONS,
+  quietValid,
   normalizeTimeInput,
   clockFromIso,
   dateFromIso,
@@ -269,5 +271,19 @@ describe("normalizeTimeInput", () => {
   it("lässt Unlesbares stehen", () => {
     expect(normalizeTimeInput("25:00")).toBe("25:00");
     expect(normalizeTimeInput("abc")).toBe("abc");
+  });
+});
+
+describe("Benachrichtigungen", () => {
+  it("Ruhezeit prüfen", () => {
+    expect(quietValid({ quiet_start: "22:00", quiet_end: "07:00" })).toBe(true);
+    expect(quietValid({ quiet_start: "", quiet_end: "" })).toBe(true);
+    expect(quietValid({ quiet_start: "22:00", quiet_end: "" })).toBe(false);
+    expect(quietValid({ quiet_start: "22:00", quiet_end: "22:00" })).toBe(false);
+    expect(quietValid({ quiet_start: "25:00", quiet_end: "07:00" })).toBe(false);
+  });
+  it("Standard für ältere Einstellungen", () => {
+    expect(DEFAULT_NOTIFICATIONS.opening_delay_min).toBe(10);
+    expect(DEFAULT_NOTIFICATIONS.quiet_start).toBe("22:00");
   });
 });

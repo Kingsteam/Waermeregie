@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import patch
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_mock_service
 
@@ -25,6 +27,7 @@ ENTITIES = {
     "switch.ofen_eco": ("switch", "eco"),
     "binary_sensor.ofen_stoerung": ("binary_sensor", "stoerung"),
     "sensor.ofen_wasser": ("sensor", "wasser"),
+    "sensor.feuchte_wohnzimmer": ("sensor", "feuchte"),
 }
 
 
@@ -51,6 +54,7 @@ def house(hass: HomeAssistant) -> dict[str, str]:
     hass.states.async_set("switch.ofen_eco", "off")
     hass.states.async_set("binary_sensor.ofen_stoerung", "off")
     hass.states.async_set("sensor.ofen_wasser", "58.5")
+    hass.states.async_set("sensor.feuchte_wohnzimmer", "40.6")
     return ids
 
 
@@ -70,6 +74,8 @@ def room_config(cfg: dict) -> dict:
         }
     ]
     cfg["notify"] = ["notify.handy"]
+    # Ruhezeit aus, damit die Uhrzeit des Testlaufs egal ist (eigene Tests dafür)
+    cfg["notifications"] = {**cfg["notifications"], "quiet_start": "", "quiet_end": ""}
     # immer Komfort, damit die Uhrzeit des Testlaufs egal ist
     cfg["day_types"] = [
         {"id": "immer", "name": "Immer", "slots": [{"start": "00:00", "scene": "komfort"}]}
@@ -612,3 +618,172 @@ async def test_soft_start_sets_radiators_before_stove(
     await hass.async_block_till_done()
     assert any(c.data.get("hvac_mode") == "heat" for c in mode_calls)
     assert mgr.status["stove"]["phase"] == "block"
+
+
+# --- 0.6.0 Benachrichtigungen und Feucht-Lüften ---------------------------------------
+
+
+async def _notify_setup(hass, hass_ws_client, notifications=None, room=None, stove=None):
+    calls = async_mock_service(hass, "notify", "handy")
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    cfg = room_config((await client.receive_json())["result"]["config"])
+    cfg["parameters"]["opening_check_min"] = 0
+    cfg["notifications"] = {**cfg["notifications"], **(notifications or {})}
+    cfg["rooms"][0].update(room or {})
+    cfg["stove"].update(stove or {})
+    msg = await save(hass, client, cfg)
+    assert msg["success"], msg
+    return calls, hass.data[DOMAIN]
+
+
+async def test_opening_delay_and_repeat_block(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    calls, mgr = await _notify_setup(hass, hass_ws_client, {"opening_delay_min": 20})
+    hass.states.async_set("binary_sensor.terrassentuer", "on")
+    freezer.tick(11 * 60)
+    status = await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert not calls
+    assert any(a["kind"] == "opening" for a in status["alerts"])  # Übersicht zeigt es
+    freezer.tick(10 * 60)
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert len(calls) == 1
+    # Zu und gleich wieder auf: innerhalb der Wiederholungssperre keine zweite Meldung
+    hass.states.async_set("binary_sensor.terrassentuer", "off")
+    freezer.tick(60)
+    await mgr.async_evaluate()
+    hass.states.async_set("binary_sensor.terrassentuer", "on")
+    freezer.tick(21 * 60)
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert len(calls) == 1
+    # Nach der Sperre wieder
+    hass.states.async_set("binary_sensor.terrassentuer", "off")
+    freezer.tick(60)
+    await mgr.async_evaluate()
+    hass.states.async_set("binary_sensor.terrassentuer", "on")
+    freezer.tick(40 * 60)
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert len(calls) == 2
+
+
+async def test_opening_kind_switched_off(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    calls, mgr = await _notify_setup(hass, hass_ws_client, {"opening": False})
+    hass.states.async_set("binary_sensor.terrassentuer", "on")
+    freezer.tick(30 * 60)
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert not calls
+
+
+async def test_quiet_hours_hold_then_bundle_stove_error_passes(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    now = dt_util.now()
+    quiet = {
+        "quiet_start": (now - timedelta(hours=1)).strftime("%H:%M"),
+        "quiet_end": (now + timedelta(minutes=30)).strftime("%H:%M"),
+    }
+    calls, mgr = await _notify_setup(
+        hass, hass_ws_client, quiet, stove={"error_sensor": "binary_sensor.ofen_stoerung"}
+    )
+    hass.states.async_set("binary_sensor.terrassentuer", "on")
+    freezer.tick(12 * 60)
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert not calls  # gesammelt
+    hass.states.async_set("binary_sensor.ofen_stoerung", "on")
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert len(calls) == 1 and "Störung" in calls[0].data["message"]  # kritisch
+    freezer.tick(25 * 60)
+    await mgr.async_evaluate()
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert len(calls) == 2
+    assert "seit 37 min offen" in calls[1].data["message"]  # aktueller Stand, nicht 12 min
+
+
+async def test_quiet_hours_held_opening_dropped_if_closed(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    now = dt_util.now()
+    quiet = {
+        "quiet_start": (now - timedelta(hours=1)).strftime("%H:%M"),
+        "quiet_end": (now + timedelta(minutes=30)).strftime("%H:%M"),
+    }
+    calls, mgr = await _notify_setup(hass, hass_ws_client, quiet)
+    hass.states.async_set("binary_sensor.terrassentuer", "on")
+    freezer.tick(12 * 60)
+    await mgr.async_evaluate()
+    hass.states.async_set("binary_sensor.terrassentuer", "off")
+    freezer.tick(25 * 60)
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert not calls
+
+
+def _shower(minute: int) -> float:
+    """Feuchte wie nach einem Duschen (anonymisiert), minute ab 0 = Beginn."""
+    if minute <= 25:
+        return 40.6
+    if minute <= 44:
+        return round(40.6 + (49.8 - 40.6) * (minute - 25) / 19, 1)
+    if minute == 45:
+        return 52.5
+    if minute == 46:
+        return 55.2
+    if minute <= 53:
+        return round(55.2 - (55.2 - 42.4) * (minute - 46) / 7, 1)
+    return 42.4
+
+
+async def _replay(hass, mgr, freezer, until: int, open_at: int, close_at: int | None):
+    statuses = {}
+    for minute in range(until + 1):
+        hass.states.async_set("sensor.feuchte_wohnzimmer", str(_shower(minute)))
+        if minute == open_at:
+            hass.states.async_set("binary_sensor.terrassentuer", "on")
+        if close_at is not None and minute == close_at:
+            hass.states.async_set("binary_sensor.terrassentuer", "off")
+        statuses[minute] = await mgr.async_evaluate()
+        freezer.tick(60)
+    await hass.async_block_till_done()
+    return statuses
+
+
+async def test_shower_ventilation_no_notice(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    calls, mgr = await _notify_setup(
+        hass, hass_ws_client, room={"humidity_sensors": ["sensor.feuchte_wohnzimmer"]}
+    )
+    # Fenster 45.-52. Minute offen, Bewohner verlässt den Raum (leerer Raum meldet früh)
+    hass.states.async_set("binary_sensor.belegung_wohnzimmer", "off")
+    statuses = await _replay(hass, mgr, freezer, 70, 45, 52)
+    assert not calls
+    room = statuses[47]["rooms"][0]
+    assert room["ventilating"] is True and room["open"] is True  # Heizkörper trotzdem zu
+    assert room["humidity"] == 53.4
+    assert not any(a["kind"] == "opening" for a in statuses[50]["alerts"])
+
+
+async def test_window_left_open_after_shower_reported_later(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    calls, mgr = await _notify_setup(
+        hass, hass_ws_client, room={"humidity_sensors": ["sensor.feuchte_wohnzimmer"]}
+    )
+    await _replay(hass, mgr, freezer, 62, 45, None)
+    assert not calls  # Feuchte erst in Minute 53 unten, Meldung frühestens 63
+    hass.states.async_set("sensor.feuchte_wohnzimmer", "42.4")
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert len(calls) == 1
+    assert "seit 18 min offen" in calls[0].data["message"]
