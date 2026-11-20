@@ -39,6 +39,7 @@ WEEKDAYS: Final = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "start_below_k": (0.1, 3.0),
     "stop_above_k": (0.0, 2.0),
+    "hard_stop_above_k": (0.0, 5.0),  # so weit über Ziel: sofort aus, auch von Hand; 0 = aus
     "min_burn_min": (30, 360),  # kürzer als 30 min Brennen ist Takten
     "max_burn_min": (60, 720),
     "min_pause_min": (30, 360),  # nie kürzer als 30 min Pause (wie mcz_local)
@@ -66,6 +67,8 @@ PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "self_off_wait_min": (0, 60),  # Ofen schaltet selbst ab (Wasser heiß): warten
     "warmup_extra_k": (0.0, 3.0),
     "warmup_lead_min": (15, 240),
+    "cold_min": (30, 180),  # "Mir ist kalt": so lange gelten die höheren Ziele
+    "cold_residual_c": (0.0, 70.0),  # Kessel so warm: erst nur Heizkörper öffnen; 0 = aus
     # Wärmeabfuhr ohne Puffer: Heizkörper nehmen die Wärme aus dem Kessel auf
     "dump_start_c": (50.0, 85.0),  # Mitte der Rampe "Kessel heiß"
     "dump_end_c": (40.0, 80.0),  # darunter ist die Wärmeabfuhr aus
@@ -88,6 +91,8 @@ MIN_WARMUP_MIN: Final = 30
 MAX_WARMUP_MIN: Final = 6 * 60
 WARMUP_AFTER_ARRIVAL_MIN: Final = 60  # nach der Ankunft noch so lange warm halten
 SENSOR_OFFSET_LIMIT_K: Final = 5.0  # Korrektur je Temperaturfühler höchstens ±5 K
+COLD_RESIDUAL_CHECK_MIN: Final = 15  # "Mir ist kalt": so oft prüfen, ob die Restwärme wirkt
+COLD_RESIDUAL_RISE_K: Final = 0.1  # so viel muss das Haus je Prüfung wärmer werden
 START_CONFIRM_MIN: Final = 3  # nach dem eigenen Startbefehl so lange auf "an" warten
 REIGNITE_WINDOW_MIN: Final = (
     180  # so lange nach dem Blockende gilt Zünden ohne Bedarf als Selbstzündung
@@ -99,6 +104,7 @@ MIN_RADIATOR_STEP_K: Final = 0.5  # Heizkörper erst ab dieser Änderung neu set
 DEFAULT_PARAMETERS: Final[dict[str, float]] = {
     "start_below_k": 0.5,
     "stop_above_k": 0.3,
+    "hard_stop_above_k": 1.5,
     "min_burn_min": 90,
     "max_burn_min": 300,
     "min_pause_min": 60,
@@ -126,6 +132,8 @@ DEFAULT_PARAMETERS: Final[dict[str, float]] = {
     "self_off_wait_min": 30,
     "warmup_extra_k": 1.0,
     "warmup_lead_min": 60,
+    "cold_min": 60,
+    "cold_residual_c": 45.0,
     "dump_start_c": 70.0,
     "dump_end_c": 60.0,
     "dump_extra_k": 2.0,
@@ -154,6 +162,7 @@ NOTIFY_KINDS: Final = (
     "pellets",
     "stove_error",
     "overheat",
+    "too_warm",
 )
 NOTIFY_CRITICAL: Final = ("stove_error", "overheat")  # kommen auch in der Ruhezeit
 NOTIFY_LIMITS: Final[dict[str, tuple[float, float]]] = {
@@ -168,6 +177,7 @@ DEFAULT_NOTIFICATIONS: Final[dict] = {
     "pellets": True,
     "stove_error": True,
     "overheat": True,
+    "too_warm": True,
     "opening_delay_min": 10,
     "repeat_min": 60,
     "ventilate_max_min": 30,

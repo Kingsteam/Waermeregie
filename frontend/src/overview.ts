@@ -148,6 +148,7 @@ export function renderStoveCard(ctx: ViewCtx): TemplateResult {
       <dl class="kv">
         <dt>${t("stove.starts_today")}</dt>
         <dd>${st.starts_today ?? 0} / ${st.max_starts_per_day ?? "–"}</dd>
+        ${st.reignitions_today ? html`<dt>${t("stove.reignitions_today")}</dt><dd>${st.reignitions_today}</dd>` : nothing}
         ${st.block_start ? html`<dt>${t("stove.block_since")}</dt><dd>${clockFromIso(st.block_start)}</dd>` : nothing}
         ${st.pause_until ? html`<dt>${t("stove.pause_until")}</dt><dd>${formatStamp(st.pause_until, status?.now, lang)}</dd>` : nothing}
         ${st.power_level !== null && st.power_level !== undefined ? html`<dt>${t("stove.power_level")}</dt><dd>${st.power_level} / 5</dd>` : nothing}

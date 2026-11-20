@@ -37,6 +37,9 @@
       },
       "warmup": {
         "name": "Warm up the house"
+      },
+      "cold": {
+        "name": "Mir ist kalt"
       }
     },
     "select": {
@@ -198,6 +201,16 @@
     "cancel_warmup": {
       "name": "Cancel warm-up",
       "description": "Stop warming up and return to the schedule."
+    },
+    "cold": {
+      "name": "Mir ist kalt",
+      "description": "Für eine Weile wärmer. Die Wärmeregie entscheidet selbst: Ist im Kessel noch Wärme, öffnet sie nur die Heizkörper, sonst startet sie den Ofen.",
+      "fields": {
+        "minutes": {
+          "name": "Dauer",
+          "description": "So lange gelten die höheren Ziele (30-360 min). Ohne Angabe gilt der Wert aus den Einstellungen."
+        }
+      }
     }
   }
 }

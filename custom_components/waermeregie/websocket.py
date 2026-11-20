@@ -173,6 +173,7 @@ def _by_hand(connection) -> str:
         vol.Optional("minutes"): vol.Coerce(float),
         vol.Optional("arrive"): str,
         vol.Optional("cancel", default=False): bool,
+        vol.Optional("cold", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -187,6 +188,7 @@ async def ws_warmup(hass: HomeAssistant, connection, msg: dict) -> None:
             msg.get("arrive"),
             msg["cancel"],
             source=_by_hand(connection),
+            cold=msg["cold"],
         ),
     )
 

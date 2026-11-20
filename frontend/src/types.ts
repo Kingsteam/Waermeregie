@@ -49,7 +49,7 @@ export interface DayType {
   slots: Slot[];
 }
 
-export type NotifyKind = "opening" | "opening_check" | "sensor" | "pellets" | "stove_error" | "overheat";
+export type NotifyKind = "opening" | "opening_check" | "sensor" | "pellets" | "stove_error" | "overheat" | "too_warm";
 
 export interface Notifications {
   opening: boolean;
@@ -58,6 +58,7 @@ export interface Notifications {
   pellets: boolean;
   stove_error: boolean;
   overheat: boolean;
+  too_warm: boolean;
   opening_delay_min: number;
   repeat_min: number;
   ventilate_max_min: number;
@@ -182,6 +183,7 @@ export interface Status {
     block_start: string | null;
     pause_until: string | null;
     starts_today: number;
+    reignitions_today?: number;
     max_starts_per_day: number;
     chrono_warning: boolean;
     eco_warning?: boolean;
@@ -237,6 +239,8 @@ export interface Warmup {
   /** Ankunft (bei „Ich komme um …“) */
   arrive: string | null;
   active: boolean;
+  /** „Mir ist kalt“: die Regel wählt Restwärme oder Ofen */
+  cold?: boolean;
 }
 
 /** Ein Punkt des Verlaufs (alle 10 min). */

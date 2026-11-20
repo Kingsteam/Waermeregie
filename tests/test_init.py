@@ -807,3 +807,67 @@ async def test_learn_reset_and_status(hass: HomeAssistant, setup, hass_ws_client
     assert msg["result"]["learn"]["values"]["afterheat_k"] is None
     assert msg["result"]["stove"]["dump"] is False
     assert any(e["text"] == "Gelernte Werte zurückgesetzt" for e in mgr.log)
+
+
+async def test_reignition_after_block_end_switches_stove_off(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    """20.11.2026: Block endete während der Selbstabschaltung, später meldet der Ofen "brennt"."""
+    mode_calls = async_mock_service(hass, "climate", "set_hvac_mode")
+    async_mock_service(hass, "climate", "set_temperature")
+    hass.states.async_set("sensor.temp_wohnzimmer", "25.0")  # weit über Ziel
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config"})
+    cfg = room_config((await client.receive_json())["result"]["config"])
+    assert (await save(hass, client, cfg))["success"]
+    await client.send_json_auto_id({"type": f"{DOMAIN}/mode", "mode": "active"})
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    mgr = hass.data[DOMAIN]
+    ended = (dt_util.now() - timedelta(minutes=16)).isoformat()
+    mgr.state["last_stop"] = ended
+    mgr.state["reignite_watch"] = ended
+    mode_calls.clear()
+    hass.states.async_set("climate.pelletofen", "heat", {"hvac_action": "heating"})
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert [c.data for c in mode_calls] == [{"entity_id": "climate.pelletofen", "hvac_mode": "off"}]
+    assert mgr.state["block_start"] is None
+    assert any("von selbst neu gezündet, kein Bedarf, ausgeschaltet" in e["text"] for e in mgr.log)
+    assert not any("von Hand" in e["text"] for e in mgr.log)
+    assert mgr.status["stove"]["starts_today"] == 0
+    assert mgr.status["stove"]["reignitions_today"] == 1
+
+
+async def test_manual_start_in_warm_house_notifies(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    mode_calls = async_mock_service(hass, "climate", "set_hvac_mode")
+    async_mock_service(hass, "climate", "set_temperature")
+    notify_calls = async_mock_service(hass, "notify", "handy")
+    hass.states.async_set("sensor.temp_wohnzimmer", "25.0")
+    client, _ = await _configured(hass, hass_ws_client)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/mode", "mode": "active"})
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    mgr = hass.data[DOMAIN]
+    hass.states.async_set("climate.pelletofen", "heat", {"hvac_action": "heating"})
+    await mgr.async_evaluate()
+    await mgr.async_evaluate()
+    await hass.async_block_till_done()
+    assert [c.data["hvac_mode"] for c in mode_calls] == ["off"]
+    assert len(notify_calls) == 1
+    assert "über Ziel" in notify_calls[0].data["message"]
+    assert mgr.status["stove"]["starts_today"] == 0
+
+
+async def test_cold_service_and_button(hass: HomeAssistant, setup) -> None:
+    mgr = hass.data[DOMAIN]
+    await hass.services.async_call(DOMAIN, "cold", {}, blocking=True)
+    assert mgr.status["warmup"]["cold"] is True
+    assert any("Mir ist kalt" in e["text"] for e in mgr.log)
+    await hass.services.async_call(DOMAIN, "cancel_warmup", {}, blocking=True)
+    assert mgr.status["warmup"] is None
+    button = next(s.entity_id for s in hass.states.async_all("button") if "cold" in s.entity_id)
+    await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
+    assert mgr.status["warmup"]["cold"] is True

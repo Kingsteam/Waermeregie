@@ -16,6 +16,8 @@ from typing import Any
 
 from . import fuzzy, learning
 from .const import (
+    COLD_RESIDUAL_CHECK_MIN,
+    COLD_RESIDUAL_RISE_K,
     HOT_WATER_C,
     MIN_RADIATOR_STEP_K,
     MODE_ACTIVE,
@@ -90,6 +92,7 @@ class Result:
     actions: list[tuple]
     state: dict[str, Any]
     log: list[str]
+    notices: list[str] = field(default_factory=list)  # Nachrichten aufs Handy (Art too_warm)
 
 
 def empty_state() -> dict[str, Any]:
@@ -109,6 +112,11 @@ def empty_state() -> dict[str, Any]:
         "start_cmd": None,  # eigener Startbefehl, noch nicht vom Ofen bestätigt
         "self_off_since": None,  # Ofen hat im Block selbst abgeschaltet (Wasser heiß)
         "reignite_stop": None,  # Ofen hat ohne Bedarf selbst gezündet: letzter Aus-Befehl
+        # Block endete, während der Ofen wegen heißem Wasser selbst abgeschaltet hatte:
+        # er zündet nach dem Abkühlen womöglich von selbst wieder (Zeitpunkt des Blockendes)
+        "reignite_watch": None,
+        "reignitions": [],  # iso-Zeitpunkte der Selbstzündungen (letzte 2 Tage)
+        "block_manual": False,  # laufender Block stammt von einem Start von Hand
         "overheat_since": None,  # Kesselschutz aktiv (Wasser zu heiß)
         "overheat_stop": None,  # Kesselschutz: letzter Aus-Befehl
         "dump_active": False,  # Wärmeabfuhr läuft (Heizkörper als Puffer)
@@ -141,6 +149,16 @@ def _unwanted_ignition(
     if warmup_active or frost_need:
         return False
     return house_deficit is not None and house_deficit < p["start_below_k"]
+
+
+def _reignite_expected(state: dict, now: datetime) -> bool:
+    """Endete der letzte Block während einer Selbstabschaltung (Wasser heiß)?
+
+    Dann ist ein Einschalten in den nächsten REIGNITE_WINDOW_MIN kein Start von Hand,
+    sondern der Ofen, der nach dem Abkühlen von selbst weitermacht.
+    """
+    watch = _dt(state.get("reignite_watch"))
+    return watch is not None and now - watch < timedelta(minutes=REIGNITE_WINDOW_MIN)
 
 
 def _fmt_k(value: float) -> str:
@@ -208,6 +226,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     p = config["parameters"]
     state = {**empty_state(), **state}
     log: list[str] = []
+    notices: list[str] = []
     actions: list[tuple] = []
     active = config["mode"] == MODE_ACTIVE
 
@@ -249,7 +268,8 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     if warmup_active:
         if not warmup.get("announced"):
             warmup["announced"] = True
-            log.append("Aufheizen beginnt")
+            if not warmup.get("cold"):  # "Mir ist kalt" steht schon im Protokoll
+                log.append("Aufheizen beginnt")
         target_scene = scenes.get(config.get("warmup_scene") or "") or next(
             (s for s in config["scenes"] if s["stove"] == STOVE_ALLOW), scene
         )
@@ -402,6 +422,10 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     state["dump_active"] = dump_active
     learning.track_dump(learn, now, dump_active, water)
 
+    # Haus deutlich über Ziel: kein Block soll weiterlaufen, auch kein von Hand gestarteter
+    hard = p["hard_stop_above_k"]
+    too_warm = bool(hard) and house_deficit is not None and house_deficit <= -hard
+
     # Ofen: externe Änderungen übernehmen (nur aktiv, im Schatten ist alles gedacht)
     in_block = state["block_start"] is not None
     start_cmd = _dt(state["start_cmd"])
@@ -423,10 +447,22 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 log.append("Ofen hat selbst abgeschaltet (Wasser heiß), Heizblock wartet")
             elif self_off_since is None or now - self_off_since >= wait or obs.stove.error:
                 state["block_start"] = None
+                state["block_manual"] = False
                 state["last_stop"] = (self_off_since or now).isoformat()
-                state["self_off_since"] = self_off_since = None
                 in_block = False
-                log.append("Ofen ist aus (von Hand oder vom Ofen selbst), Heizblock beendet")
+                if self_off_since is not None or hot:
+                    # 20.11.2026: Der Ofen hat wegen heißem Wasser selbst abgeschaltet und
+                    # bleibt dabei innerlich "ein": er zündet nach dem Abkühlen wieder.
+                    # Der Block ist vorbei, also ausdrücklich ausschalten und aufpassen.
+                    state["reignite_watch"] = now.isoformat()
+                    actions.append(("stove_stop",))
+                    log.append(
+                        "Ofen hat selbst abgeschaltet und nicht wieder gezündet, Heizblock "
+                        "beendet, Wärmeregie schaltet ihn ganz aus"
+                    )
+                else:
+                    log.append("Ofen ist aus (von Hand oder vom Ofen selbst), Heizblock beendet")
+                state["self_off_since"] = self_off_since = None
         elif in_block and obs.stove.on and self_off_since is not None:
             state["self_off_since"] = self_off_since = None
             log.append("Ofen hat wieder gezündet, Heizblock läuft weiter")
@@ -442,22 +478,60 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             # Regel den Block beendet hat. Nicht als Handstart übernehmen (das hielt ihn
             # mindestens min_burn_min am Brennen), sondern wieder ausschalten.
             last = _dt(state.get("reignite_stop"))
+            if last is None:
+                state["reignitions"].append(now.isoformat())  # je Selbstzündung einmal
             if last is None or now - last >= timedelta(minutes=REIGNITE_RESEND_MIN):
                 state["reignite_stop"] = now.isoformat()
                 actions.append(("stove_stop",))
-                log.append("Ofen hat ohne Wärmebedarf selbst gezündet, Wärmeregie schaltet ihn aus")
+                log.append(
+                    "Ofen hat von selbst neu gezündet, kein Bedarf, ausgeschaltet"
+                    if last is None
+                    else "Ofen ist nach der Selbstzündung noch an, Aus-Befehl wiederholt"
+                )
+        elif (
+            not in_block
+            and obs.stove.on
+            and not obs.stove.error
+            and too_warm
+            and not warmup_active
+            and not frost_need
+        ):
+            # Start von Hand, das Haus ist aber schon deutlich zu warm: nicht übernehmen
+            last = _dt(state.get("reignite_stop"))
+            if last is None or now - last >= timedelta(minutes=REIGNITE_RESEND_MIN):
+                state["reignite_stop"] = now.isoformat()
+                actions.append(("stove_stop",))
+                if last is None:
+                    text = (
+                        f"Ofen wurde eingeschaltet, das Haus ist aber schon "
+                        f"{_fmt_k(-house_deficit)} K über Ziel: Wärmeregie schaltet ihn aus"
+                    )
+                    log.append(text)
+                    notices.append(text + ". Wenn dir kalt ist: „Haus aufheizen“ verwenden.")
         elif not in_block and obs.stove.on and not obs.stove.error:
             # Bei Störung nicht übernehmen: sonst Schleife aus „von Hand ein“ und
             # „Block beendet: Störung“ mit einem Aus-Befehl je Runde (19.11.2026)
             state["block_start"] = now.isoformat()
             state["starts"].append(now.isoformat())
             in_block = True
-            log.append("Ofen wurde von Hand eingeschaltet, Wärmeregie übernimmt den Block")
+            state["block_manual"] = True
+            if _reignite_expected(state, now):
+                # kein Start von Hand: der Ofen macht nach der Selbstabschaltung weiter
+                state["reignitions"].append(now.isoformat())
+                log.append(
+                    "Ofen hat von selbst neu gezündet (nach Selbstabschaltung), es besteht "
+                    "Wärmebedarf, Wärmeregie übernimmt den Block"
+                )
+            else:
+                log.append("Ofen wurde von Hand eingeschaltet, Wärmeregie übernimmt den Block")
+            state["reignite_watch"] = None
 
     if not obs.stove.on:
         state["reignite_stop"] = None
 
     starts_today = sum(1 for s in state["starts"] if _dt(s).date() == now.date())
+    state["reignitions"] = [s for s in state["reignitions"] if now - _dt(s) < timedelta(days=2)]
+    reignitions_today = sum(1 for s in state["reignitions"] if _dt(s).date() == now.date())
     last_stop = _dt(state["last_stop"])
     pause_end = last_stop + timedelta(minutes=p["min_pause_min"]) if last_stop else None
     manual_pause = _dt(state["pause_until"])
@@ -469,6 +543,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         else "keine Raumtemperatur bekannt"
     )
 
+    residual_open = False  # "Mir ist kalt": Heizkörper offen, Ofen aus (Restwärme)
     if in_block:
         block_start = _dt(state["block_start"])
         elapsed = (now - block_start).total_seconds() / 60
@@ -484,6 +559,12 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             stop_reason = "Ofen von Hand pausiert"
         elif elapsed >= p["max_burn_min"]:
             stop_reason = "längste Brenndauer erreicht"
+        elif too_warm and not frost_need and elapsed >= PARAMETER_LIMITS["min_burn_min"][0]:
+            # gilt auch vor Ablauf der eingestellten Mindestbrenndauer (20.11.2026: 4,6 K
+            # über Ziel), aber nie vor der kürzesten erlaubten Brenndauer (gegen Takten)
+            stop_reason = f"Haus deutlich zu warm ({deficit_txt})"
+            if state.get("block_manual"):
+                notices.append(f"Der von Hand gestartete Ofen wurde ausgeschaltet: {deficit_txt}.")
         elif elapsed >= p["min_burn_min"]:
             if reached:
                 stop_reason = f"Ziel erreicht ({deficit_txt})"
@@ -496,6 +577,17 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             phase = "pause"
             reason = f"Heizblock beendet: {stop_reason}"
             state["block_start"] = None
+            state["block_manual"] = False
+            # endet der Block, während der Ofen selbst abgeschaltet hat (oder gar nicht
+            # brennt, obwohl das Wasser heiß ist), zündet er später womöglich von selbst
+            hot_idle = (
+                not obs.stove.burning
+                and obs.stove.water_c is not None
+                and obs.stove.water_c >= HOT_WATER_C
+            )
+            state["reignite_watch"] = (
+                now.isoformat() if self_off_since is not None or hot_idle else None
+            )
             state["self_off_since"] = self_off_since = None
             state["last_stop"] = now.isoformat()
             pause_end = now + timedelta(minutes=p["min_pause_min"])
@@ -520,6 +612,43 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             and house_deficit >= p["start_below_k"]
         )
         warmup_start = warmup_active and not warmup.get("started")
+        cold = warmup_start and bool(warmup.get("cold"))
+        if cold:
+            # "Mir ist kalt": die Regel entscheidet. Ist im Kessel noch Wärme, reichen
+            # offene Heizkörper (kein Start, keine Pellets), solange das Haus wärmer wird
+            house_temp = temp_sum / temp_weight if temp_weight else None
+            res = warmup.get("residual")
+            usable = (
+                bool(p["cold_residual_c"])
+                and water is not None
+                and water >= p["cold_residual_c"]
+                and not warmup.get("residual_done")
+            )
+            if usable and res is None:
+                res = warmup["residual"] = {"since": now.isoformat(), "temp": house_temp}
+                log.append(
+                    f"Mir ist kalt: im Kessel sind noch {_fmt_c(water)} °C, Heizkörper "
+                    "öffnen, der Ofen bleibt vorerst aus"
+                )
+            elif usable and now - _dt(res["since"]) >= timedelta(minutes=COLD_RESIDUAL_CHECK_MIN):
+                rising = (
+                    house_temp is not None
+                    and res["temp"] is not None
+                    and house_temp - res["temp"] >= COLD_RESIDUAL_RISE_K
+                )
+                if rising:
+                    res = warmup["residual"] = {"since": now.isoformat(), "temp": house_temp}
+                else:
+                    usable = False
+            if res is not None and not usable:
+                warmup["residual"] = None
+                warmup["residual_done"] = True
+                log.append("Mir ist kalt: die Restwärme im Kessel reicht nicht mehr")
+            residual_open = usable
+            # Ofen nur, wenn es wirklich unter dem (angehobenen) Ziel ist
+            warmup_start = not usable and (house_deficit is None or house_deficit > 0)
+        if residual_open:
+            want_comfort = False
         want = want_comfort or warmup_start or (frost_need and policy != STOVE_DENY)
         blocker = None
         phase = "idle"
@@ -550,7 +679,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         elif starts_today >= p["max_starts_per_day"] and not frost_need:
             blocker, phase = f"schon {starts_today} Starts heute", "blocked"
         if warmup_start:
-            why = f"Aufheizen ({deficit_txt})"
+            why = f"{'Mir ist kalt' if warmup.get('cold') else 'Aufheizen'} ({deficit_txt})"
         else:
             why = deficit_txt if want_comfort else "Frostschutz"
         prepare = _dt(state["prepare_since"])
@@ -575,6 +704,8 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             state["starts"].append(now.isoformat())
             state["prepare_since"] = None
             state["start_cmd"] = now.isoformat()
+            state["reignite_watch"] = None
+            state["block_manual"] = False
             if warmup_start:
                 warmup["started"] = True
             starts_today += 1
@@ -589,6 +720,11 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 f"kein Bedarf ({deficit_txt})" if policy != STOVE_DENY else ""
             )
             reason = reason.strip(", ")
+            if residual_open:
+                reason = (
+                    f"Mir ist kalt: Restwärme im Kessel ({_fmt_c(water)} °C) wird genutzt, "
+                    "Ofen bleibt aus"
+                )
 
     in_block_now = state["block_start"] is not None
     preparing = state["prepare_since"] is not None and not in_block_now
@@ -625,7 +761,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         elif overheat:
             setpoint = OVERHEAT_RADIATOR_C  # Wärme aus dem Kessel abführen
         else:
-            if in_block_now or preparing:
+            if in_block_now or preparing or residual_open:
                 setpoint = rs["target"] + p["radiator_boost_k"]
             else:
                 setpoint = rs["target"]
@@ -692,6 +828,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 else None
             ),
             "starts_today": starts_today,
+            "reignitions_today": reignitions_today,
             "max_starts_per_day": int(p["max_starts_per_day"]),
             "chrono_warning": bool(obs.chrono_on),
             "eco_warning": bool(obs.stove.eco_on),
@@ -699,6 +836,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "power_level": power,
             "start_at": ((_dt(state["prepare_since"]) + soft).isoformat() if preparing else None),
             "self_off": self_off_since is not None,
+            "residual": residual_open,
             "overheat": overheat,
             "dump": dump_active,
             "dump_level": round(dump_level, 2),
@@ -717,6 +855,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 "start_at": state["warmup"]["start_at"],
                 "until": state["warmup"]["until"],
                 "arrive": state["warmup"].get("arrive"),
+                "cold": bool(state["warmup"].get("cold")),
                 "active": warmup_active,
             }
             if state["warmup"]
@@ -731,4 +870,4 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "boost": state["boost"],
         },
     }
-    return Result(status=status, actions=actions, state=state, log=log)
+    return Result(status=status, actions=actions, state=state, log=log, notices=notices)

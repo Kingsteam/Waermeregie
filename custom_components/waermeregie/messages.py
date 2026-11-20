@@ -6,6 +6,8 @@ Arten (const.NOTIFY_KINDS):
   sensor         Geräte lange nicht erreichbar (einmal am Tag gesammelt)
   pellets        Pellets nachfüllen
   stove_error    Ofen meldet Störung (kommt auch in der Ruhezeit)
+  overheat       Kesselschutz (kommt auch in der Ruhezeit)
+  too_warm       Ofen ausgeschaltet, weil das Haus deutlich über Ziel ist
 
 Gleiche Meldung (Art + Raum) frühestens nach `repeat_min` wieder. In der
 Ruhezeit werden nicht kritische Meldungen gesammelt und danach in einer

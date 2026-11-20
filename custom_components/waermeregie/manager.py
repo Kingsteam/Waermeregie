@@ -463,6 +463,9 @@ class WaermeregieManager:
         await self._notify_alerts(result.status["alerts"], now)
         await self._notify_stove_error(obs, now)
         await self._notify_overheat(result.status["stove"], now)
+        if not shadow:
+            for text in result.notices:
+                await self._notify("too_warm", "too_warm", text, now)
         sensor_alerts = await self._check_sensors(now, config, obs, result.status)
         pellet_status = await self._track_pellets(now, obs)
         await self._flush_held(now, result.status["alerts"])
@@ -813,6 +816,7 @@ class WaermeregieManager:
         arrive: str | None = None,
         cancel: bool = False,
         source: str | None = None,
+        cold: bool = False,
     ) -> dict:
         """Haus aufheizen: jetzt für minutes oder rechtzeitig vor der Ankunft (HH:MM).
 
@@ -827,6 +831,10 @@ class WaermeregieManager:
             self.state["warmup"] = None
             return await self.async_evaluate()
         lead = timedelta(minutes=self.config["parameters"]["warmup_lead_min"])
+        if cold:
+            arrive = None
+            if minutes is None:
+                minutes = self.config["parameters"]["cold_min"]
         if arrive:
             try:
                 hh, mm = (int(x) for x in str(arrive).split(":"))
@@ -849,13 +857,19 @@ class WaermeregieManager:
                 )
             start = now
             until = now + timedelta(minutes=minutes)
-            text = f"Aufheizen jetzt bis {until.strftime('%H:%M')}"
+            text = (
+                f"Mir ist kalt: wärmer bis {until.strftime('%H:%M')}, die Wärmeregie "
+                "entscheidet, ob Restwärme reicht oder der Ofen startet"
+                if cold
+                else f"Aufheizen jetzt bis {until.strftime('%H:%M')}"
+            )
             arrive_iso = None
         self.state["warmup"] = {
             "start_at": start.isoformat(),
             "until": until.isoformat(),
             "arrive": arrive_iso,
             "started": False,
+            "cold": bool(cold),
         }
         # wer aufheizen will, will keine Pause von Hand mehr
         self.state["pause_until"] = None
@@ -877,6 +891,8 @@ class WaermeregieManager:
         self.state["prepare_since"] = None
         self.state["start_cmd"] = None
         self.state["self_off_since"] = None
+        self.state["reignite_watch"] = None
+        self.state["block_manual"] = False
         self._add_log(
             now,
             "Aktiver Betrieb: die Wärmeregie schaltet jetzt"

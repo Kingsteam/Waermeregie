@@ -47,6 +47,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     "pellets": true,                   // Pellets nachfüllen
     "stove_error": true,               // Ofen meldet Störung (kommt auch in der Ruhezeit)
     "overheat": true,                  // Kesselschutz: Wasser zu heiß (kommt auch in der Ruhezeit)
+    "too_warm": true,                  // Ofen ausgeschaltet, weil das Haus deutlich über Ziel ist (Handstart)
     "opening_delay_min": 10,           // Fenster-Meldung erst nach so vielen Minuten (0-240)
     "repeat_min": 60,                  // gleiche Meldung (Art + Raum) frühestens wieder nach (0-1440, 0 = keine Sperre)
     "ventilate_max_min": 30,           // Lüften wegen Feuchte höchstens so lange ohne Meldung (5-240)
@@ -78,6 +79,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
   "week": {"mon": "buero", "tue": "buero", "wed": "homeoffice", "thu": "buero", "fri": "homeoffice", "sat": "wochenende", "sun": "wochenende", "holiday": "wochenende"},
   "parameters": {
     "start_below_k": 0.5, "stop_above_k": 0.3,
+    "hard_stop_above_k": 1.5,          // so weit über Ziel: Block endet nach frühestens 30 min, Handstart wird ausgeschaltet (0 = aus)
     "min_burn_min": 90, "max_burn_min": 300, "min_pause_min": 60, "max_starts_per_day": 4,
     "opening_grace_min": 2, "opening_stop_min": 10, "opening_empty_room_min": 1, "opening_recovery_min": 20, "opening_check_min": 60, "sensor_hold_min": 30, "sensor_alert_min": 60,
     "radiator_boost_k": 1.0, "frost_c": 12, "night_floor_c": 16, "stove_block_setpoint_c": 28,
@@ -85,6 +87,8 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     "power_min": 1, "power_max": 3,    // Leistungsstufen im Heizblock (1-5)
     "power_cold_c": 0,                 // Außentemperatur darunter → power_max
     "soft_start_min": 5,               // sanfter Start: Heizkörper so lange vor dem Zünden öffnen (0 = aus)
+    "cold_min": 60,                    // "Mir ist kalt": Dauer der höheren Ziele
+    "cold_residual_c": 45,             // "Mir ist kalt": ab dieser Kesseltemperatur erst nur Heizkörper öffnen (0 = aus)
     "self_off_wait_min": 30,           // Ofen schaltet im Block selbst ab (Wasser heiß): so lange auf Neustart warten (0 = Block endet sofort)
     "warmup_extra_k": 1.0,             // Aufheizen: so viel über den Zielen der Aufheiz-Szene
     "warmup_lead_min": 60,             // „Ich komme um …“: so viel früher mit dem Aufheizen beginnen
@@ -117,6 +121,7 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
     "action": "start" | "stop" | "keep",    // was die Regelung gerade will
     "reason": "Wohnräume 0,7 K unter Ziel",
     "block_start": null, "pause_until": null, "starts_today": 2, "max_starts_per_day": 4,
+    "reignitions_today": 0,            // Ofen hat heute so oft von selbst neu gezündet (ohne Bedarf ausgeschaltet: zählt nicht als Start)
     "chrono_warning": false,           // Chrono des Ofens ist an (im Schattenbetrieb nur Hinweis)
     "eco_warning": false,              // Eco des Ofens ist an
     "error": false,                    // Ofen meldet Störung
@@ -128,7 +133,7 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
     "dump_start_c": 70                 // wirksame Mitte (eingestellt oder gelernt, nie höher als eingestellt)
   },
   "house": {"deficit_k": 0.7, "outdoor_c": 4.5, "temperature_c": 20.6, "target_c": 21.0},   // Mittel der Wohnräume (nach Wichtigkeit)
-  "warmup": null,                      // oder {"start_at": "…", "until": "…", "arrive": "…"|null, "active": true}
+  "warmup": null,                      // oder {"start_at": "…", "until": "…", "arrive": "…"|null, "active": true, "cold": false}  (cold = „Mir ist kalt“)
   "learn": {"values": {"selfoff_c": 85.0, "afterheat_k": 12.5, "cool_k_min": 0.8},   // gleitende Mittelwerte (null = noch keine)
             "samples": {"selfoff_c": 4, "afterheat_k": 3, "cool_k_min": 1}, "updated": "…",
             "min_samples": 3, "dump_start_c": 67.5},                                 // wirkt erst ab min_samples
