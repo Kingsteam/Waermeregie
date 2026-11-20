@@ -158,6 +158,13 @@ async def ws_mode(hass: HomeAssistant, connection, msg: dict) -> None:
     await _run(connection, msg, mgr.async_set_mode(msg["mode"]))
 
 
+def _by_hand(connection) -> str:
+    """Protokolltext für eine Bedienung auf der Wärmeregie-Seite oder Karte."""
+    user = getattr(connection, "user", None)
+    name = getattr(user, "name", None)
+    return f"von Hand, {name}" if name else "von Hand"
+
+
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
@@ -174,7 +181,12 @@ async def ws_warmup(hass: HomeAssistant, connection, msg: dict) -> None:
     await _run(
         connection,
         msg,
-        mgr.async_warmup(msg.get("minutes"), msg.get("arrive"), msg["cancel"]),
+        mgr.async_warmup(
+            msg.get("minutes"),
+            msg.get("arrive"),
+            msg["cancel"],
+            source=_by_hand(connection),
+        ),
     )
 
 

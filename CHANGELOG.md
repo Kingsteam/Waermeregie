@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-20
+### Geändert
+- Das Protokoll sagt jetzt, wer das Aufheizen ausgelöst oder abgebrochen hat: „von Hand, <Name>“ (Wärmeregie-Seite oder Karte), „Knopf Haus aufheizen“ oder „Dienst waermeregie.warmup“ (Automation, Sprachassistent). Bisher stand dort nur „Aufheizen jetzt bis …“, und ein warmer Morgen ließ sich im Nachhinein nicht vom Zeitplan unterscheiden.
+
 ## [0.7.0] - 2026-11-20
 ### Hinzugefügt
 - **Kesselschutz:** Steigt das Kesselwasser auf 90 °C, bleibt der Ofen aus (laufender Heizblock endet, Selbstzündungen werden ausgeschaltet, kein Neustart) und alle Heizkörper öffnen auf 26 °C, damit die Wärme aus dem Kessel abfließen kann. Erst unter 75 °C ist alles wieder normal. Fehlt die Wassertemperatur 2 Stunden lang, endet der Kesselschutz. Die Werte sind feste Sicherheitsgrenzen (`const.py`). Anlass: 92,5 °C bei zugedrehten Heizkörpern. Im Schattenbetrieb wird nur gerechnet.

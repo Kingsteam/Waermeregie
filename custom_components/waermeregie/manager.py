@@ -805,13 +805,18 @@ class WaermeregieManager:
         minutes: float | None = None,
         arrive: str | None = None,
         cancel: bool = False,
+        source: str | None = None,
     ) -> dict:
-        """Haus aufheizen: jetzt für minutes oder rechtzeitig vor der Ankunft (HH:MM)."""
+        """Haus aufheizen: jetzt für minutes oder rechtzeitig vor der Ankunft (HH:MM).
+
+        source sagt im Protokoll, wer es ausgelöst hat (Seite, Knopf, Dienst).
+        """
+        by = f" ({source})" if source else ""
         now = dt_util.now()
         shadow = self.config["mode"] != MODE_ACTIVE
         if cancel:
             if self.state.get("warmup"):
-                self._add_log(now, "Aufheizen abgebrochen", shadow)
+                self._add_log(now, "Aufheizen abgebrochen" + by, shadow)
             self.state["warmup"] = None
             return await self.async_evaluate()
         lead = timedelta(minutes=self.config["parameters"]["warmup_lead_min"])
@@ -847,7 +852,7 @@ class WaermeregieManager:
         }
         # wer aufheizen will, will keine Pause von Hand mehr
         self.state["pause_until"] = None
-        self._add_log(now, text, shadow)
+        self._add_log(now, text + by, shadow)
         return await self.async_evaluate()
 
     async def async_set_mode(self, mode: str) -> dict:
