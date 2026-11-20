@@ -236,6 +236,7 @@ function alertIcon(a: Alert): string {
       return "mdi:leaf";
     case "error":
     case "stove_error":
+    case "overheat":
       return "mdi:alert-octagon";
     default:
       return "mdi:alert-circle-outline";
@@ -248,6 +249,7 @@ export function collectAlerts(status: Status | null, t: T): Alert[] {
   const st = status?.stove;
   const has = (...kinds: string[]) => alerts.some((a) => kinds.includes(a.kind));
   if (st?.error && !has("error", "stove_error")) alerts.unshift({ kind: "stove_error", message: t("stove.error") });
+  if (st?.overheat && !has("overheat")) alerts.unshift({ kind: "overheat", message: t("stove.overheat") });
   if (st?.chrono_warning && !has("chrono", "chrono_warning")) alerts.push({ kind: "chrono", message: t("stove.chrono_warning") });
   if (st?.eco_warning && !has("eco", "eco_warning")) alerts.push({ kind: "eco", message: t("stove.eco_warning") });
   return alerts;

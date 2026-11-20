@@ -43,6 +43,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     "sensor": true,                    // Geräte lange nicht erreichbar
     "pellets": true,                   // Pellets nachfüllen
     "stove_error": true,               // Ofen meldet Störung (kommt auch in der Ruhezeit)
+    "overheat": true,                  // Kesselschutz: Wasser zu heiß (kommt auch in der Ruhezeit)
     "opening_delay_min": 10,           // Fenster-Meldung erst nach so vielen Minuten (0-240)
     "repeat_min": 60,                  // gleiche Meldung (Art + Raum) frühestens wieder nach (0-1440, 0 = keine Sperre)
     "ventilate_max_min": 30,           // Lüften wegen Feuchte höchstens so lange ohne Meldung (5-240)
@@ -104,6 +105,7 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
     "phase": "idle" | "prepare" | "block" | "pause" | "blocked",   // prepare = sanfter Start, Heizkörper öffnen
     "start_at": null,                  // bei prepare: Uhrzeit der Zündung
     "self_off": false,                 // Ofen hat im Block selbst abgeschaltet (Wasser heiß), Regel wartet auf Neustart
+    "overheat": false,                 // Kesselschutz aktiv: Wasser war über 90 °C, Ofen aus und Heizkörper offen bis unter 75 °C
     "action": "start" | "stop" | "keep",    // was die Regelung gerade will
     "reason": "Wohnräume 0,7 K unter Ziel",
     "block_start": null, "pause_until": null, "starts_today": 2, "max_starts_per_day": 4,

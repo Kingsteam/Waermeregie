@@ -68,6 +68,12 @@ PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "warmup_lead_min": (15, 240),
 }
 ROOM_TARGET_LIMITS: Final = (5.0, 28.0)  # Zieltemperatur Raum / Heizkörper
+# Kesselschutz: Hydro-Ofen ohne Puffer, Wärme kann nicht weg (Heizkörper zu).
+# Ab OVERHEAT_C bleibt der Ofen aus und alle Heizkörper öffnen (OVERHEAT_RADIATOR_C),
+# bis das Wasser wieder unter OVERHEAT_CLEAR_C ist. 20.11.2026: 92,5 °C gemessen.
+OVERHEAT_C: Final = 90.0
+OVERHEAT_CLEAR_C: Final = 75.0
+OVERHEAT_RADIATOR_C: Final = 26.0
 MAX_OVERRIDE_MIN: Final = 24 * 60
 MAX_PAUSE_MIN: Final = 24 * 60
 MAX_BOOST_K: Final = 3.0
@@ -129,8 +135,15 @@ HISTORY_STEP_MIN: Final = 10
 HISTORY_HOURS: Final = 48
 
 # Benachrichtigungen (keine Sicherheitsgrenzen: steuern nur, was aufs Handy kommt)
-NOTIFY_KINDS: Final = ("opening", "opening_check", "sensor", "pellets", "stove_error")
-NOTIFY_CRITICAL: Final = ("stove_error",)  # kommen auch in der Ruhezeit
+NOTIFY_KINDS: Final = (
+    "opening",
+    "opening_check",
+    "sensor",
+    "pellets",
+    "stove_error",
+    "overheat",
+)
+NOTIFY_CRITICAL: Final = ("stove_error", "overheat")  # kommen auch in der Ruhezeit
 NOTIFY_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "opening_delay_min": (0, 240),  # Fenster erst melden, wenn so lange offen
     "repeat_min": (0, 1440),  # gleiche Meldung frühestens wieder nach
@@ -142,6 +155,7 @@ DEFAULT_NOTIFICATIONS: Final[dict] = {
     "sensor": True,
     "pellets": True,
     "stove_error": True,
+    "overheat": True,
     "opening_delay_min": 10,
     "repeat_min": 60,
     "ventilate_max_min": 30,

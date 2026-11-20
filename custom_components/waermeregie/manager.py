@@ -139,6 +139,7 @@ class WaermeregieManager:
         self._sent: dict[str, datetime] = {}
         self._held: dict[str, tuple[str, str]] = {}
         self._was_stove_error = False
+        self._was_overheat = False
         # Verlauf für die Grafik (gespeichert), Brennen seit dem letzten Punkt
         self.history: list[dict[str, Any]] = []
         self._burned_in_step = False
@@ -461,6 +462,7 @@ class WaermeregieManager:
             await self._execute(result.actions, now)
         await self._notify_alerts(result.status["alerts"], now)
         await self._notify_stove_error(obs, now)
+        await self._notify_overheat(result.status["stove"], now)
         sensor_alerts = await self._check_sensors(now, config, obs, result.status)
         pellet_status = await self._track_pellets(now, obs)
         await self._flush_held(now, result.status["alerts"])
@@ -615,6 +617,19 @@ class WaermeregieManager:
         if error and not self._was_stove_error:
             await self._notify("stove_error", "stove_error", "Der Ofen meldet eine Störung.", now)
         self._was_stove_error = error
+
+    async def _notify_overheat(self, stove: dict, now: datetime) -> None:
+        overheat = bool(stove.get("overheat"))
+        if overheat and not self._was_overheat:
+            water = stove.get("water_c")
+            text = (
+                f"Kesselschutz: Wasser {water:.0f} °C. Der Ofen bleibt aus, alle Heizkörper "
+                "sind offen, bis das Wasser abgekühlt ist."
+                if water is not None
+                else "Kesselschutz: Wasser zu heiß. Der Ofen bleibt aus."
+            )
+            await self._notify("overheat", "overheat", text, now)
+        self._was_overheat = overheat
 
     async def _flush_held(self, now: datetime, alerts: list[dict]) -> None:
         """Nach der Ruhezeit: Gesammeltes in einer Nachricht schicken."""

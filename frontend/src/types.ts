@@ -49,7 +49,7 @@ export interface DayType {
   slots: Slot[];
 }
 
-export type NotifyKind = "opening" | "opening_check" | "sensor" | "pellets" | "stove_error";
+export type NotifyKind = "opening" | "opening_check" | "sensor" | "pellets" | "stove_error" | "overheat";
 
 export interface Notifications {
   opening: boolean;
@@ -57,6 +57,7 @@ export interface Notifications {
   sensor: boolean;
   pellets: boolean;
   stove_error: boolean;
+  overheat: boolean;
   opening_delay_min: number;
   repeat_min: number;
   ventilate_max_min: number;
@@ -186,6 +187,7 @@ export interface Status {
     start_at?: string | null;
     /** Ofen hat im Block selbst abgeschaltet (Wasser heiß), Regel wartet */
     self_off?: boolean;
+    overheat?: boolean;
   } | null;
   house: {
     deficit_k: number | null;

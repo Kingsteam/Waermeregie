@@ -13,6 +13,7 @@ export const DEFAULT_NOTIFICATIONS: Notifications = {
   sensor: true,
   pellets: true,
   stove_error: true,
+  overheat: true,
   opening_delay_min: 10,
   repeat_min: 60,
   ventilate_max_min: 30,
