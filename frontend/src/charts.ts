@@ -206,6 +206,7 @@ export function heroState(status: Status | null | undefined): HeroState {
 export function warmupLabel(status: Status | null | undefined, t: T): string | null {
   const w = status?.warmup;
   if (!w || !w.until) return null;
+  if (w.active && w.cold) return t("cold.active_until", { time: clockFromIso(w.until) });
   if (w.active) return t("warmup.active_until", { time: clockFromIso(w.until) });
   if (w.arrive) return t("warmup.planned_arrive", { time: clockFromIso(w.start_at), arrive: clockFromIso(w.arrive) });
   return t("warmup.planned", { time: clockFromIso(w.start_at) });

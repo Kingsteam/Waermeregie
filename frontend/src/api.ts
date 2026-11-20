@@ -17,7 +17,7 @@ export const setBoost = (hass: Hass, delta: number, minutes: number) =>
   hass.callWS<Status>({ type: "waermeregie/boost", delta, minutes });
 
 /** Aufheizen: jetzt für `minutes`, oder Ankunft `arrive` ("HH:MM"), oder abbrechen. */
-export type WarmupRequest = { minutes: number } | { arrive: string } | { cancel: true };
+export type WarmupRequest = { minutes: number } | { arrive: string } | { cancel: true } | { cold: true };
 export const setWarmup = (hass: Hass, req: WarmupRequest) => hass.callWS<Status>({ type: "waermeregie/warmup", ...req });
 
 /** Verlauf für die Grafik. Fehlt der Befehl (ältere Version), wird abgelehnt. */

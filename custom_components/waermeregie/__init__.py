@@ -74,6 +74,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             )
         )
 
+    async def cold(call: ServiceCall) -> None:
+        await _guard(
+            _manager(hass).async_warmup(
+                call.data.get("minutes"), source="Dienst waermeregie.cold", cold=True
+            )
+        )
+
     async def cancel_warmup(call: ServiceCall) -> None:
         await _guard(
             _manager(hass).async_warmup(cancel=True, source="Dienst waermeregie.cancel_warmup")
@@ -91,6 +98,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         ),
     )
     hass.services.async_register(DOMAIN, "cancel_warmup", cancel_warmup)
+    hass.services.async_register(
+        DOMAIN, "cold", cold, vol.Schema({vol.Optional("minutes"): vol.Coerce(float)})
+    )
     hass.services.async_register(
         DOMAIN,
         "set_scene",

@@ -71,4 +71,12 @@ warmup:
     arrive:
       selector:
         time:
+cold:
+  fields:
+    minutes:
+      selector:
+        number:
+          min: 30
+          max: 360
+          unit_of_measurement: min
 cancel_warmup:

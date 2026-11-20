@@ -16,6 +16,8 @@ from typing import Any
 
 from . import fuzzy, learning
 from .const import (
+    COLD_RESIDUAL_CHECK_MIN,
+    COLD_RESIDUAL_RISE_K,
     HOT_WATER_C,
     MIN_RADIATOR_STEP_K,
     MODE_ACTIVE,
@@ -266,7 +268,8 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     if warmup_active:
         if not warmup.get("announced"):
             warmup["announced"] = True
-            log.append("Aufheizen beginnt")
+            if not warmup.get("cold"):  # "Mir ist kalt" steht schon im Protokoll
+                log.append("Aufheizen beginnt")
         target_scene = scenes.get(config.get("warmup_scene") or "") or next(
             (s for s in config["scenes"] if s["stove"] == STOVE_ALLOW), scene
         )
@@ -540,6 +543,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         else "keine Raumtemperatur bekannt"
     )
 
+    residual_open = False  # "Mir ist kalt": Heizkörper offen, Ofen aus (Restwärme)
     if in_block:
         block_start = _dt(state["block_start"])
         elapsed = (now - block_start).total_seconds() / 60
@@ -608,6 +612,43 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             and house_deficit >= p["start_below_k"]
         )
         warmup_start = warmup_active and not warmup.get("started")
+        cold = warmup_start and bool(warmup.get("cold"))
+        if cold:
+            # "Mir ist kalt": die Regel entscheidet. Ist im Kessel noch Wärme, reichen
+            # offene Heizkörper (kein Start, keine Pellets), solange das Haus wärmer wird
+            house_temp = temp_sum / temp_weight if temp_weight else None
+            res = warmup.get("residual")
+            usable = (
+                bool(p["cold_residual_c"])
+                and water is not None
+                and water >= p["cold_residual_c"]
+                and not warmup.get("residual_done")
+            )
+            if usable and res is None:
+                res = warmup["residual"] = {"since": now.isoformat(), "temp": house_temp}
+                log.append(
+                    f"Mir ist kalt: im Kessel sind noch {_fmt_c(water)} °C, Heizkörper "
+                    "öffnen, der Ofen bleibt vorerst aus"
+                )
+            elif usable and now - _dt(res["since"]) >= timedelta(minutes=COLD_RESIDUAL_CHECK_MIN):
+                rising = (
+                    house_temp is not None
+                    and res["temp"] is not None
+                    and house_temp - res["temp"] >= COLD_RESIDUAL_RISE_K
+                )
+                if rising:
+                    res = warmup["residual"] = {"since": now.isoformat(), "temp": house_temp}
+                else:
+                    usable = False
+            if res is not None and not usable:
+                warmup["residual"] = None
+                warmup["residual_done"] = True
+                log.append("Mir ist kalt: die Restwärme im Kessel reicht nicht mehr")
+            residual_open = usable
+            # Ofen nur, wenn es wirklich unter dem (angehobenen) Ziel ist
+            warmup_start = not usable and (house_deficit is None or house_deficit > 0)
+        if residual_open:
+            want_comfort = False
         want = want_comfort or warmup_start or (frost_need and policy != STOVE_DENY)
         blocker = None
         phase = "idle"
@@ -638,7 +679,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         elif starts_today >= p["max_starts_per_day"] and not frost_need:
             blocker, phase = f"schon {starts_today} Starts heute", "blocked"
         if warmup_start:
-            why = f"Aufheizen ({deficit_txt})"
+            why = f"{'Mir ist kalt' if warmup.get('cold') else 'Aufheizen'} ({deficit_txt})"
         else:
             why = deficit_txt if want_comfort else "Frostschutz"
         prepare = _dt(state["prepare_since"])
@@ -679,6 +720,11 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 f"kein Bedarf ({deficit_txt})" if policy != STOVE_DENY else ""
             )
             reason = reason.strip(", ")
+            if residual_open:
+                reason = (
+                    f"Mir ist kalt: Restwärme im Kessel ({_fmt_c(water)} °C) wird genutzt, "
+                    "Ofen bleibt aus"
+                )
 
     in_block_now = state["block_start"] is not None
     preparing = state["prepare_since"] is not None and not in_block_now
@@ -715,7 +761,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         elif overheat:
             setpoint = OVERHEAT_RADIATOR_C  # Wärme aus dem Kessel abführen
         else:
-            if in_block_now or preparing:
+            if in_block_now or preparing or residual_open:
                 setpoint = rs["target"] + p["radiator_boost_k"]
             else:
                 setpoint = rs["target"]
@@ -790,6 +836,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "power_level": power,
             "start_at": ((_dt(state["prepare_since"]) + soft).isoformat() if preparing else None),
             "self_off": self_off_since is not None,
+            "residual": residual_open,
             "overheat": overheat,
             "dump": dump_active,
             "dump_level": round(dump_level, 2),
@@ -808,6 +855,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 "start_at": state["warmup"]["start_at"],
                 "until": state["warmup"]["until"],
                 "arrive": state["warmup"].get("arrive"),
+                "cold": bool(state["warmup"].get("cold")),
                 "active": warmup_active,
             }
             if state["warmup"]

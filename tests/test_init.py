@@ -859,3 +859,15 @@ async def test_manual_start_in_warm_house_notifies(
     assert len(notify_calls) == 1
     assert "über Ziel" in notify_calls[0].data["message"]
     assert mgr.status["stove"]["starts_today"] == 0
+
+
+async def test_cold_service_and_button(hass: HomeAssistant, setup) -> None:
+    mgr = hass.data[DOMAIN]
+    await hass.services.async_call(DOMAIN, "cold", {}, blocking=True)
+    assert mgr.status["warmup"]["cold"] is True
+    assert any("Mir ist kalt" in e["text"] for e in mgr.log)
+    await hass.services.async_call(DOMAIN, "cancel_warmup", {}, blocking=True)
+    assert mgr.status["warmup"] is None
+    button = next(s.entity_id for s in hass.states.async_all("button") if "cold" in s.entity_id)
+    await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
+    assert mgr.status["warmup"]["cold"] is True

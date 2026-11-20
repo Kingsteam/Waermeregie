@@ -923,3 +923,69 @@ def test_hard_stop_can_be_switched_off():
     r = run(cfg, engine.empty_state(), obs(at(16, "14:00"), **WARM, stove=_burning()))
     assert r.state["block_start"] is not None
     assert r.notices == []
+
+
+# --- Mir ist kalt -------------------------------------------------------------------
+
+
+def _cold(now, minutes=60):
+    return {**_warmup(now, minutes), "cold": True}
+
+
+def _idle(water):
+    return StoveObs(available=True, water_c=water)
+
+
+def test_cold_uses_residual_heat_before_starting_stove():
+    cfg = sample_config(mode="active")
+    now = at(16, "06:10")  # Komfort 21 / 19, beim Aufheizen 1 K mehr
+    state = {**engine.empty_state(), "warmup": _cold(now)}
+    r = run(cfg, state, obs(now, wz=20.0, sz=18.5, stove=_idle(62.0)))
+    assert ("stove_start",) not in r.actions
+    assert r.status["stove"]["residual"] is True
+    assert ("radiator", "climate.heizung_wohnzimmer", 23.0) in r.actions  # 21 + 1 + 1
+    assert any("Kessel" in t for t in r.log)
+    # nach 15 min ist das Haus wärmer geworden: weiter ohne Ofen
+    r = run(cfg, r.state, obs(now + timedelta(minutes=15), wz=20.4, sz=18.7, stove=_idle(54.0)))
+    assert ("stove_start",) not in r.actions
+    assert r.status["stove"]["residual"] is True
+    # Kessel unter der Schwelle: jetzt startet der Ofen
+    r = run(cfg, r.state, obs(now + timedelta(minutes=20), wz=20.5, sz=18.8, stove=_idle(43.0)))
+    assert ("stove_start",) in r.actions
+    assert r.status["stove"]["residual"] is False
+
+
+def test_cold_starts_stove_when_residual_heat_does_not_warm_house():
+    cfg = sample_config(mode="active")
+    now = at(16, "06:10")
+    state = {**engine.empty_state(), "warmup": _cold(now)}
+    r = run(cfg, state, obs(now, wz=20.0, sz=18.5, stove=_idle(62.0)))
+    r = run(cfg, r.state, obs(now + timedelta(minutes=15), wz=20.0, sz=18.5, stove=_idle(60.0)))
+    assert ("stove_start",) in r.actions
+    assert any("reicht nicht" in t for t in r.log)
+
+
+def test_cold_with_cold_boiler_starts_stove_at_once():
+    cfg = sample_config(mode="active")
+    now = at(16, "06:10")
+    state = {**engine.empty_state(), "warmup": _cold(now)}
+    r = run(cfg, state, obs(now, wz=20.0, sz=18.5, stove=_idle(30.0)))
+    assert ("stove_start",) in r.actions
+
+
+def test_cold_in_warm_house_does_not_start_stove():
+    cfg = sample_config(mode="active")
+    now = at(16, "06:10")
+    state = {**engine.empty_state(), "warmup": _cold(now)}
+    r = run(cfg, state, obs(now, wz=23.0, sz=21.0, stove=_idle(30.0)))
+    assert ("stove_start",) not in r.actions
+    assert r.status["warmup"]["cold"] is True
+
+
+def test_cold_residual_can_be_switched_off():
+    cfg = sample_config(mode="active")
+    cfg["parameters"]["cold_residual_c"] = 0
+    now = at(16, "06:10")
+    state = {**engine.empty_state(), "warmup": _cold(now)}
+    r = run(cfg, state, obs(now, wz=20.0, sz=18.5, stove=_idle(62.0)))
+    assert ("stove_start",) in r.actions

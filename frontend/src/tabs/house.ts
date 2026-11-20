@@ -35,6 +35,8 @@ const PARAM_GROUPS: { group: I18nKey; params: ParamDef[]; extra?: "warmup_scene"
     params: [
       { key: "soft_start_min", unit: "min", step: 1 },
       { key: "self_off_wait_min", unit: "min", step: 5 },
+      { key: "cold_min", unit: "min", step: 5 },
+      { key: "cold_residual_c", unit: "°C", step: 1 },
     ],
   },
   {

@@ -205,6 +205,11 @@ export class WrControls extends LitElement {
             <button class="danger" ?disabled=${this._busy} @click=${() => this._warmup({ cancel: true })}>${t("warmup.cancel")}</button>
           </div>`
         : nothing}
+      <h4>${t("cold.title")}</h4>
+      <div class="opts">
+        <button class="opt" ?disabled=${this._busy} @click=${() => this._warmup({ cold: true })}>${t("cold.button")}</button>
+      </div>
+      <div class="hint">${t("cold.hint")}</div>
       <h4>${t("warmup.now")}</h4>
       <div class="opts">
         ${WARMUP_MINUTES.map(

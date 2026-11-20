@@ -239,6 +239,8 @@ export interface Warmup {
   /** Ankunft (bei „Ich komme um …“) */
   arrive: string | null;
   active: boolean;
+  /** „Mir ist kalt“: die Regel wählt Restwärme oder Ofen */
+  cold?: boolean;
 }
 
 /** Ein Punkt des Verlaufs (alle 10 min). */

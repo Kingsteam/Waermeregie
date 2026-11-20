@@ -37,6 +37,9 @@
       },
       "warmup": {
         "name": "Warm up the house"
+      },
+      "cold": {
+        "name": "I am cold"
       }
     },
     "select": {
@@ -198,6 +201,16 @@
     "cancel_warmup": {
       "name": "Cancel warm-up",
       "description": "Stop warming up and return to the schedule."
+    },
+    "cold": {
+      "name": "I am cold",
+      "description": "Warmer for a while. Wärmeregie decides: if the boiler still holds heat it only opens the radiators, otherwise it starts the stove.",
+      "fields": {
+        "minutes": {
+          "name": "Duration",
+          "description": "The higher targets apply this long (30-360 min). Without a value the setting is used."
+        }
+      }
     }
   }
 }

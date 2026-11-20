@@ -87,6 +87,8 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     "power_min": 1, "power_max": 3,    // Leistungsstufen im Heizblock (1-5)
     "power_cold_c": 0,                 // Außentemperatur darunter → power_max
     "soft_start_min": 5,               // sanfter Start: Heizkörper so lange vor dem Zünden öffnen (0 = aus)
+    "cold_min": 60,                    // "Mir ist kalt": Dauer der höheren Ziele
+    "cold_residual_c": 45,             // "Mir ist kalt": ab dieser Kesseltemperatur erst nur Heizkörper öffnen (0 = aus)
     "self_off_wait_min": 30,           // Ofen schaltet im Block selbst ab (Wasser heiß): so lange auf Neustart warten (0 = Block endet sofort)
     "warmup_extra_k": 1.0,             // Aufheizen: so viel über den Zielen der Aufheiz-Szene
     "warmup_lead_min": 60,             // „Ich komme um …“: so viel früher mit dem Aufheizen beginnen
@@ -131,7 +133,7 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
     "dump_start_c": 70                 // wirksame Mitte (eingestellt oder gelernt, nie höher als eingestellt)
   },
   "house": {"deficit_k": 0.7, "outdoor_c": 4.5, "temperature_c": 20.6, "target_c": 21.0},   // Mittel der Wohnräume (nach Wichtigkeit)
-  "warmup": null,                      // oder {"start_at": "…", "until": "…", "arrive": "…"|null, "active": true}
+  "warmup": null,                      // oder {"start_at": "…", "until": "…", "arrive": "…"|null, "active": true, "cold": false}  (cold = „Mir ist kalt“)
   "learn": {"values": {"selfoff_c": 85.0, "afterheat_k": 12.5, "cool_k_min": 0.8},   // gleitende Mittelwerte (null = noch keine)
             "samples": {"selfoff_c": 4, "afterheat_k": 3, "cool_k_min": 1}, "updated": "…",
             "min_samples": 3, "dump_start_c": 67.5},                                 // wirkt erst ab min_samples
