@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-20
+### Behoben
+- **Lernen ohne unrealistische Werte.** Über 99,5 °C meldet der Wasserfühler des Ofens seinen Anschlag (126 °C). Solche Werte machen eine laufende Messung von Nachwärme oder Abkühlrate jetzt ungültig, statt als echte Temperatur gelernt zu werden. Kesselschutz und Wärmeabfuhr reagieren weiter auf diese Werte.
+
 ## [0.9.0] - 2026-11-20
 ### Behoben
 - **Ofen ist nach dem Blockende wirklich aus.** Schaltet der Ofen wegen heißem Wasser selbst ab, bleibt er innerlich „ein“ und zündet nach dem Abkühlen wieder. Lief die Wartezeit auf den Neustart ab, beendete die Wärmeregie bisher nur ihren Heizblock und schickte **keinen** Aus-Befehl; der Ofen zündete später von selbst und wurde als „von Hand eingeschaltet“ übernommen (20.11.2026, dreimal hintereinander, Haus rund 4 K zu warm). Jetzt schickt sie in diesem Fall ausdrücklich „aus“ (Protokoll: „Ofen hat selbst abgeschaltet und nicht wieder gezündet, Heizblock beendet, Wärmeregie schaltet ihn ganz aus“).

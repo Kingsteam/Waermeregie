@@ -275,3 +275,22 @@ def test_old_config_without_new_fields_is_valid():
     out = model.validate(cfg)
     assert out["stove"]["has_buffer"] is False
     assert out["parameters"]["dump_end_c"] == 60.0
+
+
+def test_sensor_at_its_limit_is_not_learned():
+    """20.11.2026: über 99,5 °C meldet der Fühler 126,0 (Anschlag)."""
+    learn = learning.empty()
+    t0 = at(16, "08:56")
+    learning.observe(learn, t0, True, True, 96.0, True, 50.0)
+    learning.observe(learn, t0 + timedelta(minutes=1), False, False, 97.0, True, 50.0)
+    learning.observe(learn, t0 + timedelta(minutes=3), False, False, 126.0, True, 50.0)
+    assert learn["watch"] is None
+    log = learning.observe(learn, t0 + timedelta(minutes=22), False, False, 99.0, True, 50.0)
+    assert not log
+    assert learn["samples"]["afterheat_k"] == 0
+    # Abkühlrate: ein Höchstwert am Anschlag verwirft die Messung
+    learning.track_dump(learn, t0, True, 95.0)
+    learning.track_dump(learn, t0 + timedelta(minutes=3), True, 126.0)
+    assert learn["dump_peak"] is None
+    learning.track_dump(learn, t0 + timedelta(minutes=30), False, 59.0)
+    assert learn["samples"]["cool_k_min"] == 0
