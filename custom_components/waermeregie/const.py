@@ -39,6 +39,7 @@ WEEKDAYS: Final = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "start_below_k": (0.1, 3.0),
     "stop_above_k": (0.0, 2.0),
+    "hard_stop_above_k": (0.0, 5.0),  # so weit über Ziel: sofort aus, auch von Hand; 0 = aus
     "min_burn_min": (30, 360),  # kürzer als 30 min Brennen ist Takten
     "max_burn_min": (60, 720),
     "min_pause_min": (30, 360),  # nie kürzer als 30 min Pause (wie mcz_local)
@@ -99,6 +100,7 @@ MIN_RADIATOR_STEP_K: Final = 0.5  # Heizkörper erst ab dieser Änderung neu set
 DEFAULT_PARAMETERS: Final[dict[str, float]] = {
     "start_below_k": 0.5,
     "stop_above_k": 0.3,
+    "hard_stop_above_k": 1.5,
     "min_burn_min": 90,
     "max_burn_min": 300,
     "min_pause_min": 60,
@@ -154,6 +156,7 @@ NOTIFY_KINDS: Final = (
     "pellets",
     "stove_error",
     "overheat",
+    "too_warm",
 )
 NOTIFY_CRITICAL: Final = ("stove_error", "overheat")  # kommen auch in der Ruhezeit
 NOTIFY_LIMITS: Final[dict[str, tuple[float, float]]] = {
@@ -168,6 +171,7 @@ DEFAULT_NOTIFICATIONS: Final[dict] = {
     "pellets": True,
     "stove_error": True,
     "overheat": True,
+    "too_warm": True,
     "opening_delay_min": 10,
     "repeat_min": 60,
     "ventilate_max_min": 30,

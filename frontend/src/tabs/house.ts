@@ -22,6 +22,7 @@ const PARAM_GROUPS: { group: I18nKey; params: ParamDef[]; extra?: "warmup_scene"
     params: [
       { key: "start_below_k", unit: "K", step: 0.1 },
       { key: "stop_above_k", unit: "K", step: 0.1 },
+      { key: "hard_stop_above_k", unit: "K", step: 0.1 },
       { key: "min_burn_min", unit: "min", step: 5 },
       { key: "max_burn_min", unit: "min", step: 5 },
       { key: "min_pause_min", unit: "min", step: 5 },
@@ -338,7 +339,7 @@ export class WrHouseEditor extends EditorBase {
   private _renderMessages() {
     const t = this.t;
     const n = this._msg();
-    const kinds: NotifyKind[] = ["opening", "opening_check", "sensor", "pellets", "stove_error", "overheat"];
+    const kinds: NotifyKind[] = ["opening", "opening_check", "sensor", "pellets", "stove_error", "overheat", "too_warm"];
     const quietOk = quietValid(n);
     const minutes = (key: "opening_delay_min" | "repeat_min" | "ventilate_max_min", min: number, max: number, step: number) => {
       const hintKey = `msg.${key}_hint` as I18nKey;

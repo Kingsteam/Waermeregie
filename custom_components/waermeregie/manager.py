@@ -463,6 +463,9 @@ class WaermeregieManager:
         await self._notify_alerts(result.status["alerts"], now)
         await self._notify_stove_error(obs, now)
         await self._notify_overheat(result.status["stove"], now)
+        if not shadow:
+            for text in result.notices:
+                await self._notify("too_warm", "too_warm", text, now)
         sensor_alerts = await self._check_sensors(now, config, obs, result.status)
         pellet_status = await self._track_pellets(now, obs)
         await self._flush_held(now, result.status["alerts"])
@@ -878,6 +881,7 @@ class WaermeregieManager:
         self.state["start_cmd"] = None
         self.state["self_off_since"] = None
         self.state["reignite_watch"] = None
+        self.state["block_manual"] = False
         self._add_log(
             now,
             "Aktiver Betrieb: die Wärmeregie schaltet jetzt"

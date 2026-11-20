@@ -669,6 +669,7 @@ def test_ignition_during_manual_pause_is_switched_off():
 
 def test_manual_start_long_after_stop_is_still_adopted():
     cfg = sample_config(mode="active")
+    cfg["parameters"]["hard_stop_above_k"] = 0  # Grenze "zu warm" aus (eigene Tests)
     stop = at(16, "08:00")
     state = {**engine.empty_state(), "last_stop": stop.isoformat()}
     r = run(cfg, state, obs(stop + timedelta(hours=4), wz=21.0, stove=_burning()))
@@ -762,6 +763,7 @@ def _self_off(water=72.0):
 def test_block_end_during_self_off_then_reignition_is_switched_off():
     """08:09 selbst abgeschaltet, 08:32 Ziel erreicht, 08:48 und 09:52 zündet er selbst."""
     cfg = sample_config(mode="active")
+    cfg["parameters"]["hard_stop_above_k"] = 0  # wie am 20.11.: Block läuft bis 08:32
     start = at(16, "07:01")
     state = {
         **engine.empty_state(),
@@ -860,3 +862,64 @@ def test_shadow_mode_never_stops_reigniting_stove():
     }
     r = run(cfg, state, obs(at(16, "08:48"), **WARM, stove=_burning(52.0)))
     assert ("stove_stop",) not in r.actions
+
+
+# --- Haus deutlich über Ziel: sofort aus (hard_stop_above_k) -----------------------
+
+
+def test_block_ends_before_min_burn_when_house_far_above_target():
+    """20.11.2026: Block lief 90 min Mindestbrenndauer, Haus am Ende 4,6 K über Ziel."""
+    cfg = sample_config(mode="active")
+    start = at(16, "07:01")
+    state = {**engine.empty_state(), "block_start": start.isoformat()}
+    # nach 20 min noch nicht: kürzeste erlaubte Brenndauer (gegen Takten)
+    r = run(cfg, state, obs(start + timedelta(minutes=20), **WARM, stove=_burning()))
+    assert r.state["block_start"] is not None
+    r = run(cfg, r.state, obs(start + timedelta(minutes=31), **WARM, stove=_burning()))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert any("deutlich zu warm" in t for t in r.log)
+    assert r.notices == []  # eigener Block der Regel: keine Nachricht
+
+
+def test_block_slightly_above_target_still_runs_min_burn():
+    cfg = sample_config(mode="active")
+    start = at(16, "06:10")  # Komfort: Ziele 21 / 19
+    state = {**engine.empty_state(), "block_start": start.isoformat()}
+    r = run(cfg, state, obs(start + timedelta(minutes=40), wz=22.0, sz=20.0, stove=_burning()))
+    assert r.state["block_start"] is not None
+
+
+def test_manual_start_in_warm_house_is_switched_off_with_notice():
+    cfg = sample_config(mode="active")
+    now = at(16, "14:00")  # kein Blockende in den letzten Stunden: echter Start von Hand
+    r = run(cfg, engine.empty_state(), obs(now, **WARM, stove=_burning()))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert r.status["stove"]["starts_today"] == 0
+    assert any("über Ziel" in t for t in r.log)
+    assert len(r.notices) == 1
+    # eine Minute später: kein zweiter Befehl, keine zweite Nachricht
+    r = run(cfg, r.state, obs(now + timedelta(minutes=1), **WARM, stove=_burning()))
+    assert ("stove_stop",) not in r.actions
+    assert r.notices == []
+
+
+def test_manual_block_stopped_with_notice_when_house_gets_too_warm():
+    cfg = sample_config(mode="active")
+    now = at(16, "06:10")
+    r = run(cfg, engine.empty_state(), obs(now, wz=20.8, sz=18.8, stove=_burning()))
+    assert r.state["block_manual"] is True
+    r = run(cfg, r.state, obs(now + timedelta(minutes=45), wz=23.0, sz=21.0, stove=_burning()))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert len(r.notices) == 1
+    assert r.state["block_manual"] is False
+
+
+def test_hard_stop_can_be_switched_off():
+    cfg = sample_config(mode="active")
+    cfg["parameters"]["hard_stop_above_k"] = 0
+    r = run(cfg, engine.empty_state(), obs(at(16, "14:00"), **WARM, stove=_burning()))
+    assert r.state["block_start"] is not None
+    assert r.notices == []
