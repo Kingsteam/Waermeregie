@@ -640,11 +640,11 @@ def test_reignition_without_demand_is_switched_off_not_adopted():
     assert any("selbst gezündet" in t for t in r.log)
     assert not any("von Hand" in t for t in r.log)
     # eine Minute später brennt er noch: kein neuer Befehl, kein neuer Eintrag
-    r = run(cfg, r.state, obs(later + timedelta(minutes=1), wz=24.5, sz=23.5, stove=_burning()))
+    r = run(cfg, r.state, obs(later + timedelta(minutes=1), wz=24.5, sz=23.5, stove=_burning(75.0)))
     assert ("stove_stop",) not in r.actions
     assert not r.log
     # nach 5 min noch immer an: Befehl wiederholen
-    r = run(cfg, r.state, obs(later + timedelta(minutes=6), wz=24.5, sz=23.5, stove=_burning()))
+    r = run(cfg, r.state, obs(later + timedelta(minutes=6), wz=24.5, sz=23.5, stove=_burning(75.0)))
     assert ("stove_stop",) in r.actions
     # aus: Merker zurück
     r = run(

@@ -33,7 +33,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import engine, health, humidity, messages, model, pellets
+from . import engine, health, humidity, learning, messages, model, pellets
 from .const import (
     DEBOUNCE_S,
     DOMAIN,
@@ -768,6 +768,13 @@ class WaermeregieManager:
                 f"Szene „{names[scene]}“ bis {until.strftime('%H:%M')}",
                 self.config["mode"] != MODE_ACTIVE,
             )
+        return await self.async_evaluate()
+
+    async def async_learn_reset(self) -> dict:
+        """Gelerntes Zusammenspiel Kessel/Heizkörper vergessen."""
+        now = dt_util.now()
+        self.state["learn"] = learning.reset(self.state.get("learn"))
+        self._add_log(now, "Gelernte Werte zurückgesetzt", self.config["mode"] != MODE_ACTIVE)
         return await self.async_evaluate()
 
     async def async_pause(self, minutes: float) -> dict:

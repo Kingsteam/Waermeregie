@@ -77,6 +77,10 @@ export interface Config {
     error_sensor: string | null;
     water_sensor: string | null;
     ignitions_sensor: string | null;
+    /** Pufferspeicher vorhanden? Ohne Puffer werden die Heizkörper zum Puffer. */
+    has_buffer?: boolean;
+    /** Startschwelle der Wärmeabfuhr aus dem Betrieb lernen */
+    dump_learn?: boolean;
   };
   weather: string | null;
   outdoor_sensor: string | null;
@@ -130,6 +134,8 @@ export interface RoomStatus {
   humidity?: number | null;
   /** Fenster offen wegen hoher Luftfeuchte (keine Meldung) */
   ventilating?: boolean;
+  /** Zusatz der Wärmeabfuhr auf diesen Heizkörper (K) */
+  dump_extra_k?: number;
 }
 
 export interface Alert {
@@ -188,6 +194,12 @@ export interface Status {
     /** Ofen hat im Block selbst abgeschaltet (Wasser heiß), Regel wartet */
     self_off?: boolean;
     overheat?: boolean;
+    /** Wärmeabfuhr läuft (Heizkörper als Puffer) */
+    dump?: boolean;
+    /** wie heiß der Kessel unscharf gilt, 0-1 */
+    dump_level?: number;
+    /** wirksame Mitte der Rampe (eingestellt oder gelernt) */
+    dump_start_c?: number;
   } | null;
   house: {
     deficit_k: number | null;
@@ -197,6 +209,7 @@ export interface Status {
     target_c?: number | null;
   } | null;
   warmup?: Warmup | null;
+  learn?: Learn | null;
   pellets?: {
     stock_kg: number | null;
     capacity_kg?: number | null;
@@ -255,4 +268,13 @@ export interface Hass {
   connection: {
     subscribeMessage<T>(cb: (msg: T) => void, msg: Record<string, unknown>): Promise<() => void | Promise<void>>;
   };
+}
+
+/** Gelerntes Zusammenspiel Kessel und Heizkörper */
+export interface Learn {
+  values: { selfoff_c: number | null; afterheat_k: number | null; cool_k_min: number | null };
+  samples: { selfoff_c: number; afterheat_k: number; cool_k_min: number };
+  updated: string | null;
+  min_samples: number;
+  dump_start_c: number;
 }

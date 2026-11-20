@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
+from . import fuzzy, learning
 from .const import (
     HOT_WATER_C,
     MIN_RADIATOR_STEP_K,
@@ -21,6 +22,7 @@ from .const import (
     OVERHEAT_C,
     OVERHEAT_CLEAR_C,
     OVERHEAT_RADIATOR_C,
+    PARAMETER_LIMITS,
     REIGNITE_RESEND_MIN,
     REIGNITE_WINDOW_MIN,
     ROOM_TARGET_LIMITS,
@@ -109,6 +111,8 @@ def empty_state() -> dict[str, Any]:
         "reignite_stop": None,  # Ofen hat ohne Bedarf selbst gezündet: letzter Aus-Befehl
         "overheat_since": None,  # Kesselschutz aktiv (Wasser zu heiß)
         "overheat_stop": None,  # Kesselschutz: letzter Aus-Befehl
+        "dump_active": False,  # Wärmeabfuhr läuft (Heizkörper als Puffer)
+        "learn": learning.empty(),  # gelerntes Zusammenspiel Kessel/Heizkörper
     }
 
 
@@ -372,6 +376,32 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     if not obs.stove.on:
         state["overheat_stop"] = None
 
+    # Wärmeabfuhr ohne Puffer: unscharf, je heißer der Kessel, desto weiter die Heizkörper
+    learn = state["learn"] = learning.ensure(state.get("learn"))
+    stove_cfg = config["stove"]
+    dump_start = p["dump_start_c"]
+    if stove_cfg.get("dump_learn", True):
+        dump_start = learning.effective_start(
+            learn, p["dump_start_c"], PARAMETER_LIMITS["dump_start_c"][0], OVERHEAT_C
+        )
+    dump_level = 0.0
+    if not stove_cfg.get("has_buffer"):
+        dump_level = fuzzy.mu_hot(
+            water, dump_start, p["dump_ramp_low_k"], p["dump_ramp_high_k"], p["dump_end_c"]
+        )
+    dump_active = bool(state.get("dump_active"))
+    if not dump_active and dump_level > 0:
+        dump_active = True
+        log.append(f"Wärmeabfuhr: Wasser {_fmt_c(water)} °C, Heizkörper öffnen weiter")
+    elif dump_active and (stove_cfg.get("has_buffer") or water is None or water <= p["dump_end_c"]):
+        dump_active = False
+        dump_level = 0.0
+        log.append(
+            "Wärmeabfuhr beendet" + (f": Wasser {_fmt_c(water)} °C" if water is not None else "")
+        )
+    state["dump_active"] = dump_active
+    learning.track_dump(learn, now, dump_active, water)
+
     # Ofen: externe Änderungen übernehmen (nur aktiv, im Schatten ist alles gedacht)
     in_block = state["block_start"] is not None
     start_cmd = _dt(state["start_cmd"])
@@ -589,14 +619,25 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
 
     # Heizkörper: während eines Blocks öffnen, damit die Wärme ins Haus geht
     for room, rs in zip(config["rooms"], room_status, strict=True):
+        extra = 0.0
         if rs["open"]:
             setpoint = p["frost_c"]
         elif overheat:
             setpoint = OVERHEAT_RADIATOR_C  # Wärme aus dem Kessel abführen
-        elif in_block_now or preparing:
-            setpoint = rs["target"] + p["radiator_boost_k"]
         else:
-            setpoint = rs["target"]
+            if in_block_now or preparing:
+                setpoint = rs["target"] + p["radiator_boost_k"]
+            else:
+                setpoint = rs["target"]
+            if dump_level > 0:
+                warm = fuzzy.mu_warm(rs["temperature"], rs["target"])
+                extra = fuzzy.extra_k(p["dump_extra_k"], dump_level, warm, water, OVERHEAT_C)
+                # Ein Thermostat öffnet nur über der gemessenen Raumtemperatur: der Zusatz
+                # zählt deshalb ab dem Ziel oder, wenn der Raum schon wärmer ist, ab dort
+                base = max(rs["target"], rs["temperature"] or rs["target"])
+                if extra > 0:
+                    setpoint = max(setpoint, fuzzy.round_half(base + extra))
+        rs["dump_extra_k"] = extra
         setpoint = _clamp_target(setpoint)
         rs["radiator_setpoint"] = setpoint
         for entity in room["radiators"]:
@@ -604,6 +645,21 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             if last is None or abs(last - setpoint) >= MIN_RADIATOR_STEP_K:
                 actions.append(("radiator", entity, setpoint))
                 state["radiators"][entity] = setpoint
+
+    # Lernen: Zusammenspiel Kessel und Heizkörper aus dem laufenden Betrieb
+    log.extend(
+        learning.observe(
+            learn,
+            now,
+            obs.stove.on,
+            obs.stove.burning,
+            water,
+            state["block_start"] is not None or self_off_since is not None,
+            HOT_WATER_C,
+        )
+    )
+    if ("stove_stop",) in actions:
+        learn["stop_cmd"] = now.isoformat()
 
     status = {
         "mode": config["mode"],
@@ -644,6 +700,9 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "start_at": ((_dt(state["prepare_since"]) + soft).isoformat() if preparing else None),
             "self_off": self_off_since is not None,
             "overheat": overheat,
+            "dump": dump_active,
+            "dump_level": round(dump_level, 2),
+            "dump_start_c": dump_start,
             "water_c": obs.stove.water_c,
             "ignitions": obs.stove.ignitions,
         },
@@ -664,6 +723,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             else None
         ),
         "rooms": room_status,
+        "learn": learning.status(learn, dump_start),
         "alerts": alerts,
         "overrides": {
             "scene": state["override"],

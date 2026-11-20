@@ -4,6 +4,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-20
+### Hinzugefügt
+- **Heizkörper als Puffer (Wärmeabfuhr):** Ohne Pufferspeicher öffnet die Wärmeregie die Heizkörper, sobald das Kesselwasser heiß wird, damit die Wärme ins Haus geht statt den Ofen hochkochen zu lassen. **Unscharf:** Statt bei 70 °C schlagartig alles aufzudrehen, öffnet sie die Heizkörper umso weiter, je heißer der Kessel ist (ab 65 °C ein wenig, ab 80 °C ganz: 2 K über Ziel bzw. über der Raumtemperatur). Schon warme Räume bekommen etwas weniger, nie unter der Hälfte; nahe am Kesselschutz alle den vollen Wert. Unter 60 °C wieder normal. Neue Parameter *Heizkörper als Puffer*, Schalter „Pufferspeicher vorhanden“.
+- **Lernen:** Die Wärmeregie misst im Betrieb, bei welcher Temperatur der Ofen selbst abschaltet, wie stark das Wasser danach nachheizt und wie schnell es bei offenen Heizkörpern abkühlt (gleitende Mittelwerte). Daraus öffnet sie die Heizkörper bei Bedarf früher, nie später als eingestellt, erst nach 3 Messungen. Anzeige unter *Gelernt*, mit Knopf zum Zurücksetzen.
+
 ## [0.7.1] - 2026-11-20
 ### Geändert
 - Das Protokoll sagt jetzt, wer das Aufheizen ausgelöst oder abgebrochen hat: „von Hand, <Name>“ (Wärmeregie-Seite oder Karte), „Knopf Haus aufheizen“ oder „Dienst waermeregie.warmup“ (Automation, Sprachassistent). Bisher stand dort nur „Aufheizen jetzt bis …“, und ein warmer Morgen ließ sich im Nachhinein nicht vom Zeitplan unterscheiden.

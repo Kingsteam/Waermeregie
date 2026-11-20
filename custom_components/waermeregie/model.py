@@ -11,6 +11,7 @@ import re
 from typing import Any
 
 from .const import (
+    DEFAULT_DUMP_LEARN,
     DEFAULT_NOTIFICATIONS,
     DEFAULT_PARAMETERS,
     DEFAULT_VENTILATE_HUMIDITY,
@@ -45,6 +46,11 @@ STOVE_FIELDS: dict[str, tuple[tuple[str, ...], str]] = {
     "ignitions_sensor": (("sensor",), "Zündzähler"),
 }
 STOVE_KEYS = tuple(STOVE_FIELDS)
+# Ja/Nein-Einstellungen des Ofens (keine Entitäten)
+STOVE_FLAGS: dict[str, bool] = {
+    "has_buffer": False,  # Pufferspeicher vorhanden? Ohne Puffer: Heizkörper als Puffer
+    "dump_learn": DEFAULT_DUMP_LEARN,  # Startschwelle der Wärmeabfuhr lernen
+}
 
 
 class ConfigError(ValueError):
@@ -54,7 +60,7 @@ class ConfigError(ValueError):
 def default_config() -> dict[str, Any]:
     """Startzustand: Szenen und Tagesarten als Vorschlag, noch keine Räume."""
     return {
-        "stove": dict.fromkeys(STOVE_KEYS),
+        "stove": {**dict.fromkeys(STOVE_KEYS), **STOVE_FLAGS},
         "weather": None,
         "outdoor_sensor": None,
         "workday": None,
@@ -267,6 +273,11 @@ def validate(raw: Any) -> dict[str, Any]:
         key: _entity(stove.get(key), domains, label)
         for key, (domains, label) in STOVE_FIELDS.items()
     }
+    for key, default in STOVE_FLAGS.items():
+        value = stove.get(key, default)
+        if not isinstance(value, bool):
+            raise ConfigError(f"Ofen: {key} muss ja oder nein sein")
+        out["stove"][key] = value
     out["weather"] = _entity(cfg.get("weather"), ("weather",), "Wetter")
     out["outdoor_sensor"] = _entity(cfg.get("outdoor_sensor"), ("sensor",), "Außenfühler")
     out["workday"] = _entity(cfg.get("workday"), ("binary_sensor",), "Arbeitstag")
@@ -471,6 +482,11 @@ def validate(raw: Any) -> dict[str, Any]:
     params["power_max"] = int(params["power_max"])
     if params["max_burn_min"] < params["min_burn_min"]:
         raise ConfigError("Längste Brenndauer muss mindestens so groß wie die kürzeste sein")
+    if params["dump_end_c"] >= params["dump_start_c"]:
+        raise ConfigError(
+            "Wärmeabfuhr: das Ende muss unter der Starttemperatur liegen "
+            f"({params['dump_end_c']:g} °C ist nicht unter {params['dump_start_c']:g} °C)"
+        )
     out["parameters"] = params
 
     mode = cfg.get("mode", MODE_SHADOW)

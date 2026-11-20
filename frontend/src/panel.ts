@@ -375,8 +375,10 @@ export class WaermeregiePanel extends LitElement {
             .config=${common.config}
             .defaults=${common.defaults}
             .lang=${common.lang}
+            .status=${this._status}
             ?readonly=${ro}
             @config-changed=${onChange}
+            @wr-status=${(e: CustomEvent<Status>) => (this._status = e.detail)}
           ></wr-house-editor>`;
       case "log":
         return this._renderLog();

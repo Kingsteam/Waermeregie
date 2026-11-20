@@ -793,3 +793,17 @@ async def test_window_left_open_after_shower_reported_later(
     await hass.async_block_till_done()
     assert len(calls) == 1
     assert "seit 18 min offen" in calls[0].data["message"]
+
+
+async def test_learn_reset_and_status(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    client, _ = await _configured(hass, hass_ws_client)
+    mgr = hass.data[DOMAIN]
+    mgr.state["learn"]["samples"]["afterheat_k"] = 3
+    mgr.state["learn"]["values"]["afterheat_k"] = 12.0
+    await client.send_json_auto_id({"type": f"{DOMAIN}/learn/reset"})
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    assert msg["result"]["learn"]["samples"]["afterheat_k"] == 0
+    assert msg["result"]["learn"]["values"]["afterheat_k"] is None
+    assert msg["result"]["stove"]["dump"] is False
+    assert any(e["text"] == "Gelernte Werte zurückgesetzt" for e in mgr.log)

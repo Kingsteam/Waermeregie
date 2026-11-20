@@ -45,6 +45,15 @@ Ein Pelletofen ohne Pufferspeicher taktet leicht: Sind die Heizkörperventile zu
 - **Leistungsstufe:** knapp über der Startschwelle kleinste Stufe (Standard 1), ab 2 K Bedarf oder unter 0 °C außen höchste (Standard 3). Bei lange offener Tür kleinste Stufe.
 - **Störung:** Meldet der Ofen eine Störung, startet kein Block, und ein laufender endet.
 
+## Heizkörper als Puffer und Lernen
+Ein Pelletofen **ohne Pufferspeicher** kann seine Wärme nur über die Heizkörper loswerden. Sind sie zu (Räume schon warm), steigt das Kesselwasser weiter, auch noch nach dem Abschalten (Nachwärme), und der Ofen kocht hoch. Darum gilt ohne Puffer (*Ofen & Haus → Heizkörper als Puffer*, „Pufferspeicher vorhanden“ aus):
+
+- **Unscharf statt Schalter:** Statt bei 70 °C schlagartig alles aufzudrehen, öffnet die Wärmeregie die Heizkörper umso weiter, je heißer der Kessel ist. Ab 65 °C ein wenig, ab 80 °C ganz (Standard: Mitte 70 °C, Rampe −5/+10 K). „Ganz“ heißt: Heizkörper 2 K über Ziel, oder über der Raumtemperatur, wenn der Raum schon wärmer ist, damit das Thermostat wirklich öffnet.
+- **Warme Räume** bekommen etwas weniger, aber nie weniger als die Hälfte. Nahe am Kesselschutz (ab 85 °C) bekommen alle den vollen Wert: Sicherheit vor Komfort.
+- **Ende:** Unter 60 °C gelten wieder die normalen Sollwerte. Fenster offen heißt weiter Frostschutz.
+- **Kesselschutz** bleibt hart: ab 90 °C Ofen aus und alle Heizkörper auf 26 °C, bis unter 75 °C.
+- **Lernen** (abschaltbar): Die Wärmeregie misst, bei welcher Wassertemperatur der Ofen selbst abschaltet und wie viel das Wasser danach noch steigt. Daraus rechnet sie, wann sie spätestens öffnen muss, damit die Spitze unter dem Kesselschutz bleibt. Das kann die Mitte nur **früher** machen, nie später als eingestellt, und erst nach 3 Messungen. Unter *Gelernt* stehen die Werte; *Gelerntes zurücksetzen* vergisst sie.
+
 ## Meldungen aufs Handy
 Unter *Ofen & Haus → Meldungen* stellst du ein, was kommt:
 - **Arten einzeln ein/aus:** Fenster länger offen, Fenster offen ohne Abkühlen, Geräte nicht erreichbar, Pellets, Ofen-Störung.

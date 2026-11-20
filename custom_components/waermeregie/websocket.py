@@ -31,6 +31,7 @@ def async_register(hass: HomeAssistant) -> None:
         ws_mode,
         ws_warmup,
         ws_history,
+        ws_learn_reset,
     ):
         websocket_api.async_register_command(hass, handler)
 
@@ -201,3 +202,12 @@ def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
     if not (mgr := _manager(hass)):
         return _not_loaded(connection, msg)
     connection.send_result(msg["id"], {"points": mgr.history_points(msg["hours"])})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/learn/reset"})
+@websocket_api.async_response
+async def ws_learn_reset(hass: HomeAssistant, connection, msg: dict) -> None:
+    if not (mgr := _manager(hass)):
+        return _not_loaded(connection, msg)
+    await _run(connection, msg, mgr.async_learn_reset())

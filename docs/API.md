@@ -16,6 +16,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
 | `waermeregie/boost` | **admin** | `{delta: number, minutes: number}` (0 = aufheben) | `Status` |
 | `waermeregie/mode` | **admin** | `{mode: "shadow"\|"active"}` | `Status` |
 | `waermeregie/warmup` | **admin** | `{minutes?: number}` (30-360, jetzt aufheizen) **oder** `{arrive: "HH:MM"}` (Ankunft, nächstes Vorkommen in 24 h) **oder** `{cancel: true}` | `Status` |
+| `waermeregie/learn/reset` | **admin** | – | `Status` (gelernte Werte vergessen) |
 | `waermeregie/history` | alle | `{hours?: number}` (1-48, Standard 24) | `{points: Point[]}`, ein Punkt je 10 min (siehe unten) |
 
 ## Config
@@ -29,7 +30,9 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     "eco_switch": null,                // optional: switch Eco des Ofens – wird im aktiven Betrieb ausgeschaltet
     "error_sensor": null,              // optional: binary_sensor Störung (an = Störung → kein Start)
     "water_sensor": null,              // optional: sensor Wassertemperatur (Anzeige)
-    "ignitions_sensor": null           // optional: sensor Zündzähler (Anzeige)
+    "ignitions_sensor": null,          // optional: sensor Zündzähler (Anzeige)
+    "has_buffer": false,               // Pufferspeicher vorhanden? false = Heizkörper sind der Puffer (Wärmeabfuhr)
+    "dump_learn": true                 // Startschwelle der Wärmeabfuhr aus dem Betrieb lernen (nur senken)
   },
   "weather": "weather.home",           // optional
   "outdoor_sensor": null,              // optional: sensor Außentemperatur
@@ -84,7 +87,12 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     "soft_start_min": 5,               // sanfter Start: Heizkörper so lange vor dem Zünden öffnen (0 = aus)
     "self_off_wait_min": 30,           // Ofen schaltet im Block selbst ab (Wasser heiß): so lange auf Neustart warten (0 = Block endet sofort)
     "warmup_extra_k": 1.0,             // Aufheizen: so viel über den Zielen der Aufheiz-Szene
-    "warmup_lead_min": 60              // „Ich komme um …“: so viel früher mit dem Aufheizen beginnen
+    "warmup_lead_min": 60,             // „Ich komme um …“: so viel früher mit dem Aufheizen beginnen
+    "dump_start_c": 70,                // Wärmeabfuhr: Mitte der Rampe "Kessel heiß" (50-85)
+    "dump_end_c": 60,                  // darunter Wärmeabfuhr aus (40-80, unter dump_start_c)
+    "dump_extra_k": 2,                 // Heizkörper höchstens so viel über Ziel bzw. Raumtemperatur (0-5)
+    "dump_ramp_low_k": 5,              // Rampe beginnt bei Mitte minus diesem Wert (1-15)
+    "dump_ramp_high_k": 10             // voller Zusatz ab Mitte plus diesem Wert (1-20)
   },
   "mode": "shadow"                     // "shadow" (nur rechnen) | "active" (schaltet)
 }
@@ -114,15 +122,22 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
     "error": false,                    // Ofen meldet Störung
     "power_level": 2,                  // gewünschte Leistungsstufe (null außerhalb eines Blocks oder ohne Leistungs-Entität)
     "water_c": 61.5,                   // Wassertemperatur (null ohne Fühler)
-    "ignitions": 9620                  // Zündzähler (null ohne Fühler)
+    "ignitions": 9620,                 // Zündzähler (null ohne Fühler)
+    "dump": false,                     // Wärmeabfuhr läuft (bis Wasser unter dump_end_c)
+    "dump_level": 0.0,                 // unscharf: wie heiß der Kessel gilt (0-1)
+    "dump_start_c": 70                 // wirksame Mitte (eingestellt oder gelernt, nie höher als eingestellt)
   },
   "house": {"deficit_k": 0.7, "outdoor_c": 4.5, "temperature_c": 20.6, "target_c": 21.0},   // Mittel der Wohnräume (nach Wichtigkeit)
   "warmup": null,                      // oder {"start_at": "…", "until": "…", "arrive": "…"|null, "active": true}
+  "learn": {"values": {"selfoff_c": 85.0, "afterheat_k": 12.5, "cool_k_min": 0.8},   // gleitende Mittelwerte (null = noch keine)
+            "samples": {"selfoff_c": 4, "afterheat_k": 3, "cool_k_min": 1}, "updated": "…",
+            "min_samples": 3, "dump_start_c": 67.5},                                 // wirkt erst ab min_samples
   "rooms": [
     {"id": "wohnzimmer", "name": "Wohnzimmer", "temperature": 20.3, "target": 21, "deficit_k": 0.7,
      "radiator_setpoint": 22, "open": false, "open_minutes": 0, "recover_until": null, "occupied": true, "sensors_missing": 0,
      "humidity": 48.5,                 // höchste Feuchte (null ohne Feuchtefühler)
-     "ventilating": false}             // Fenster offen wegen hoher Feuchte: keine Fenster-Meldung
+     "ventilating": false,             // Fenster offen wegen hoher Feuchte: keine Fenster-Meldung
+     "dump_extra_k": 0}                // Zusatz der Wärmeabfuhr auf diesen Raum (K, auf 0,5 gerundet)
   ],
   "alerts": [{"kind": "opening", "room": "wohnzimmer", "entity": "binary_sensor.terrassentuer", "minutes": 12, "message": "Terrassentür seit 12 min offen"}],
   // weitere kind: "sensor" (Gerät länger als sensor_alert_min weg), "opening_check" (offen, Raum kühlt nicht ab)
