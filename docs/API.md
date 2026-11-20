@@ -117,6 +117,7 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
     "action": "start" | "stop" | "keep",    // was die Regelung gerade will
     "reason": "Wohnräume 0,7 K unter Ziel",
     "block_start": null, "pause_until": null, "starts_today": 2, "max_starts_per_day": 4,
+    "reignitions_today": 0,            // Ofen hat heute so oft von selbst neu gezündet (ohne Bedarf ausgeschaltet: zählt nicht als Start)
     "chrono_warning": false,           // Chrono des Ofens ist an (im Schattenbetrieb nur Hinweis)
     "eco_warning": false,              // Eco des Ofens ist an
     "error": false,                    // Ofen meldet Störung

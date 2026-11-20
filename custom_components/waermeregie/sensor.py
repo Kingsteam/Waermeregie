@@ -84,6 +84,11 @@ class StartsSensor(WaermeregieEntity, SensorEntity):
     def native_value(self) -> int | None:
         return self._mgr.status.get("stove", {}).get("starts_today")
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Selbstzündungen des Ofens heute (zählen nur als Start, wenn übernommen)."""
+        return {"reignitions_today": self._mgr.status.get("stove", {}).get("reignitions_today")}
+
 
 class DeficitSensor(WaermeregieEntity, SensorEntity):
     _attr_native_unit_of_measurement = "K"

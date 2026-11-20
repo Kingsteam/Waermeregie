@@ -537,6 +537,9 @@ def test_self_off_gives_up_after_wait():
     r = run(cfg, r.state, obs(off + timedelta(minutes=31), wz=20.0, stove=_burning(35.0, False)))
     assert r.state["block_start"] is None
     assert r.state["last_stop"] == off.isoformat()  # Pause zählt ab dem Abschalten
+    # der Ofen ist innerlich noch "ein": ausdrücklich ausschalten (20.11.2026)
+    assert ("stove_stop",) in r.actions
+    assert r.state["reignite_watch"] is not None
 
 
 def test_off_with_cold_water_ends_block_at_once():
@@ -637,8 +640,9 @@ def test_reignition_without_demand_is_switched_off_not_adopted():
     assert r.state["block_start"] is None
     assert ("stove_stop",) in r.actions
     assert r.status["stove"]["starts_today"] == 0
-    assert any("selbst gezündet" in t for t in r.log)
+    assert any("von selbst neu gezündet, kein Bedarf, ausgeschaltet" in t for t in r.log)
     assert not any("von Hand" in t for t in r.log)
+    assert r.status["stove"]["reignitions_today"] == 1
     # eine Minute später brennt er noch: kein neuer Befehl, kein neuer Eintrag
     r = run(cfg, r.state, obs(later + timedelta(minutes=1), wz=24.5, sz=23.5, stove=_burning(75.0)))
     assert ("stove_stop",) not in r.actions
@@ -743,4 +747,116 @@ def test_shadow_overheat_does_not_switch_stove():
     now = at(16, "07:00")
     r = run(cfg, engine.empty_state(), obs(now, wz=24.0, stove=_burning(93.0)))
     assert r.status["stove"]["overheat"] is True
+    assert ("stove_stop",) not in r.actions
+
+
+# --- Ablauf vom 20.11.2026: Blockende während Selbstabschaltung --------------------
+
+WARM = {"wz": 24.5, "sz": 23.5}  # Haus deutlich über Ziel
+
+
+def _self_off(water=72.0):
+    return StoveObs(available=True, on=False, burning=False, water_c=water)
+
+
+def test_block_end_during_self_off_then_reignition_is_switched_off():
+    """08:09 selbst abgeschaltet, 08:32 Ziel erreicht, 08:48 und 09:52 zündet er selbst."""
+    cfg = sample_config(mode="active")
+    start = at(16, "07:01")
+    state = {
+        **engine.empty_state(),
+        "block_start": start.isoformat(),
+        "starts": [start.isoformat()],
+    }
+    r = run(cfg, state, obs(at(16, "08:09"), **WARM, stove=_self_off()))
+    assert r.status["stove"]["self_off"] is True
+    assert ("stove_stop",) not in r.actions  # Mindestbrenndauer läuft noch
+    # Block endet, während der Ofen wegen heißem Wasser pausiert: trotzdem Aus-Befehl
+    r = run(cfg, r.state, obs(at(16, "08:32"), **WARM, stove=_self_off(66.0)))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert r.state["reignite_watch"] is not None
+    # der Ofen bleibt aus: kein weiterer Befehl
+    r = run(cfg, r.state, obs(at(16, "08:40"), **WARM, stove=_self_off(58.0)))
+    assert ("stove_stop",) not in r.actions
+    # 08:48 meldet er "brennt": ausschalten statt übernehmen
+    r = run(cfg, r.state, obs(at(16, "08:48"), **WARM, stove=_burning(52.0)))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert ("stove_start",) not in r.actions
+    assert r.log == ["Ofen hat von selbst neu gezündet, kein Bedarf, ausgeschaltet"]
+    assert r.status["stove"]["starts_today"] == 1
+    assert r.status["stove"]["reignitions_today"] == 1
+    r = run(cfg, r.state, obs(at(16, "08:50"), **WARM, stove=_self_off(55.0)))
+    # 09:52 noch einmal: wieder aus, eigener Protokolleintrag, eigene Zählung
+    r = run(cfg, r.state, obs(at(16, "09:52"), **WARM, stove=_burning(45.0)))
+    assert ("stove_stop",) in r.actions
+    assert r.state["block_start"] is None
+    assert not any("von Hand" in t for t in r.log)
+    assert r.status["stove"]["starts_today"] == 1
+    assert r.status["stove"]["reignitions_today"] == 2
+    # die Start-Grenze ist nicht verbraucht: am Abend darf die Regel wieder heizen
+    r = run(cfg, r.state, obs(at(16, "09:54"), **WARM, stove=_self_off(50.0)))
+    r = run(cfg, r.state, obs(at(16, "17:30"), wz=19.0, sz=17.5))
+    assert ("stove_start",) in r.actions
+
+
+def test_block_given_up_during_self_off_sends_stop_and_catches_reignition():
+    """08:56 selbst abgeschaltet, 09:26 Wartezeit um (früher ohne Aus-Befehl), 09:52 Zündung."""
+    cfg = sample_config(mode="active")
+    start = at(16, "08:48")
+    state = {
+        **engine.empty_state(),
+        "block_start": start.isoformat(),
+        "starts": [start.isoformat()],
+    }
+    r = run(cfg, state, obs(at(16, "08:56"), **WARM, stove=_self_off()))
+    assert r.status["stove"]["self_off"] is True
+    r = run(cfg, r.state, obs(at(16, "09:26"), **WARM, stove=_self_off(48.0)))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert any("schaltet ihn ganz aus" in t for t in r.log)
+    r = run(cfg, r.state, obs(at(16, "09:52"), **WARM, stove=_burning(40.0)))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert any("von selbst neu gezündet, kein Bedarf" in t for t in r.log)
+    assert r.status["stove"]["starts_today"] == 1
+
+
+def test_reignition_after_self_off_with_demand_is_not_called_manual():
+    cfg = sample_config(mode="active")
+    end = at(16, "17:00")
+    state = {
+        **engine.empty_state(),
+        "last_stop": end.isoformat(),
+        "reignite_watch": end.isoformat(),
+    }
+    r = run(cfg, state, obs(end + timedelta(minutes=40), wz=19.0, sz=17.5, stove=_burning()))
+    assert r.state["block_start"] is not None
+    assert any("von selbst neu gezündet (nach Selbstabschaltung)" in t for t in r.log)
+    assert not any("von Hand" in t for t in r.log)
+    assert r.status["stove"]["starts_today"] == 1
+    assert r.status["stove"]["reignitions_today"] == 1
+    assert r.state["reignite_watch"] is None
+
+
+def test_block_end_while_burning_sets_no_reignite_watch():
+    """Normales Blockende bei brennendem Ofen: ein späterer Start gilt weiter als von Hand."""
+    cfg = sample_config(mode="active")
+    start = at(16, "07:01")
+    state = {**engine.empty_state(), "block_start": start.isoformat()}
+    r = run(cfg, state, obs(at(16, "08:32"), **WARM, stove=_burning(60.0)))
+    assert ("stove_stop",) in r.actions
+    assert r.state["reignite_watch"] is None
+
+
+def test_shadow_mode_never_stops_reigniting_stove():
+    cfg = sample_config()  # Schattenbetrieb
+    end = at(16, "08:32")
+    state = {
+        **engine.empty_state(),
+        "last_stop": end.isoformat(),
+        "reignite_watch": end.isoformat(),
+    }
+    r = run(cfg, state, obs(at(16, "08:48"), **WARM, stove=_burning(52.0)))
     assert ("stove_stop",) not in r.actions

@@ -182,6 +182,7 @@ export interface Status {
     block_start: string | null;
     pause_until: string | null;
     starts_today: number;
+    reignitions_today?: number;
     max_starts_per_day: number;
     chrono_warning: boolean;
     eco_warning?: boolean;

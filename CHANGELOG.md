@@ -4,6 +4,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-20
+### Behoben
+- **Ofen ist nach dem Blockende wirklich aus.** Schaltet der Ofen wegen heißem Wasser selbst ab, bleibt er innerlich „ein“ und zündet nach dem Abkühlen wieder. Lief die Wartezeit auf den Neustart ab, beendete die Wärmeregie bisher nur ihren Heizblock und schickte **keinen** Aus-Befehl; der Ofen zündete später von selbst und wurde als „von Hand eingeschaltet“ übernommen (20.11.2026, dreimal hintereinander, Haus rund 4 K zu warm). Jetzt schickt sie in diesem Fall ausdrücklich „aus“ (Protokoll: „Ofen hat selbst abgeschaltet und nicht wieder gezündet, Heizblock beendet, Wärmeregie schaltet ihn ganz aus“).
+- **Wiederzünden nach Selbstabschaltung ist kein Start von Hand.** Endet ein Block, während der Ofen wegen heißem Wasser pausiert, merkt sich die Wärmeregie das 3 Stunden lang. Zündet er in dieser Zeit ohne Wärmebedarf, wird er ausgeschaltet („Ofen hat von selbst neu gezündet, kein Bedarf, ausgeschaltet“). Besteht Wärmebedarf, übernimmt sie den Block, nennt ihn aber nicht mehr „von Hand“.
+### Hinzugefügt
+- **Selbstzündungen werden gezählt:** Status `stove.reignitions_today`, Zeile „Selbstzündungen heute“ in der Übersicht (nur wenn es welche gab), Attribut `reignitions_today` am Sensor „Starts heute“. Eine ausgeschaltete Selbstzündung verbraucht keinen der erlaubten Starts pro Tag.
+
 ## [0.8.0] - 2026-11-20
 ### Hinzugefügt
 - **Heizkörper als Puffer (Wärmeabfuhr):** Ohne Pufferspeicher öffnet die Wärmeregie die Heizkörper, sobald das Kesselwasser heiß wird, damit die Wärme ins Haus geht statt den Ofen hochkochen zu lassen. **Unscharf:** Statt bei 70 °C schlagartig alles aufzudrehen, öffnet sie die Heizkörper umso weiter, je heißer der Kessel ist (ab 65 °C ein wenig, ab 80 °C ganz: 2 K über Ziel bzw. über der Raumtemperatur). Schon warme Räume bekommen etwas weniger, nie unter der Hälfte; nahe am Kesselschutz alle den vollen Wert. Unter 60 °C wieder normal. Neue Parameter *Heizkörper als Puffer*, Schalter „Pufferspeicher vorhanden“.

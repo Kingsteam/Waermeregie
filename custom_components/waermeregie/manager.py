@@ -877,6 +877,7 @@ class WaermeregieManager:
         self.state["prepare_since"] = None
         self.state["start_cmd"] = None
         self.state["self_off_since"] = None
+        self.state["reignite_watch"] = None
         self._add_log(
             now,
             "Aktiver Betrieb: die Wärmeregie schaltet jetzt"
