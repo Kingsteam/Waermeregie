@@ -72,3 +72,13 @@ def test_sensor_offset_and_warmup_scene_checked():
         model.validate(cfg)
     cfg["warmup_scene"] = "komfort"
     assert model.validate(cfg)["warmup_scene"] == "komfort"
+
+
+def test_overheat_guard_values_are_sane():
+    from custom_components.waermeregie import const
+
+    assert 85.0 <= const.OVERHEAT_C <= 95.0
+    assert const.OVERHEAT_CLEAR_C < const.OVERHEAT_C - 10
+    lo, hi = const.ROOM_TARGET_LIMITS
+    assert lo <= const.OVERHEAT_RADIATOR_C <= hi
+    assert "overheat" in const.NOTIFY_CRITICAL

@@ -622,3 +622,125 @@ def test_house_average_temperature_and_target():
     # Wichtigkeit 3 und 1: (3*20 + 18) / 4
     assert r.status["house"]["temperature_c"] == 19.5
     assert r.status["house"]["target_c"] == 20.5
+
+
+# --- Selbstzündung ohne Bedarf (20.11.2026) ---------------------------------------
+
+
+def test_reignition_without_demand_is_switched_off_not_adopted():
+    """Block endet (Ziel erreicht), Hydro-Ofen zündet nach dem Abkühlen selbst wieder."""
+    cfg = sample_config(mode="active")
+    stop = at(16, "08:32")
+    state = {**engine.empty_state(), "last_stop": stop.isoformat()}
+    later = stop + timedelta(minutes=16)
+    r = run(cfg, state, obs(later, wz=24.5, sz=23.5, stove=_burning(75.0)))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert r.status["stove"]["starts_today"] == 0
+    assert any("selbst gezündet" in t for t in r.log)
+    assert not any("von Hand" in t for t in r.log)
+    # eine Minute später brennt er noch: kein neuer Befehl, kein neuer Eintrag
+    r = run(cfg, r.state, obs(later + timedelta(minutes=1), wz=24.5, sz=23.5, stove=_burning()))
+    assert ("stove_stop",) not in r.actions
+    assert not r.log
+    # nach 5 min noch immer an: Befehl wiederholen
+    r = run(cfg, r.state, obs(later + timedelta(minutes=6), wz=24.5, sz=23.5, stove=_burning()))
+    assert ("stove_stop",) in r.actions
+    # aus: Merker zurück
+    r = run(
+        cfg, r.state, obs(later + timedelta(minutes=8), wz=24.5, sz=23.5, stove=_burning(on=False))
+    )
+    assert r.state["reignite_stop"] is None
+
+
+def test_ignition_during_manual_pause_is_switched_off():
+    cfg = sample_config(mode="active")
+    now = at(16, "11:00")
+    state = {**engine.empty_state(), "pause_until": (now + timedelta(hours=3)).isoformat()}
+    r = run(cfg, state, obs(now, wz=24.0, stove=_burning(70.0)))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert r.state["starts"] == []
+
+
+def test_manual_start_long_after_stop_is_still_adopted():
+    cfg = sample_config(mode="active")
+    stop = at(16, "08:00")
+    state = {**engine.empty_state(), "last_stop": stop.isoformat()}
+    r = run(cfg, state, obs(stop + timedelta(hours=4), wz=21.0, stove=_burning()))
+    assert r.state["block_start"] is not None
+    assert any("von Hand" in t for t in r.log)
+
+
+def test_ignition_with_demand_shortly_after_stop_is_adopted():
+    cfg = sample_config(mode="active")
+    stop = at(16, "17:00")
+    state = {**engine.empty_state(), "last_stop": stop.isoformat()}
+    r = run(cfg, state, obs(stop + timedelta(minutes=40), wz=19.0, sz=17.5, stove=_burning()))
+    assert r.state["block_start"] is not None
+
+
+# --- Kesselschutz (20.11.2026: 92,5 °C bei zugedrehten Heizkörpern) -------------
+
+
+def test_overheat_stops_block_and_opens_radiators():
+    cfg = sample_config(mode="active")
+    start = at(16, "07:00")
+    state = {
+        **engine.empty_state(),
+        "block_start": start.isoformat(),
+        "starts": [start.isoformat()],
+    }
+    r = run(cfg, state, obs(start + timedelta(minutes=10), wz=22.0, stove=_burning(91.0)))
+    assert ("stove_stop",) in r.actions
+    assert r.state["block_start"] is None
+    assert r.status["stove"]["overheat"] is True
+    assert "Kesselschutz" in r.status["stove"]["reason"]
+    radiators = [a for a in r.actions if a[0] == "radiator"]
+    assert radiators and all(a[2] == 26.0 for a in radiators)
+    assert any("Kesselschutz" in t for t in r.log)
+
+
+def test_overheat_blocks_start_until_cool_then_releases():
+    cfg = sample_config(mode="active")
+    now = at(16, "07:00")
+    state = {**engine.empty_state(), "overheat_since": now.isoformat()}
+    cold = dict(wz=18.0, sz=16.5)
+    r = run(cfg, state, obs(now + timedelta(minutes=20), stove=_burning(80.0, False), **cold))
+    assert ("stove_start",) not in r.actions
+    assert r.status["stove"]["phase"] == "blocked"
+    assert r.status["stove"]["overheat"] is True
+    r = run(cfg, r.state, obs(now + timedelta(minutes=40), stove=_burning(74.0, False), **cold))
+    assert r.status["stove"]["overheat"] is False
+    assert any("Kesselschutz beendet" in t for t in r.log)
+    assert ("stove_start",) in r.actions
+
+
+def test_overheat_switches_off_self_ignition_and_is_not_adopted():
+    cfg = sample_config(mode="active")
+    now = at(16, "08:48")
+    state = {**engine.empty_state(), "overheat_since": (now - timedelta(minutes=30)).isoformat()}
+    r = run(cfg, state, obs(now, wz=24.0, stove=_burning(82.0)))
+    assert ("stove_stop",) in r.actions
+    assert r.state["block_start"] is None
+    assert r.state["starts"] == []
+    r = run(cfg, r.state, obs(now + timedelta(minutes=1), wz=24.0, stove=_burning(82.0)))
+    assert ("stove_stop",) not in r.actions  # nicht jede Minute
+
+
+def test_overheat_ends_when_water_sensor_gone_for_two_hours():
+    cfg = sample_config(mode="active")
+    now = at(16, "07:00")
+    state = {**engine.empty_state(), "overheat_since": now.isoformat()}
+    r = run(cfg, state, obs(now + timedelta(minutes=60), stove=_burning(None, False)))
+    assert r.status["stove"]["overheat"] is True
+    r = run(cfg, r.state, obs(now + timedelta(minutes=121), stove=_burning(None, False)))
+    assert r.status["stove"]["overheat"] is False
+
+
+def test_shadow_overheat_does_not_switch_stove():
+    cfg = sample_config()
+    now = at(16, "07:00")
+    r = run(cfg, engine.empty_state(), obs(now, wz=24.0, stove=_burning(93.0)))
+    assert r.status["stove"]["overheat"] is True
+    assert ("stove_stop",) not in r.actions

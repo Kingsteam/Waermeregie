@@ -3,8 +3,8 @@ import "../components/entity-picker";
 import { notifyServices } from "../entities";
 import type { I18nKey } from "../i18n";
 import { baseStyles } from "../styles";
-import type { Config, Defaults } from "../types";
-import { formatNumber, normalizeLimit, paramLimits, withinLimit } from "../util";
+import type { Config, Defaults, Notifications, NotifyKind } from "../types";
+import { DEFAULT_NOTIFICATIONS, formatNumber, normalizeLimit, normalizeTimeInput, paramLimits, quietValid, withinLimit } from "../util";
 import { EditorBase, readNumber } from "./editor-base";
 
 type Unit = "K" | "°C" | "min" | "kg" | "kg/h" | "";
@@ -269,6 +269,7 @@ export class WrHouseEditor extends EditorBase {
           ${this._renderNotify()}
         </div>
         </details>
+        ${this._renderMessages()}
       </div>
       ${this._renderParameters()}
     `;
@@ -303,6 +304,107 @@ export class WrHouseEditor extends EditorBase {
             })}
           </div>`
         : html`<div class="muted">${t("house.notify_none")}</div>`}`;
+  }
+
+  private _msg(): Notifications {
+    return { ...DEFAULT_NOTIFICATIONS, ...(this.config.notifications ?? {}) };
+  }
+
+  private _setMsg(mutate: (n: Notifications) => void) {
+    this._set((x) => {
+      const n = { ...DEFAULT_NOTIFICATIONS, ...(x.notifications ?? {}) };
+      mutate(n);
+      x.notifications = n;
+    });
+  }
+
+  private _renderMessages() {
+    const t = this.t;
+    const n = this._msg();
+    const kinds: NotifyKind[] = ["opening", "opening_check", "sensor", "pellets", "stove_error", "overheat"];
+    const quietOk = quietValid(n);
+    const minutes = (key: "opening_delay_min" | "repeat_min" | "ventilate_max_min", min: number, max: number, step: number) => {
+      const hintKey = `msg.${key}_hint` as I18nKey;
+      return html`<label class="param">
+        <span class="ptext">
+          <span class="lbl">${t(`msg.${key}` as I18nKey)}</span>
+          <span class="hint">${t(hintKey)}</span>
+        </span>
+        <span class="pinput">
+          <input
+            type="number"
+            ?disabled=${this.readonly}
+            min=${min}
+            max=${max}
+            step=${step}
+            placeholder=${String(DEFAULT_NOTIFICATIONS[key])}
+            .value=${String(n[key])}
+            @change=${(e: Event) => {
+              const v = readNumber(e);
+              this._setMsg((x) => (x[key] = v === null ? DEFAULT_NOTIFICATIONS[key] : Math.max(min, Math.min(max, v))));
+            }}
+          />
+          <span class="unit">min</span>
+        </span>
+      </label>`;
+    };
+    const time = (key: "quiet_start" | "quiet_end") => html`<label class="field">
+      <span class="lbl">${t(`msg.${key}` as I18nKey)}</span>
+      <input
+        class=${quietOk ? "" : "invalid"}
+        ?disabled=${this.readonly}
+        inputmode="numeric"
+        placeholder="HH:MM"
+        .value=${n[key]}
+        @change=${(e: Event) => {
+          const raw = (e.target as HTMLInputElement).value.trim();
+          this._setMsg((x) => (x[key] = raw ? normalizeTimeInput(raw) : ""));
+        }}
+      />
+    </label>`;
+    return html`<details class="sect" ?open=${!quietOk}>
+      <summary><ha-icon icon="mdi:bell-cog-outline"></ha-icon><span><b>${t("house.messages")}</b><small>${t("house.messages_hint")}</small></span></summary>
+      <div class="cols">
+        <div>
+          <div class="lbl">${t("house.msg_kinds")}</div>
+          <div class="notify">
+            ${kinds.map(
+              (k) => html`<label class="check">
+                <input
+                  type="checkbox"
+                  ?disabled=${this.readonly}
+                  .checked=${n[k]}
+                  @change=${(e: Event) => {
+                    const on = (e.target as HTMLInputElement).checked;
+                    this._setMsg((x) => (x[k] = on));
+                  }}
+                />
+                <span>${t(`msg.${k}` as I18nKey)}</span>
+              </label>`,
+            )}
+          </div>
+          <div class="lbl" style="margin-top:12px">${t("msg.quiet")}</div>
+          <div class="hint">${t("msg.quiet_hint")}</div>
+          <div class="quiet">${time("quiet_start")}${time("quiet_end")}</div>
+          ${quietOk ? nothing : html`<div class="error-text">${t("msg.quiet_invalid")}</div>`}
+          <label class="check" style="margin-top:8px">
+            <input
+              type="checkbox"
+              ?disabled=${this.readonly}
+              .checked=${n.quiet_hold}
+              @change=${(e: Event) => {
+                const on = (e.target as HTMLInputElement).checked;
+                this._setMsg((x) => (x.quiet_hold = on));
+              }}
+            />
+            <span>${t("msg.quiet_hold")}</span>
+          </label>
+        </div>
+        <div>
+          ${minutes("opening_delay_min", 0, 240, 1)} ${minutes("repeat_min", 0, 1440, 5)} ${minutes("ventilate_max_min", 5, 240, 5)}
+        </div>
+      </div>
+    </details>`;
   }
 
   private _renderParameters() {
@@ -480,6 +582,13 @@ export class WrHouseEditor extends EditorBase {
         width: auto;
         min-height: 0;
         flex: none;
+      }
+      .quiet {
+        display: flex;
+        gap: 12px;
+      }
+      .quiet .field {
+        max-width: 120px;
       }
       .params {
         display: grid;

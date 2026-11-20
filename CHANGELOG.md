@@ -4,6 +4,24 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-20
+### Hinzugefügt
+- **Kesselschutz:** Steigt das Kesselwasser auf 90 °C, bleibt der Ofen aus (laufender Heizblock endet, Selbstzündungen werden ausgeschaltet, kein Neustart) und alle Heizkörper öffnen auf 26 °C, damit die Wärme aus dem Kessel abfließen kann. Erst unter 75 °C ist alles wieder normal. Fehlt die Wassertemperatur 2 Stunden lang, endet der Kesselschutz. Die Werte sind feste Sicherheitsgrenzen (`const.py`). Anlass: 92,5 °C bei zugedrehten Heizkörpern. Im Schattenbetrieb wird nur gerechnet.
+- **Meldung „Kesselschutz“** (Art `overheat`, kommt auch in der Ruhezeit), einmal je Ereignis. Status `stove.overheat`, Hinweis in Übersicht und Karte.
+
+## [0.6.1] - 2026-11-20
+### Behoben
+- **Selbstzündung nicht mehr als Handstart übernehmen.** Ein Hydro-Ofen ohne Puffer zündet nach dem Abkühlen von selbst wieder, auch nachdem die Wärmeregie den Block beendet hat. Bisher galt das als „von Hand eingeschaltet“, wurde als neuer Heizblock übernommen und brannte mindestens die Mindestbrenndauer, obwohl das Haus schon zu warm war und die Heizkörper zu waren (Kesselwasser über 90 °C). Jetzt schaltet die Wärmeregie den Ofen wieder aus, wenn er während einer Pause von Hand oder innerhalb von 3 Stunden nach dem letzten Block ohne Wärmebedarf zündet (kein Aufheizen, kein Frostschutz). Der Aus-Befehl wird höchstens alle 5 Minuten wiederholt; das zählt nicht als Start. Ein Handstart später oder bei Wärmebedarf wird weiter übernommen.
+
+## [0.6.0] - 2026-11-20
+### Hinzugefügt
+- **Meldungen einstellbar** (*Ofen & Haus → Meldungen*, Config `notifications`): jede Art einzeln ein/aus (Fenster offen, Fenster offen ohne Abkühlen, Geräte nicht erreichbar, Pellets, Ofen-Störung), Fenster erst nach 10 Minuten melden, gleiche Meldung frühestens nach 60 Minuten wieder, Ruhezeit 22:00-07:00 (nur Ofen-Störung, der Rest danach gesammelt in einer Nachricht). Ältere Einstellungen bekommen diese Standardwerte.
+- **Ofen-Störung als Nachricht** (neu, einmal pro Störung).
+- **Lüften wegen Luftfeuchte:** je Raum optionale Feuchtefühler (Sensor oder Thermostat) mit Schwelle (Standard 65 %) und Anstieg über dem Grundwert (Standard 6 Punkte über dem Tiefstwert der letzten 90 Minuten). Ein offenes Fenster bei hoher Feuchte meldet sich erst, wenn die Feuchte wieder fast beim Grundwert ist, höchstens nach 30 Minuten. Die Heizlogik bei offenem Fenster ist unverändert. Übersicht zeigt das Lüften mit einem Tropfen-Symbol, Status `rooms[].humidity` und `ventilating`.
+
+### Geändert
+- Die Nachricht „Fenster offen“ kommt nicht mehr nach 1 Minute im leeren Raum, sondern nach der eingestellten Wartezeit (Standard 10 Minuten). Der Hinweis in der Übersicht erscheint weiter früh.
+
 ## [0.5.0] - 2026-11-19
 ### Hinzugefügt
 - **Haus aufheizen:** Knopf *Aufheizen* in Panel und Karte, Knopf-Entität *Haus aufheizen*, Dienste `waermeregie.warmup` und `cancel_warmup`. Der Ofen startet einen ganzen Heizblock, auch wenn es gerade warm genug ist oder die Szene „Abwesend“ gilt. Es gelten die Ziele der Aufheiz-Szene (Standard: erste Szene, in der der Ofen heizen darf) plus 1 K (Parameter *Aufheizen: wärmer als Ziel*). Mindestpause, Starts pro Tag, offene Türen und Störungen gelten weiter; eine Pause von Hand wird aufgehoben.

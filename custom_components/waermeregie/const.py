@@ -68,6 +68,12 @@ PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "warmup_lead_min": (15, 240),
 }
 ROOM_TARGET_LIMITS: Final = (5.0, 28.0)  # Zieltemperatur Raum / Heizkörper
+# Kesselschutz: Hydro-Ofen ohne Puffer, Wärme kann nicht weg (Heizkörper zu).
+# Ab OVERHEAT_C bleibt der Ofen aus und alle Heizkörper öffnen (OVERHEAT_RADIATOR_C),
+# bis das Wasser wieder unter OVERHEAT_CLEAR_C ist. 20.11.2026: 92,5 °C gemessen.
+OVERHEAT_C: Final = 90.0
+OVERHEAT_CLEAR_C: Final = 75.0
+OVERHEAT_RADIATOR_C: Final = 26.0
 MAX_OVERRIDE_MIN: Final = 24 * 60
 MAX_PAUSE_MIN: Final = 24 * 60
 MAX_BOOST_K: Final = 3.0
@@ -77,6 +83,10 @@ MAX_WARMUP_MIN: Final = 6 * 60
 WARMUP_AFTER_ARRIVAL_MIN: Final = 60  # nach der Ankunft noch so lange warm halten
 SENSOR_OFFSET_LIMIT_K: Final = 5.0  # Korrektur je Temperaturfühler höchstens ±5 K
 START_CONFIRM_MIN: Final = 3  # nach dem eigenen Startbefehl so lange auf "an" warten
+REIGNITE_WINDOW_MIN: Final = (
+    180  # so lange nach dem Blockende gilt Zünden ohne Bedarf als Selbstzündung
+)
+REIGNITE_RESEND_MIN: Final = 5  # Aus-Befehl bei Selbstzündung höchstens so oft wiederholen
 HOT_WATER_C: Final = 50.0  # Wasser so heiß: Ofen hat wegen Kesseltemperatur selbst abgeschaltet
 MIN_RADIATOR_STEP_K: Final = 0.5  # Heizkörper erst ab dieser Änderung neu setzen
 
@@ -123,3 +133,41 @@ PELLET_DAYS_FOR_FORECAST: Final = 3
 # Verlauf für die Grafik
 HISTORY_STEP_MIN: Final = 10
 HISTORY_HOURS: Final = 48
+
+# Benachrichtigungen (keine Sicherheitsgrenzen: steuern nur, was aufs Handy kommt)
+NOTIFY_KINDS: Final = (
+    "opening",
+    "opening_check",
+    "sensor",
+    "pellets",
+    "stove_error",
+    "overheat",
+)
+NOTIFY_CRITICAL: Final = ("stove_error", "overheat")  # kommen auch in der Ruhezeit
+NOTIFY_LIMITS: Final[dict[str, tuple[float, float]]] = {
+    "opening_delay_min": (0, 240),  # Fenster erst melden, wenn so lange offen
+    "repeat_min": (0, 1440),  # gleiche Meldung frühestens wieder nach
+    "ventilate_max_min": (5, 240),  # Feucht-Lüften höchstens so lange ohne Meldung
+}
+DEFAULT_NOTIFICATIONS: Final[dict] = {
+    "opening": True,
+    "opening_check": True,
+    "sensor": True,
+    "pellets": True,
+    "stove_error": True,
+    "overheat": True,
+    "opening_delay_min": 10,
+    "repeat_min": 60,
+    "ventilate_max_min": 30,
+    "quiet_start": "22:00",  # "" = keine Ruhezeit
+    "quiet_end": "07:00",
+    "quiet_hold": True,  # in der Ruhezeit gesammelt, danach eine Nachricht
+}
+
+# Lüften wegen Luftfeuchte (je Raum einstellbar, hier Standard und Grenzen)
+DEFAULT_VENTILATE_HUMIDITY: Final = 65.0  # absolute Schwelle in %, 0 = nicht verwenden
+DEFAULT_VENTILATE_RISE: Final = 6.0  # Prozentpunkte über dem Grundwert, 0 = nicht verwenden
+VENTILATE_HUMIDITY_LIMITS: Final = (0.0, 100.0)
+VENTILATE_RISE_LIMITS: Final = (0.0, 30.0)
+HUMIDITY_BASELINE_MIN: Final = 90  # Grundwert = Tiefstwert der letzten 90 min
+HUMIDITY_HYSTERESIS: Final = 2.0  # Lüften endet bei Grundwert + 2 Punkte

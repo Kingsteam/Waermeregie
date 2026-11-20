@@ -69,3 +69,22 @@ describe("healthNote", () => {
     expect(healthNote(undefined, t)).toBeNull();
   });
 });
+
+describe("Feuchtefühler", () => {
+  it("hinzufügen, anzeigen, entfernen", () => {
+    const t = translator("de");
+    const room: Room = { id: "bad", name: "Bad", importance: 1, radiators: [], temperature_sensors: [], openings: [], presence: [], paused: [], targets: {} };
+    addDevice(room, "humidity_sensors", "sensor.feuchte");
+    addDevice(room, "humidity_sensors", "sensor.feuchte");
+    expect(room.humidity_sensors).toEqual(["sensor.feuchte"]);
+    const st = { entity_id: "sensor.feuchte", state: "55.2", attributes: {} } as HassEntity;
+    expect(deviceValue(st, "humidity_sensors", t, "de")).toBe("55 %");
+    const th = { entity_id: "climate.hk", state: "heat", attributes: { current_humidity: 48 } } as HassEntity;
+    expect(deviceValue(th, "humidity_sensors", t, "de")).toBe("48 %");
+    togglePaused(room, "sensor.feuchte");
+    expect(room.paused).toEqual(["sensor.feuchte"]);
+    removeDevice(room, "humidity_sensors", "sensor.feuchte");
+    expect(room.humidity_sensors).toEqual([]);
+    expect(room.paused).toEqual([]);
+  });
+});

@@ -37,6 +37,19 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
   "persons": ["person.anna"],          // optional
   "pet": null,                         // optional: binary_sensor/device_tracker/person
   "notify": ["notify.mobile_app_handy"],  // optional: Benachrichtigungsdienste (Text, keine Entitäten)
+  "notifications": {                   // optional, fehlende Werte = Standard (ab 0.6.0)
+    "opening": true,                   // Fenster/Tür länger offen
+    "opening_check": true,             // Fenster offen, Raum kühlt nicht ab
+    "sensor": true,                    // Geräte lange nicht erreichbar
+    "pellets": true,                   // Pellets nachfüllen
+    "stove_error": true,               // Ofen meldet Störung (kommt auch in der Ruhezeit)
+    "overheat": true,                  // Kesselschutz: Wasser zu heiß (kommt auch in der Ruhezeit)
+    "opening_delay_min": 10,           // Fenster-Meldung erst nach so vielen Minuten (0-240)
+    "repeat_min": 60,                  // gleiche Meldung (Art + Raum) frühestens wieder nach (0-1440, 0 = keine Sperre)
+    "ventilate_max_min": 30,           // Lüften wegen Feuchte höchstens so lange ohne Meldung (5-240)
+    "quiet_start": "22:00", "quiet_end": "07:00",  // Ruhezeit, über Mitternacht möglich; beide "" = keine
+    "quiet_hold": true                 // in der Ruhezeit gesammelt, danach eine Nachricht (false = verwerfen)
+  },
   "rooms": [
     {
       "id": "wohnzimmer", "name": "Wohnzimmer", "importance": 3,          // 1 niedrig … 3 hoch
@@ -44,6 +57,9 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
       "temperature_sensors": [{"entity": "sensor.raum_wz", "weight": 1.0, "offset": 0.0}],  // offset -5…+5 K wird zum Messwert addiert
       "openings": ["binary_sensor.terrassentuer"],
       "presence": ["binary_sensor.wz_belegt"],
+      "humidity_sensors": [],                                             // optional: sensor (Feuchte) oder climate (current_humidity)
+      "ventilate_humidity": 65,                                           // Feucht ab dieser Feuchte (%, 0 = aus)
+      "ventilate_rise": 6,                                                // … oder so viele Punkte über dem Tiefstwert der letzten 90 min (0 = aus)
       "paused": [],                                                       // eingetragen, aber nicht verwendet (Teilmenge der Geräte oben)
       "targets": {"komfort": 21, "sparen": 19.5}                          // je Szene; fehlt → scene.default_target
     }
@@ -89,6 +105,7 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
     "phase": "idle" | "prepare" | "block" | "pause" | "blocked",   // prepare = sanfter Start, Heizkörper öffnen
     "start_at": null,                  // bei prepare: Uhrzeit der Zündung
     "self_off": false,                 // Ofen hat im Block selbst abgeschaltet (Wasser heiß), Regel wartet auf Neustart
+    "overheat": false,                 // Kesselschutz aktiv: Wasser war über 90 °C, Ofen aus und Heizkörper offen bis unter 75 °C
     "action": "start" | "stop" | "keep",    // was die Regelung gerade will
     "reason": "Wohnräume 0,7 K unter Ziel",
     "block_start": null, "pause_until": null, "starts_today": 2, "max_starts_per_day": 4,
@@ -103,10 +120,13 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
   "warmup": null,                      // oder {"start_at": "…", "until": "…", "arrive": "…"|null, "active": true}
   "rooms": [
     {"id": "wohnzimmer", "name": "Wohnzimmer", "temperature": 20.3, "target": 21, "deficit_k": 0.7,
-     "radiator_setpoint": 22, "open": false, "open_minutes": 0, "recover_until": null, "occupied": true, "sensors_missing": 0}
+     "radiator_setpoint": 22, "open": false, "open_minutes": 0, "recover_until": null, "occupied": true, "sensors_missing": 0,
+     "humidity": 48.5,                 // höchste Feuchte (null ohne Feuchtefühler)
+     "ventilating": false}             // Fenster offen wegen hoher Feuchte: keine Fenster-Meldung
   ],
   "alerts": [{"kind": "opening", "room": "wohnzimmer", "entity": "binary_sensor.terrassentuer", "minutes": 12, "message": "Terrassentür seit 12 min offen"}],
   // weitere kind: "sensor" (Gerät länger als sensor_alert_min weg), "opening_check" (offen, Raum kühlt nicht ab)
+  // "opening": minutes zählt nach dem Feucht-Lüften ab "Feuchte wieder unten"; ob eine Nachricht geht, regelt "notifications"
   "devices": {"binary_sensor.terrassentuer": {"drops_24h": 2, "down_since": null, "held": false}},  // je Raum-Gerät (ohne pausierte)
   "pellets": {"stock_kg": 12.5, "capacity_kg": 26, "fill_pct": 48, "rate_kg_h": 1.5, "rate_learned": false, "hours_left": 8.3, "empty_at": "…", "daily_burn_h": 2.1},
   "overrides": {"scene": null, "pause_until": null, "boost": null},

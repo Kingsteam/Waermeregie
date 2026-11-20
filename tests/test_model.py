@@ -75,3 +75,67 @@ def test_paused_entities_are_kept_but_only_if_in_room():
     assert eff["rooms"][0]["temperature_sensors"] == []
     assert eff["rooms"][0]["radiators"] == []
     assert model.validate(sample_config())["rooms"][0]["paused"] == []
+
+
+def test_old_config_without_notifications_gets_defaults():
+    cfg = sample_config()
+    del cfg["notifications"]
+    for room in cfg["rooms"]:
+        for key in ("humidity_sensors", "ventilate_humidity", "ventilate_rise"):
+            room.pop(key, None)
+    out = model.validate(cfg)
+    assert out["notifications"]["opening_delay_min"] == 10
+    assert out["notifications"]["quiet_start"] == "22:00"
+    assert out["rooms"][0]["humidity_sensors"] == []
+    assert out["rooms"][0]["ventilate_humidity"] == 65.0
+    assert out["rooms"][0]["ventilate_rise"] == 6.0
+
+
+def test_notifications_partial_and_humidity_room():
+    cfg = sample_config()
+    cfg["notifications"] = {"pellets": False, "repeat_min": 120, "quiet_start": "", "quiet_end": ""}
+    cfg["rooms"][0]["humidity_sensors"] = ["sensor.feuchte_bad", "climate.heizung_wohnzimmer"]
+    cfg["rooms"][0]["ventilate_rise"] = 4
+    cfg["rooms"][0]["paused"] = ["sensor.feuchte_bad"]
+    out = model.validate(cfg)
+    assert out["notifications"]["pellets"] is False
+    assert out["notifications"]["opening"] is True
+    assert out["notifications"]["repeat_min"] == 120
+    assert out["rooms"][0]["ventilate_rise"] == 4.0
+    assert out["rooms"][0]["paused"] == ["sensor.feuchte_bad"]
+
+
+@pytest.mark.parametrize(
+    "notifications",
+    [
+        {"opening": "ja"},
+        {"opening_delay_min": 500},
+        {"repeat_min": -1},
+        {"ventilate_max_min": 1},
+        {"quiet_start": "25:00"},
+        {"quiet_start": "22:00", "quiet_end": ""},
+        {"quiet_start": "22:00", "quiet_end": "22:00"},
+        "aus",
+    ],
+)
+def test_invalid_notifications(notifications):
+    cfg = sample_config()
+    cfg["notifications"] = notifications
+    with pytest.raises(model.ConfigError):
+        model.validate(cfg)
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("humidity_sensors", ["binary_sensor.fenster"]),
+        ("ventilate_humidity", 120),
+        ("ventilate_rise", 40),
+        ("ventilate_rise", "6"),
+    ],
+)
+def test_invalid_humidity_room(key, value):
+    cfg = sample_config()
+    cfg["rooms"][0][key] = value
+    with pytest.raises(model.ConfigError):
+        model.validate(cfg)

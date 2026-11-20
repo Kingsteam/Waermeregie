@@ -18,6 +18,11 @@ from .const import (
     HOT_WATER_C,
     MIN_RADIATOR_STEP_K,
     MODE_ACTIVE,
+    OVERHEAT_C,
+    OVERHEAT_CLEAR_C,
+    OVERHEAT_RADIATOR_C,
+    REIGNITE_RESEND_MIN,
+    REIGNITE_WINDOW_MIN,
     ROOM_TARGET_LIMITS,
     START_CONFIRM_MIN,
     STOVE_ALLOW,
@@ -42,6 +47,9 @@ class RoomObs:
     last_open_minutes: float = 0.0  # wie lange es davor offen war
     occupied: bool | None = None  # None = keine Melder
     empty_since: datetime | None = None
+    humidity: float | None = None  # höchste Luftfeuchte im Raum (%)
+    ventilating: bool = False  # Fenster offen wegen hoher Feuchte: noch nicht melden
+    alert_from: datetime | None = None  # Feuchte wieder unten: Meldung zählt ab hier
 
 
 @dataclass
@@ -98,11 +106,37 @@ def empty_state() -> dict[str, Any]:
         "prepare_since": None,  # sanfter Start: seit wann die Heizkörper vorlaufen
         "start_cmd": None,  # eigener Startbefehl, noch nicht vom Ofen bestätigt
         "self_off_since": None,  # Ofen hat im Block selbst abgeschaltet (Wasser heiß)
+        "reignite_stop": None,  # Ofen hat ohne Bedarf selbst gezündet: letzter Aus-Befehl
+        "overheat_since": None,  # Kesselschutz aktiv (Wasser zu heiß)
+        "overheat_stop": None,  # Kesselschutz: letzter Aus-Befehl
     }
 
 
 def _dt(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value) if value else None
+
+
+def _fmt_c(value: float | None) -> str:
+    return "?" if value is None else f"{value:.0f}"
+
+
+def _unwanted_ignition(
+    state: dict, now: datetime, p: dict, house_deficit, warmup_active: bool, frost_need: bool
+) -> bool:
+    """Ofen brennt ohne Block: von selbst gezündet statt von Hand eingeschaltet?
+
+    Gilt, wenn von Hand pausiert ist, oder wenn die Regel den letzten Block erst vor
+    kurzem beendet hat und kein Wärmebedarf besteht (kein Aufheizen, kein Frostschutz).
+    """
+    pause = _dt(state.get("pause_until"))
+    if pause is not None and pause > now:
+        return True
+    last_stop = _dt(state.get("last_stop"))
+    if last_stop is None or now - last_stop >= timedelta(minutes=REIGNITE_WINDOW_MIN):
+        return False
+    if warmup_active or frost_need:
+        return False
+    return house_deficit is not None and house_deficit < p["start_below_k"]
 
 
 def _fmt_k(value: float) -> str:
@@ -248,13 +282,17 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             grace = min(grace, p["opening_empty_room_min"])
             alert_after = min(alert_after, max(p["opening_empty_room_min"], 1))
         is_open = ro.open_since is not None and open_min >= grace
-        if ro.open_since is not None and open_min >= alert_after:
+        # Lüften wegen Feuchte: keine Meldung; danach zählt die Zeit ab "wieder trocken"
+        alert_min = open_min
+        if ro.open_since is not None and ro.alert_from and ro.alert_from > ro.open_since:
+            alert_min = (now - ro.alert_from).total_seconds() / 60
+        if ro.open_since is not None and not ro.ventilating and alert_min >= alert_after:
             alerts.append(
                 {
                     "kind": "opening",
                     "room": room["id"],
                     "entity": ro.open_entity,
-                    "minutes": int(open_min),
+                    "minutes": int(alert_min),
                     "message": (
                         f"{ro.open_name or 'Öffnung'} ({room['name']}) "
                         f"seit {int(open_min)} min offen"
@@ -300,9 +338,39 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 "recover_until": recover_until.isoformat() if recover_until else None,
                 "occupied": ro.occupied,
                 "sensors_missing": ro.sensors_missing,
+                "humidity": ro.humidity,
+                "ventilating": bool(ro.ventilating and ro.open_since is not None),
             }
         )
     house_deficit = round(weighted_sum / weight_total, 2) if weight_total else None
+
+    # Kesselschutz: Wasser zu heiß, Wärme kann nicht weg
+    water = obs.stove.water_c
+    overheat_since = _dt(state.get("overheat_since"))
+    if water is not None and water >= OVERHEAT_C and overheat_since is None:
+        overheat_since = now
+        state["overheat_since"] = now.isoformat()
+        log.append(
+            f"Kesselschutz: Wasser {_fmt_c(water)} °C, Ofen bleibt aus und alle "
+            f"Heizkörper öffnen, bis es unter {_fmt_c(OVERHEAT_CLEAR_C)} °C ist"
+        )
+    elif water is not None and water <= OVERHEAT_CLEAR_C and overheat_since is not None:
+        overheat_since = None
+        state["overheat_since"] = None
+        log.append(f"Kesselschutz beendet: Wasser {_fmt_c(water)} °C")
+    if water is None and overheat_since and now - overheat_since >= timedelta(minutes=120):
+        overheat_since = None  # Fühler weg: nicht ewig alle Heizkörper offen lassen
+        state["overheat_since"] = None
+        log.append("Kesselschutz beendet: Wassertemperatur seit 2 Stunden unbekannt")
+    overheat = overheat_since is not None
+    if overheat and obs.stove.on and active:
+        last = _dt(state.get("overheat_stop"))
+        if last is None or now - last >= timedelta(minutes=REIGNITE_RESEND_MIN):
+            state["overheat_stop"] = now.isoformat()
+            if state["block_start"] is None:
+                actions.append(("stove_stop",))
+    if not obs.stove.on:
+        state["overheat_stop"] = None
 
     # Ofen: externe Änderungen übernehmen (nur aktiv, im Schatten ist alles gedacht)
     in_block = state["block_start"] is not None
@@ -332,6 +400,22 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         elif in_block and obs.stove.on and self_off_since is not None:
             state["self_off_since"] = self_off_since = None
             log.append("Ofen hat wieder gezündet, Heizblock läuft weiter")
+        elif not in_block and obs.stove.on and overheat:
+            pass  # Kesselschutz schaltet ihn oben aus, kein Handstart
+        elif (
+            not in_block
+            and obs.stove.on
+            and not obs.stove.error
+            and _unwanted_ignition(state, now, p, house_deficit, warmup_active, frost_need)
+        ):
+            # 20.11.2026: Hydro-Ofen zündet nach dem Abkühlen von selbst wieder, obwohl die
+            # Regel den Block beendet hat. Nicht als Handstart übernehmen (das hielt ihn
+            # mindestens min_burn_min am Brennen), sondern wieder ausschalten.
+            last = _dt(state.get("reignite_stop"))
+            if last is None or now - last >= timedelta(minutes=REIGNITE_RESEND_MIN):
+                state["reignite_stop"] = now.isoformat()
+                actions.append(("stove_stop",))
+                log.append("Ofen hat ohne Wärmebedarf selbst gezündet, Wärmeregie schaltet ihn aus")
         elif not in_block and obs.stove.on and not obs.stove.error:
             # Bei Störung nicht übernehmen: sonst Schleife aus „von Hand ein“ und
             # „Block beendet: Störung“ mit einem Aus-Befehl je Runde (19.11.2026)
@@ -339,6 +423,9 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             state["starts"].append(now.isoformat())
             in_block = True
             log.append("Ofen wurde von Hand eingeschaltet, Wärmeregie übernimmt den Block")
+
+    if not obs.stove.on:
+        state["reignite_stop"] = None
 
     starts_today = sum(1 for s in state["starts"] if _dt(s).date() == now.date())
     last_stop = _dt(state["last_stop"])
@@ -359,6 +446,8 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         stop_reason = None
         if obs.stove.error:
             stop_reason = "Ofen meldet eine Störung"
+        elif overheat:
+            stop_reason = f"Kesselschutz, Wasser {_fmt_c(water)} °C"
         elif policy == STOVE_DENY:
             stop_reason = f"Szene „{scene['name']}“: Ofen aus"
         elif manual_pause and manual_pause > now:
@@ -406,6 +495,12 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         phase = "idle"
         if obs.stove.error:
             blocker, phase = "Ofen meldet eine Störung", "blocked"
+        elif overheat:
+            blocker, phase = (
+                f"Kesselschutz: Wasser zu heiß ({_fmt_c(water)} °C), "
+                f"Ofen aus bis unter {_fmt_c(OVERHEAT_CLEAR_C)} °C",
+                "blocked",
+            )
         elif policy == STOVE_DENY:
             blocker, phase = f"Szene „{scene['name']}“: Ofen aus", "idle"
         elif pause_end and pause_end > now:
@@ -496,6 +591,8 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     for room, rs in zip(config["rooms"], room_status, strict=True):
         if rs["open"]:
             setpoint = p["frost_c"]
+        elif overheat:
+            setpoint = OVERHEAT_RADIATOR_C  # Wärme aus dem Kessel abführen
         elif in_block_now or preparing:
             setpoint = rs["target"] + p["radiator_boost_k"]
         else:
@@ -546,6 +643,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "power_level": power,
             "start_at": ((_dt(state["prepare_since"]) + soft).isoformat() if preparing else None),
             "self_off": self_off_since is not None,
+            "overheat": overheat,
             "water_c": obs.stove.water_c,
             "ignitions": obs.stove.ignitions,
         },

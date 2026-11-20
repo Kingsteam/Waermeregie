@@ -12,7 +12,7 @@ import "./tabs/scenes";
 import "./tabs/house";
 import { invalidParameters } from "./tabs/house";
 import type { Config, Defaults, Hass, HistoryPoint, Mode, Status } from "./types";
-import { clone, errorMessage, formatStamp, normalizeConfig, pickLang, sameData, sortLogNewestFirst, validateSlots, WEEK_KEYS } from "./util";
+import { clone, errorMessage, formatStamp, normalizeConfig, pickLang, sameData, quietValid, sortLogNewestFirst, validateSlots, WEEK_KEYS } from "./util";
 import { renderShadowBanner, type ViewCtx } from "./views";
 
 type Tab = "overview" | "rooms" | "schedule" | "scenes" | "house" | "log";
@@ -47,6 +47,7 @@ export function draftProblems(c: Config, defaults: Defaults | null): number {
   for (const s of c.scenes) if (!s.name.trim()) n++;
   for (const k of WEEK_KEYS) if (!c.week[k] || !dayIds.includes(c.week[k] as string)) n++;
   n += invalidParameters(c, defaults).length;
+  if (c.notifications && !quietValid(c.notifications)) n++;
   return n;
 }
 
