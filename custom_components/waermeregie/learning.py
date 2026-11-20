@@ -23,6 +23,9 @@ STOP_CMD_MIN: int = 3  # so lange nach eigenem Aus-Befehl gilt "aus" als von uns
 SELFOFF_LIMITS: tuple[float, float] = (60.0, 95.0)
 AFTERHEAT_LIMITS: tuple[float, float] = (0.0, 30.0)
 COOL_LIMITS: tuple[float, float] = (0.0, 10.0)
+# Über 99,5 °C meldet der Fühler seinen Anschlag (126,0), keine echte Temperatur
+# (20.11.2026). Solche Werte machen eine laufende Messung ungültig.
+WATER_VALID_MAX_C: float = 100.0
 PEAK_MARGIN_K: float = 5.0  # Zielspitze so weit unter dem Kesselschutz
 SELFOFF_MARGIN_K: float = 2.0  # bzw. so weit unter der Selbstabschaltung
 SAFETY_K: float = 3.0  # zusätzlicher Abstand
@@ -68,6 +71,11 @@ def reset(learn: dict | None) -> dict[str, Any]:
 
 def _dt(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value) if value else None
+
+
+def plausible(water: float | None) -> bool:
+    """Ist die Wassertemperatur ein echter Messwert (nicht der Anschlag des Fühlers)?"""
+    return water is not None and 0.0 <= water <= WATER_VALID_MAX_C
 
 
 def add_sample(learn: dict, key: str, value: float, now: datetime) -> bool:
@@ -131,7 +139,7 @@ def observe(
         # Nachwärme beobachten
         learn["watch"] = (
             {"since": now.isoformat(), "start_c": water, "max_c": water}
-            if water is not None
+            if plausible(water)
             else None
         )
     if on:
@@ -139,8 +147,8 @@ def observe(
 
     watch = learn.get("watch")
     if watch is not None and not on:
-        if water is None:
-            learn["watch"] = None  # Lücke: Messung unvollständig
+        if not plausible(water):
+            learn["watch"] = None  # Lücke oder Fühler am Anschlag: Messung ungültig
         else:
             watch["max_c"] = max(watch["max_c"], water)
             if now - _dt(watch["since"]) >= timedelta(minutes=AFTERHEAT_WINDOW_MIN):
@@ -162,6 +170,9 @@ def observe(
 def track_dump(learn: dict, now: datetime, active: bool, water: float | None) -> None:
     """Abkühlrate während der Wärmeabfuhr: vom Höchstwert bis zum Ende."""
     peak = learn.get("dump_peak")
+    if water is not None and not plausible(water):
+        learn["dump_peak"] = None  # Fühler am Anschlag: Messung ungültig
+        return
     if active and water is not None:
         if peak is None or water >= peak["c"]:
             learn["dump_peak"] = {"c": water, "at": now.isoformat()}
