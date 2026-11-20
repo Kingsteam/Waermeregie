@@ -510,6 +510,10 @@ async def test_warmup_now_starts_warm_house(hass: HomeAssistant, setup, hass_ws_
     assert any(
         c.data == {"entity_id": "climate.pelletofen", "hvac_mode": "heat"} for c in mode_calls
     )
+    mgr = hass.data[DOMAIN]
+    assert any(
+        e["text"].startswith("Aufheizen jetzt") and "(von Hand" in e["text"] for e in mgr.log
+    )
     await client.send_json_auto_id({"type": f"{DOMAIN}/warmup", "cancel": True})
     msg = await client.receive_json()
     assert msg["success"] and msg["result"]["warmup"] is None
@@ -546,6 +550,7 @@ async def test_warmup_service_button_and_clears_pause(hass: HomeAssistant, setup
     button = er.async_get(hass).async_get_entity_id("button", DOMAIN, f"{setup.entry_id}_warmup")
     await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
     assert mgr.state["warmup"] is not None
+    assert any("(Knopf Haus aufheizen)" in e["text"] for e in mgr.log)
     assert mgr.state["pause_until"] is None
     await hass.services.async_call(DOMAIN, "cancel_warmup", {}, blocking=True)
     assert mgr.state["warmup"] is None
@@ -553,6 +558,7 @@ async def test_warmup_service_button_and_clears_pause(hass: HomeAssistant, setup
     assert mgr.state["warmup"]["arrive"] is not None
     await hass.services.async_call(DOMAIN, "warmup", {"minutes": 60}, blocking=True)
     assert mgr.state["warmup"]["arrive"] is None
+    assert any("(Dienst waermeregie.warmup)" in e["text"] for e in mgr.log)
 
 
 async def test_history_points_every_ten_minutes(
@@ -787,3 +793,17 @@ async def test_window_left_open_after_shower_reported_later(
     await hass.async_block_till_done()
     assert len(calls) == 1
     assert "seit 18 min offen" in calls[0].data["message"]
+
+
+async def test_learn_reset_and_status(hass: HomeAssistant, setup, hass_ws_client) -> None:
+    client, _ = await _configured(hass, hass_ws_client)
+    mgr = hass.data[DOMAIN]
+    mgr.state["learn"]["samples"]["afterheat_k"] = 3
+    mgr.state["learn"]["values"]["afterheat_k"] = 12.0
+    await client.send_json_auto_id({"type": f"{DOMAIN}/learn/reset"})
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    assert msg["result"]["learn"]["samples"]["afterheat_k"] == 0
+    assert msg["result"]["learn"]["values"]["afterheat_k"] is None
+    assert msg["result"]["stove"]["dump"] is False
+    assert any(e["text"] == "Gelernte Werte zurückgesetzt" for e in mgr.log)

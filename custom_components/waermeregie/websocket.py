@@ -31,6 +31,7 @@ def async_register(hass: HomeAssistant) -> None:
         ws_mode,
         ws_warmup,
         ws_history,
+        ws_learn_reset,
     ):
         websocket_api.async_register_command(hass, handler)
 
@@ -158,6 +159,13 @@ async def ws_mode(hass: HomeAssistant, connection, msg: dict) -> None:
     await _run(connection, msg, mgr.async_set_mode(msg["mode"]))
 
 
+def _by_hand(connection) -> str:
+    """Protokolltext für eine Bedienung auf der Wärmeregie-Seite oder Karte."""
+    user = getattr(connection, "user", None)
+    name = getattr(user, "name", None)
+    return f"von Hand, {name}" if name else "von Hand"
+
+
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
@@ -174,7 +182,12 @@ async def ws_warmup(hass: HomeAssistant, connection, msg: dict) -> None:
     await _run(
         connection,
         msg,
-        mgr.async_warmup(msg.get("minutes"), msg.get("arrive"), msg["cancel"]),
+        mgr.async_warmup(
+            msg.get("minutes"),
+            msg.get("arrive"),
+            msg["cancel"],
+            source=_by_hand(connection),
+        ),
     )
 
 
@@ -189,3 +202,12 @@ def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
     if not (mgr := _manager(hass)):
         return _not_loaded(connection, msg)
     connection.send_result(msg["id"], {"points": mgr.history_points(msg["hours"])})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/learn/reset"})
+@websocket_api.async_response
+async def ws_learn_reset(hass: HomeAssistant, connection, msg: dict) -> None:
+    if not (mgr := _manager(hass)):
+        return _not_loaded(connection, msg)
+    await _run(connection, msg, mgr.async_learn_reset())

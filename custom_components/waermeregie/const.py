@@ -66,6 +66,12 @@ PARAMETER_LIMITS: Final[dict[str, tuple[float, float]]] = {
     "self_off_wait_min": (0, 60),  # Ofen schaltet selbst ab (Wasser heiß): warten
     "warmup_extra_k": (0.0, 3.0),
     "warmup_lead_min": (15, 240),
+    # Wärmeabfuhr ohne Puffer: Heizkörper nehmen die Wärme aus dem Kessel auf
+    "dump_start_c": (50.0, 85.0),  # Mitte der Rampe "Kessel heiß"
+    "dump_end_c": (40.0, 80.0),  # darunter ist die Wärmeabfuhr aus
+    "dump_extra_k": (0.0, 5.0),  # höchstens so viel über dem Raumziel
+    "dump_ramp_low_k": (1.0, 15.0),  # Rampe beginnt so weit unter der Mitte
+    "dump_ramp_high_k": (1.0, 20.0),  # und ist so weit über der Mitte voll
 }
 ROOM_TARGET_LIMITS: Final = (5.0, 28.0)  # Zieltemperatur Raum / Heizkörper
 # Kesselschutz: Hydro-Ofen ohne Puffer, Wärme kann nicht weg (Heizkörper zu).
@@ -120,7 +126,13 @@ DEFAULT_PARAMETERS: Final[dict[str, float]] = {
     "self_off_wait_min": 30,
     "warmup_extra_k": 1.0,
     "warmup_lead_min": 60,
+    "dump_start_c": 70.0,
+    "dump_end_c": 60.0,
+    "dump_extra_k": 2.0,
+    "dump_ramp_low_k": 5.0,
+    "dump_ramp_high_k": 10.0,
 }
+DEFAULT_DUMP_LEARN: Final = True  # Startschwelle der Wärmeabfuhr aus dem Betrieb lernen
 
 # Sensoren
 OPENING_CHECK_DROP_K: Final = 0.3  # so viel sollte ein Raum bei offenem Fenster abkühlen

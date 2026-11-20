@@ -3,7 +3,8 @@ import "../components/entity-picker";
 import { notifyServices } from "../entities";
 import type { I18nKey } from "../i18n";
 import { baseStyles } from "../styles";
-import type { Config, Defaults, Notifications, NotifyKind } from "../types";
+import { resetLearning } from "../api";
+import type { Config, Defaults, Notifications, NotifyKind, Status } from "../types";
 import { DEFAULT_NOTIFICATIONS, formatNumber, normalizeLimit, normalizeTimeInput, paramLimits, quietValid, withinLimit } from "../util";
 import { EditorBase, readNumber } from "./editor-base";
 
@@ -15,7 +16,7 @@ interface ParamDef {
   step: number;
 }
 
-const PARAM_GROUPS: { group: I18nKey; params: ParamDef[]; extra?: "warmup_scene" }[] = [
+const PARAM_GROUPS: { group: I18nKey; params: ParamDef[]; extra?: "warmup_scene" | "buffer" }[] = [
   {
     group: "pgroup.stove",
     params: [
@@ -33,6 +34,17 @@ const PARAM_GROUPS: { group: I18nKey; params: ParamDef[]; extra?: "warmup_scene"
     params: [
       { key: "soft_start_min", unit: "min", step: 1 },
       { key: "self_off_wait_min", unit: "min", step: 5 },
+    ],
+  },
+  {
+    group: "pgroup.buffer",
+    extra: "buffer",
+    params: [
+      { key: "dump_start_c", unit: "°C", step: 1 },
+      { key: "dump_end_c", unit: "°C", step: 1 },
+      { key: "dump_extra_k", unit: "K", step: 0.5 },
+      { key: "dump_ramp_low_k", unit: "K", step: 1 },
+      { key: "dump_ramp_high_k", unit: "K", step: 1 },
     ],
   },
   {
@@ -91,6 +103,7 @@ const PARAM_GROUPS: { group: I18nKey; params: ParamDef[]; extra?: "warmup_scene"
 const GROUP_ICONS: Partial<Record<I18nKey, string>> = {
   "pgroup.stove": "mdi:fire",
   "pgroup.softstart": "mdi:radiator",
+  "pgroup.buffer": "mdi:water-boiler",
   "pgroup.warmup": "mdi:home-thermometer-outline",
   "pgroup.openings": "mdi:window-open-variant",
   "pgroup.sensors": "mdi:access-point-network-off",
@@ -123,6 +136,10 @@ export function invalidParameters(config: Config, defaults: Defaults | null | un
 }
 
 export class WrHouseEditor extends EditorBase {
+  static override properties = { ...EditorBase.properties, status: { attribute: false }, _learnBusy: { state: true } };
+  declare status: Status | null;
+  declare _learnBusy: boolean;
+
   private _set(mutate: (c: Config) => void) {
     this.change(mutate);
   }
@@ -428,10 +445,74 @@ export class WrHouseEditor extends EditorBase {
               ${bad ? html`<ha-icon class="bad" icon="mdi:alert-circle"></ha-icon>` : nothing}
             </summary>
             ${g.extra === "warmup_scene" ? this._renderWarmupScene() : nothing}
+            ${g.extra === "buffer" ? this._renderBuffer() : nothing}
             <div class="params">${present.map((p) => this._renderParam(p))}</div>
           </details>`;
         })}
       </div>`;
+  }
+
+  private _flag(key: "has_buffer" | "dump_learn", def: boolean) {
+    const t = this.t;
+    const on = this.config.stove[key] ?? def;
+    return html`<label class="check" style="margin-top:8px">
+      <input
+        type="checkbox"
+        ?disabled=${this.readonly}
+        .checked=${on}
+        @change=${(e: Event) => {
+          const v = (e.target as HTMLInputElement).checked;
+          this._set((x) => (x.stove[key] = v));
+        }}
+      />
+      <span><b>${t(`house.${key}` as I18nKey)}</b><br /><small class="hint">${t(`house.${key}_hint` as I18nKey)}</small></span>
+    </label>`;
+  }
+
+  private _renderBuffer() {
+    const t = this.t;
+    const learn = this.status?.learn;
+    const fmt = (v: number | null | undefined, unit: string, digits = 1) =>
+      v === null || v === undefined ? "–" : `${formatNumber(v, this.lang, digits)} ${unit}`;
+    const row = (key: "selfoff_c" | "afterheat_k" | "cool_k_min", unit: string, digits = 1) =>
+      html`<tr>
+        <td>${t(`learn.${key}` as I18nKey)}</td>
+        <td><b>${fmt(learn?.values[key], unit, digits)}</b></td>
+        <td class="muted">${learn ? `${learn.samples[key]} ${t("learn.samples")}` : ""}</td>
+      </tr>`;
+    return html`<div style="margin-top:4px">
+      <div class="hint">${t("house.buffer_explain")}</div>
+      ${this._flag("has_buffer", false)} ${this._flag("dump_learn", true)}
+      <div class="lbl" style="margin-top:12px">${t("learn.title")}</div>
+      <div class="hint">${t("learn.hint")}</div>
+      ${learn
+        ? html`<table class="learn">
+              ${row("selfoff_c", "°C", 0)} ${row("afterheat_k", "K")} ${row("cool_k_min", "K/min", 2)}
+              <tr>
+                <td>${t("learn.dump_start_c")}</td>
+                <td><b>${fmt(learn.dump_start_c, "°C", 0)}</b></td>
+                <td class="muted">${t("learn.min_samples").replace("{n}", String(learn.min_samples))}</td>
+              </tr>
+            </table>
+            <button
+              class="secondary"
+              style="margin-top:8px"
+              ?disabled=${this.readonly || this._learnBusy || !this.hass}
+              @click=${async () => {
+                if (!confirm(t("learn.reset_confirm"))) return;
+                this._learnBusy = true;
+                try {
+                  const st = await resetLearning(this.hass);
+                  this.dispatchEvent(new CustomEvent("wr-status", { detail: st, bubbles: true, composed: true }));
+                } finally {
+                  this._learnBusy = false;
+                }
+              }}
+            >
+              ${t("learn.reset")}
+            </button>`
+        : html`<div class="muted">${t("learn.none")}</div>`}
+    </div>`;
   }
 
   private _renderWarmupScene() {

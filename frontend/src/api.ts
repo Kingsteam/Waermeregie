@@ -31,6 +31,7 @@ export async function pelletsRefill(hass: Hass): Promise<Status | null> {
   return null;
 }
 
+export const resetLearning = (hass: Hass) => hass.callWS<Status>({ type: "waermeregie/learn/reset" });
 export const setMode = (hass: Hass, mode: Mode) => hass.callWS<Status>({ type: "waermeregie/mode", mode });
 
 /**

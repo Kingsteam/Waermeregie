@@ -33,7 +33,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import engine, health, humidity, messages, model, pellets
+from . import engine, health, humidity, learning, messages, model, pellets
 from .const import (
     DEBOUNCE_S,
     DOMAIN,
@@ -770,6 +770,13 @@ class WaermeregieManager:
             )
         return await self.async_evaluate()
 
+    async def async_learn_reset(self) -> dict:
+        """Gelerntes Zusammenspiel Kessel/Heizkörper vergessen."""
+        now = dt_util.now()
+        self.state["learn"] = learning.reset(self.state.get("learn"))
+        self._add_log(now, "Gelernte Werte zurückgesetzt", self.config["mode"] != MODE_ACTIVE)
+        return await self.async_evaluate()
+
     async def async_pause(self, minutes: float) -> dict:
         now = dt_util.now()
         if not 0 <= minutes <= MAX_PAUSE_MIN:
@@ -805,13 +812,18 @@ class WaermeregieManager:
         minutes: float | None = None,
         arrive: str | None = None,
         cancel: bool = False,
+        source: str | None = None,
     ) -> dict:
-        """Haus aufheizen: jetzt für minutes oder rechtzeitig vor der Ankunft (HH:MM)."""
+        """Haus aufheizen: jetzt für minutes oder rechtzeitig vor der Ankunft (HH:MM).
+
+        source sagt im Protokoll, wer es ausgelöst hat (Seite, Knopf, Dienst).
+        """
+        by = f" ({source})" if source else ""
         now = dt_util.now()
         shadow = self.config["mode"] != MODE_ACTIVE
         if cancel:
             if self.state.get("warmup"):
-                self._add_log(now, "Aufheizen abgebrochen", shadow)
+                self._add_log(now, "Aufheizen abgebrochen" + by, shadow)
             self.state["warmup"] = None
             return await self.async_evaluate()
         lead = timedelta(minutes=self.config["parameters"]["warmup_lead_min"])
@@ -847,7 +859,7 @@ class WaermeregieManager:
         }
         # wer aufheizen will, will keine Pause von Hand mehr
         self.state["pause_until"] = None
-        self._add_log(now, text, shadow)
+        self._add_log(now, text + by, shadow)
         return await self.async_evaluate()
 
     async def async_set_mode(self, mode: str) -> dict:

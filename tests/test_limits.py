@@ -82,3 +82,9 @@ def test_overheat_guard_values_are_sane():
     lo, hi = const.ROOM_TARGET_LIMITS
     assert lo <= const.OVERHEAT_RADIATOR_C <= hi
     assert "overheat" in const.NOTIFY_CRITICAL
+
+
+def test_dump_limits_stay_below_overheat():
+    """Die Wärmeabfuhr beginnt immer deutlich vor dem Kesselschutz."""
+    assert C.PARAMETER_LIMITS["dump_start_c"][1] <= C.OVERHEAT_C - 5
+    assert C.PARAMETER_LIMITS["dump_extra_k"][1] <= 5.0

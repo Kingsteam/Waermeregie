@@ -68,10 +68,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             arrive = arrive.strftime("%H:%M")
         elif arrive:
             arrive = arrive[:5]
-        await _guard(_manager(hass).async_warmup(call.data.get("minutes"), arrive))
+        await _guard(
+            _manager(hass).async_warmup(
+                call.data.get("minutes"), arrive, source="Dienst waermeregie.warmup"
+            )
+        )
 
     async def cancel_warmup(call: ServiceCall) -> None:
-        await _guard(_manager(hass).async_warmup(cancel=True))
+        await _guard(
+            _manager(hass).async_warmup(cancel=True, source="Dienst waermeregie.cancel_warmup")
+        )
 
     hass.services.async_register(
         DOMAIN,
