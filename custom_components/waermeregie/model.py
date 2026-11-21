@@ -7,9 +7,11 @@ Reine Funktionen ohne Home Assistant, damit sie einfach testbar sind.
 from __future__ import annotations
 
 import copy
+from datetime import datetime
 import re
 from typing import Any
 
+from . import rules
 from .const import (
     DEFAULT_DUMP_LEARN,
     DEFAULT_NOTIFICATIONS,
@@ -69,6 +71,7 @@ def default_config() -> dict[str, Any]:
         "notify": [],
         "notifications": dict(DEFAULT_NOTIFICATIONS),
         "warmup_scene": None,
+        "rules": [],
         "rooms": [],
         "scenes": [
             {
@@ -167,6 +170,10 @@ def limits() -> dict[str, Any]:
         "notifications": {k: list(v) for k, v in NOTIFY_LIMITS.items()},
         "ventilate_humidity": list(VENTILATE_HUMIDITY_LIMITS),
         "ventilate_rise": list(VENTILATE_RISE_LIMITS),
+        # Vorlage -> Parameter -> [kleinster, größter, Standard]
+        "rule_templates": {
+            t: {k: list(v) for k, v in ps.items()} for t, ps in rules.TEMPLATES.items()
+        },
     }
 
 
@@ -256,6 +263,62 @@ def _target(value: Any, what: str) -> float:
     if not lo <= v <= hi:
         raise ConfigError(f"{what}: {v} °C liegt außerhalb {lo}-{hi} °C")
     return round(v * 2) / 2
+
+
+def _rules(raw: Any, scene_ids: list[str]) -> list[dict[str, Any]]:
+    """Regeln aus Vorlagen prüfen (docs/REGELN.md)."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > rules.MAX_RULES:
+        raise ConfigError(f"Regeln: höchstens {rules.MAX_RULES}")
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for i, rule in enumerate(raw):
+        if not isinstance(rule, dict) or rule.get("template") not in rules.TEMPLATES:
+            raise ConfigError(f"Regel {i + 1}: unbekannte Vorlage")
+        template = rule["template"]
+        what = f"Regel „{rules.NAMES[template]}“"
+        rule_id = _id(rule.get("id") or template, what)
+        if rule_id in seen:
+            raise ConfigError(f"{what}: gibt es schon")
+        seen.add(rule_id)
+        given = rule.get("params") or {}
+        if not isinstance(given, dict):
+            raise ConfigError(f"{what}: Werte fehlen")
+        params: dict[str, Any] = {}
+        for key, (lo, hi, default) in rules.TEMPLATES[template].items():
+            value = _num(given.get(key, default), f"{what}: {key}")
+            if not lo <= value <= hi:
+                raise ConfigError(f"{what}: {key} muss zwischen {lo:g} und {hi:g} liegen")
+            params[key] = value
+        if template == "nobody_home":
+            scene = given.get("scene")
+            if scene not in scene_ids:
+                raise ConfigError(f"{what}: bitte eine Szene wählen")
+            lock = _entity(given.get("lock"), ("lock", "binary_sensor"), f"{what}: Türschloss")
+            # ohne Schloss bleibt die Bedingung "unbekannt": die Regel greift dann nie
+            require = bool(given.get("require_lock"))
+            params.update({"scene": scene, "lock": lock, "require_lock": require})
+        if template == "wind":
+            params["wind_entity"] = _entity(
+                given.get("wind_entity"), ("sensor",), f"{what}: Windfühler"
+            )
+        trial = rule.get("trial_until")
+        if trial is not None:
+            try:
+                datetime.fromisoformat(str(trial))
+            except ValueError as err:
+                raise ConfigError(f"{what}: Probelauf-Ende ungültig") from err
+        out.append(
+            {
+                "id": rule_id,
+                "template": template,
+                "enabled": bool(rule.get("enabled", True)),
+                "trial_until": None if trial is None else str(trial),
+                "params": params,
+            }
+        )
+    return out
 
 
 def validate(raw: Any) -> dict[str, Any]:
@@ -488,6 +551,7 @@ def validate(raw: Any) -> dict[str, Any]:
             f"({params['dump_end_c']:g} °C ist nicht unter {params['dump_start_c']:g} °C)"
         )
     out["parameters"] = params
+    out["rules"] = _rules(cfg.get("rules"), scene_ids)
 
     mode = cfg.get("mode", MODE_SHADOW)
     if mode not in (MODE_SHADOW, MODE_ACTIVE):

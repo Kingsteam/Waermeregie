@@ -80,6 +80,10 @@ class Observation:
     workday: bool | None = None
     outdoor_c: float | None = None
     chrono_on: bool | None = None
+    # Wirkung der Regeln des Besitzers (rules.evaluate): Szene, Ziel-Verschiebung, Vorlauf
+    rule_scene: str | None = None
+    rule_delta_k: float = 0.0
+    rule_lead_min: int = 0
 
 
 @dataclass
@@ -258,11 +262,19 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "override",
             state["override"]["until"],
         )
+    elif obs.rule_scene in scenes:
+        # Regel des Besitzers (z. B. niemand zu Hause); eine Auswahl von Hand geht vor
+        scene_id, source, until = obs.rule_scene, "rule", None
     else:
         scene_id, source, until = sched_scene, "schedule", None
+        if obs.rule_lead_min > 0:
+            # Vorlauf: den nächsten wärmeren Abschnitt des Zeitplans früher beginnen
+            ahead, _ = scene_at(config, now + timedelta(minutes=obs.rule_lead_min), obs.workday)
+            if scenes[ahead]["default_target"] > scenes[scene_id]["default_target"]:
+                scene_id, source = ahead, "lead"
     scene = scenes[scene_id]
     policy = scene["stove"]
-    boost = state["boost"]["delta"] if state["boost"] else 0.0
+    boost = (state["boost"]["delta"] if state["boost"] else 0.0) + obs.rule_delta_k
 
     # Aufheizen: Ofen darf (einmal) starten, auch wenn es warm genug ist;
     # Ziele der Aufheiz-Szene plus warmup_extra_k

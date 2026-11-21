@@ -370,6 +370,7 @@ export function normalizeConfig(raw: Partial<Config> | null | undefined): Config
     pet: c.pet ?? null,
     notify: c.notify ?? [],
     notifications: { ...DEFAULT_NOTIFICATIONS, ...(c.notifications ?? {}) },
+    rules: c.rules ?? [],
     rooms: (c.rooms ?? []).map((r) => ({
       ...r,
       importance: r.importance ?? 2,

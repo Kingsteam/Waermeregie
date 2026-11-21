@@ -4,6 +4,18 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-21
+### Hinzugefügt
+- **Reiter „Regeln“** (Etappe 2 des Konzepts in `docs/REGELN.md`). Regeln sind Sätze in Klartext mit Eingabefeldern, ein- und ausschaltbar, aus vier Vorlagen:
+  - **Niemand zu Hause:** alle eingetragenen Personen (und das Haustier) sind weg, auf Wunsch zusätzlich „Tür abgesperrt“, seit einer einstellbaren Zeit → eine Szene, z. B. Abwesend. Kommt jemand zurück oder wird aufgesperrt, gilt sofort wieder der Zeitplan.
+  - **Kalt draußen:** unter einer Außentemperatur → Ziele etwas höher und der nächste wärmere Abschnitt des Zeitplans beginnt früher.
+  - **Viel Wind:** über einer Windstärke (aus dem Wetter oder einem Windfühler) → dasselbe.
+  - **Kälteeinbruch laut Vorhersage:** fällt die Temperatur in den nächsten Stunden stark → früher beginnen.
+- **Grenzen:** Alle Regeln zusammen verschieben ein Ziel um höchstens 2 K und ziehen den Zeitplan um höchstens 2 Stunden vor. Eine von Hand gewählte Szene, Aufheizen und alle Schutzregeln gehen vor.
+- **Probelauf (freiwillig):** Eine Regel zählt einen Tag lang nur mit, wann sie gegriffen hätte, und schaltet nichts. Danach wartet sie, bis du sie scharf schaltest.
+- **„Warum gerade so?“:** eine Zeile, die sagt, woher die aktuelle Szene kommt und welche Regeln gerade wirken.
+- **Schutzregeln mit Schloss:** Kesselschutz, Frostschutz und das Ausschalten bei Selbstzündung sind als fest angezeigt. Pause gegen Takten, Starts pro Tag und „sofort aus bei zu warmem Haus“ lassen sich dort ändern, aber erst nach einer Warnung und nur in den sicheren Grenzen.
+
 ## [0.11.0] - 2026-11-21
 ### Hinzugefügt
 - **Rückmeldung „Zu kalt / Passt / Zu warm“** in der Übersicht und auf der Karte, fürs ganze Haus oder für einen einzelnen Raum (Auswahl daneben). Auch als Dienst `waermeregie.feedback`. Wirkung sofort: Haus zu kalt wirkt wie „Mir ist kalt“, Haus zu warm senkt alle Ziele für eine Stunde um 1 K, im Raum wird nur dessen Ziel für eine Stunde um 1 K gehoben oder gesenkt. „Passt“ wird nur gemerkt. Rückmelden darf jeder im Haus, nicht nur Verwalter.
