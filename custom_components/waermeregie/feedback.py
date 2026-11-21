@@ -29,6 +29,8 @@ LEAD_MIN = 30  # so viel vor der frühesten Rückmeldung soll er dann beginnen
 STEP_K = 0.5
 DISMISS_DAYS = 30  # abgelehnte Vorschläge kommen so lange nicht wieder
 ROOM_NUDGE_K = 1.0  # Sofortwirkung im Raum bei "zu kalt" / "zu warm"
+TREND_OFFSETS_MIN = (30, 60, 90)  # Messwerte so lange vor und nach der Rückmeldung
+TREND_TOLERANCE_MIN = 10  # so weit darf ein Verlaufspunkt daneben liegen
 
 
 def _dt(value: str) -> datetime:
@@ -75,6 +77,42 @@ def record(data: dict, now: datetime, kind: str, room: str | None, snapshot: dic
     data["entries"] = [e for e in data["entries"] if _dt(e["t"]) > cutoff][-(MAX_ENTRIES - 1) :]
     data["entries"].append(entry)
     return entry
+
+
+def trend(history: list[dict], when: datetime, room: str | None, sign: int) -> list[dict]:
+    """Messwerte aus dem Verlauf vor (sign -1) oder nach (+1) dem Zeitpunkt, zeitlich sortiert."""
+    points = [(_dt(p["t"]), p) for p in history]
+    out = []
+    for offset in TREND_OFFSETS_MIN:
+        target = when + timedelta(minutes=sign * offset)
+        best = min(points, key=lambda tp: abs(tp[0] - target), default=None)
+        if best is None or abs(best[0] - target) > timedelta(minutes=TREND_TOLERANCE_MIN):
+            continue
+        p = best[1]
+        out.append(
+            {
+                "min": sign * offset,
+                "house_c": p.get("house_c"),
+                "target_c": p.get("target_c"),
+                "room_c": (p.get("rooms") or {}).get(room) if room else None,
+                "outdoor_c": p.get("outdoor_c"),
+                "water_c": p.get("water_c"),
+                "burning": p.get("burning"),
+            }
+        )
+    return sorted(out, key=lambda x: x["min"])
+
+
+def fill_after(data: dict, history: list[dict], now: datetime) -> int:
+    """Bei Rückmeldungen, die lange genug her sind, die Messwerte danach nachtragen."""
+    wait = timedelta(minutes=TREND_OFFSETS_MIN[-1] + TREND_TOLERANCE_MIN)
+    count = 0
+    for entry in data["entries"]:
+        if "after" in entry or now - _dt(entry["t"]) < wait:
+            continue
+        entry["after"] = trend(history, _dt(entry["t"]), entry.get("room"), 1)
+        count += 1
+    return count
 
 
 def _scene_target(config: dict, scene_id: str, room_id: str | None) -> float | None:

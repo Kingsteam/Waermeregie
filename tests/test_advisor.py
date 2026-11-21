@@ -32,7 +32,9 @@ def _entries():
         "water_c": 40.0,
         "burning": False,
     }
-    feedback.record(data, at(17, "06:10"), "cold", "wohnzimmer", snap)
+    trend = [{"min": -30, "house_c": 19.9, "room_c": 19.6, "water_c": 38.0, "burning": False}]
+    feedback.record(data, at(17, "06:10"), "cold", "wohnzimmer", {**snap, "before": trend})
+    data["entries"][0]["after"] = [{"min": 30, "house_c": 20.4, "room_c": 20.2, "burning": True}]
     feedback.record(data, at(18, "20:00"), "ok", None, snap)
     return data["entries"]
 
@@ -48,6 +50,9 @@ def test_package_is_anonymous_and_leaves_out_protection():
         assert word not in text
     assert package["rueckmeldungen"][0]["bereich"] == "Raum A"
     assert package["rueckmeldungen"][0]["wochentag"] == "Dienstag"
+    assert package["rueckmeldungen"][0]["verlauf_davor"][0]["minuten"] == -30
+    assert package["rueckmeldungen"][0]["verlauf_danach"][0]["raum_c"] == 20.2
+    assert package["rueckmeldungen"][1]["verlauf_danach"] == []
     assert package["rueckmeldungen"][1]["bereich"] == "ganzes Haus"
     # Schutzregeln sind nicht verstellbar
     ids = {item["id"] for item in package["verstellbar"]}

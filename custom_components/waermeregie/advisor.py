@@ -69,6 +69,19 @@ def _hhmm(minute: int) -> str:
     return f"{minute // 60:02d}:{minute % 60:02d}"
 
 
+def _trend_point(p: dict) -> dict:
+    """Ein Messpunkt vor/nach einer Rückmeldung (Minuten relativ zur Rückmeldung)."""
+    return {
+        "minuten": p.get("min"),
+        "haus_c": p.get("house_c"),
+        "haus_ziel_c": p.get("target_c"),
+        "raum_c": p.get("room_c"),
+        "aussen_c": p.get("outdoor_c"),
+        "kessel_c": p.get("water_c"),
+        "ofen_brennt": p.get("burning"),
+    }
+
+
 def adjustable(config: dict) -> list[dict[str, Any]]:
     """Alle Werte, die ein Vorschlag ändern darf: Kennung, Stand, Grenzen."""
     out: list[dict[str, Any]] = []
@@ -167,6 +180,8 @@ def build_package(
                 "jemand_zu_hause": e.get("someone_home"),
                 "raum_feuchte": e.get("room_humidity"),
                 "raum_fenster_offen": e.get("room_open"),
+                "verlauf_davor": [_trend_point(p) for p in e.get("before") or []],
+                "verlauf_danach": [_trend_point(p) for p in e.get("after") or []],
                 "alle_raeume_c": {
                     room_alias[k]: v for k, v in (e.get("rooms") or {}).items() if k in room_alias
                 },
@@ -211,6 +226,10 @@ def instructions(package: dict) -> str:
         "Pufferspeicher. Unten stehen als JSON: die verstellbaren Werte mit Grenzen, der "
         "Zeitplan, die Szenen, die Regeln und die Rückmeldungen der Bewohner (zu kalt, passt, "
         "zu warm) mit den Messwerten in diesem Moment.\n\n"
+        "Zu jeder Rückmeldung stehen in 'verlauf_davor' und 'verlauf_danach' die Messwerte "
+        "30, 60 und 90 Minuten vorher und nachher ('minuten' relativ zur Rückmeldung). Nutze "
+        "sie: War es schon länger zu kühl, oder kühlte es gerade ab? Hat die Reaktion danach "
+        "gereicht?\n\n"
         "Aufgabe: Schlage höchstens "
         f"{MAX_CHANGES} Änderungen an verstellbaren Werten und höchstens {MAX_NEW_RULES} "
         "neue Regeln vor, die die Rückmeldungen erklären und verbessern. Ändere wenig und nur, "

@@ -1166,6 +1166,7 @@ class WaermeregieManager:
     # --- Rückmeldungen und Vorschläge ---------------------------------------------------
     async def _feedback_status(self, now: datetime) -> dict:
         """Offene Vorschläge und letzte Rückmeldung; neue Vorschläge einmal melden."""
+        feedback.fill_after(self.feedback, self.history, now)
         suggestions = self._suggestions(now)
         ids = {s["id"] for s in suggestions}
         if self._suggested is not None:
@@ -1310,6 +1311,7 @@ class WaermeregieManager:
                 "room_occupied": rs.get("occupied") if rs else None,
                 "rooms": {r["id"]: r.get("temperature") for r in st.get("rooms") or []},
                 "source": source,
+                "before": feedback.trend(self.history, now, room, -1),
             },
         )
         # Lernwerte der Regeln (nur Rückmeldungen fürs ganze Haus)
