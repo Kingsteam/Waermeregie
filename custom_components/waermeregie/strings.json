@@ -211,6 +211,20 @@
           "description": "So lange gelten die höheren Ziele (30-360 min). Ohne Angabe gilt der Wert aus den Einstellungen."
         }
       }
+    },
+    "feedback": {
+      "name": "Rückmeldung geben",
+      "description": "Sagen, ob es zu kalt, passend oder zu warm ist. Die Wärmeregie reagiert gleich und lernt daraus Vorschläge.",
+      "fields": {
+        "kind": {
+          "name": "Empfinden",
+          "description": "cold = zu kalt, ok = passt, warm = zu warm."
+        },
+        "room": {
+          "name": "Raum",
+          "description": "Kennung des Raums (wie in der Wärmeregie). Leer = ganzes Haus."
+        }
+      }
     }
   }
 }

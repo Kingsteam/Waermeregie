@@ -20,6 +20,15 @@ export const setBoost = (hass: Hass, delta: number, minutes: number) =>
 export type WarmupRequest = { minutes: number } | { arrive: string } | { cancel: true } | { cold: true };
 export const setWarmup = (hass: Hass, req: WarmupRequest) => hass.callWS<Status>({ type: "waermeregie/warmup", ...req });
 
+export type FeedbackKind = "cold" | "ok" | "warm";
+/** Rückmeldung fürs ganze Haus (room null) oder einen Raum. */
+export const sendFeedback = (hass: Hass, kind: FeedbackKind, room: string | null) =>
+  hass.callWS<Status>({ type: "waermeregie/feedback", kind, ...(room ? { room } : {}) });
+
+/** Vorschlag annehmen (auch mit eigenem Wert) oder ablehnen. */
+export const answerSuggestion = (hass: Hass, id: string, action: "accept" | "dismiss", value?: string | number) =>
+  hass.callWS<Status>({ type: "waermeregie/suggestion", suggestion: id, action, ...(value !== undefined ? { value } : {}) });
+
 /** Verlauf für die Grafik. Fehlt der Befehl (ältere Version), wird abgelehnt. */
 export const loadHistory = (hass: Hass, hours = 24) =>
   hass.callWS<{ points: HistoryPoint[] }>({ type: "waermeregie/history", hours }).then((r) => (Array.isArray(r?.points) ? r.points : []));

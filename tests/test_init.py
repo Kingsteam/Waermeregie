@@ -928,3 +928,43 @@ async def test_activity_message_only_when_switched_on(
     assert [c.data["message"] for c in notify_calls] == [
         "Der Ofen startet jetzt. Grund: Wohnräume 2,0 K unter Ziel."
     ]
+
+
+async def test_feedback_room_and_house_and_suggestion_roundtrip(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    notify_calls = async_mock_service(hass, "notify", "handy")
+    client, _ = await _configured(hass, hass_ws_client)
+    mgr = hass.data[DOMAIN]
+    # Raum zu kalt: Ziel im Raum für eine Stunde 1 K höher
+    before = mgr.status["rooms"][0]["target"]
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/feedback", "kind": "cold", "room": "wohnzimmer"}
+    )
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    assert msg["result"]["rooms"][0]["target"] == before + 1.0
+    assert msg["result"]["feedback"]["last"]["room"] == "wohnzimmer"
+    assert msg["result"]["feedback"]["last"]["room_c"] == 19.0  # Momentaufnahme
+    # ganzes Haus zu kalt wirkt wie "Mir ist kalt"
+    await hass.services.async_call(DOMAIN, "feedback", {"kind": "cold"}, blocking=True)
+    assert mgr.status["warmup"]["cold"] is True
+    # dreimal zu warm im Raum: Vorschlag, einmal gemeldet
+    for _ in range(3):
+        await client.send_json_auto_id(
+            {"type": f"{DOMAIN}/feedback", "kind": "warm", "room": "wohnzimmer"}
+        )
+        msg = await client.receive_json()
+    (s,) = msg["result"]["feedback"]["suggestions"]
+    assert s["type"] == "target_down"
+    assert sum("zu warm" in c.data["message"] for c in notify_calls) == 1
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/suggestion", "suggestion": s["id"], "action": "accept"}
+    )
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    assert msg["result"]["feedback"]["suggestions"] == []
+    assert mgr.config["rooms"][0]["targets"]["komfort"] == s["to"]
+    # unbekannter Raum wird abgelehnt
+    await client.send_json_auto_id({"type": f"{DOMAIN}/feedback", "kind": "ok", "room": "keller"})
+    assert not (await client.receive_json())["success"]

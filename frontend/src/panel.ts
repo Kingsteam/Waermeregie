@@ -3,6 +3,7 @@ import { LitElement, html, css, nothing, type PropertyValues } from "lit";
 import { loadConfig, loadHistory, pelletsRefill, saveConfig, setMode, subscribeStatus } from "./api";
 import { defineControls } from "./controls";
 import { defineHistory } from "./history";
+import { defineFeedback } from "./feedback";
 import { chartStyles, artStyles, renderTrendChart, tankStyles } from "./graphics";
 import { overviewStyles, renderAlertStrip, renderHeroHead, renderPellets, renderRoomTiles, renderStoveCard } from "./overview";
 import { translator, type I18nKey, type Lang, type T } from "./i18n";
@@ -433,6 +434,14 @@ export class WaermeregiePanel extends LitElement {
               : nothing}
           </div>
         </div>
+        <div class="card">
+          <wr-feedback
+            .hass=${this.hass}
+            .status=${this._status}
+            .lang=${this._lang}
+            @wr-status=${(e: CustomEvent<Status>) => (this._status = e.detail)}
+          ></wr-feedback>
+        </div>
         ${this._history?.length
           ? html`<div class="card">
               <h3 style="margin:0 0 10px">${t("history.title")}</h3>
@@ -726,6 +735,7 @@ export class WaermeregiePanel extends LitElement {
 
 defineControls();
 defineHistory();
+defineFeedback();
 if (!customElements.get("waermeregie-panel")) customElements.define("waermeregie-panel", WaermeregiePanel);
 
 declare global {

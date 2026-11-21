@@ -155,6 +155,13 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
 }
 ```
 
+## Rückmeldungen und Vorschläge
+
+- `waermeregie/feedback` (alle): `{kind: "cold"|"ok"|"warm", room?: string}` → Status. Ohne `room` gilt es fürs ganze Haus.
+- `waermeregie/suggestion` (Verwalter): `{suggestion: id, action: "accept"|"dismiss", value?: string|number}` → Status. `value` ersetzt den vorgeschlagenen Wert (Uhrzeit `HH:MM` oder Temperatur).
+- Status `feedback`: `{"suggestions": [{"id", "type": "slot_earlier"|"target_up"|"target_down", "text", "count", "room", "scene", "day_type", "from", "to"}], "last": {...}}`. Ein Vorschlag wirkt erst nach `accept`.
+- Status `overrides.room_boost`: je Raum-ID `{"delta", "until"}` (Sofortwirkung einer Rückmeldung im Raum).
+
 ## Verlauf (`waermeregie/history`)
 
 ```jsonc

@@ -4,6 +4,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-21
+### Hinzugefügt
+- **Rückmeldung „Zu kalt / Passt / Zu warm“** in der Übersicht und auf der Karte, fürs ganze Haus oder für einen einzelnen Raum (Auswahl daneben). Auch als Dienst `waermeregie.feedback`. Wirkung sofort: Haus zu kalt wirkt wie „Mir ist kalt“, Haus zu warm senkt alle Ziele für eine Stunde um 1 K, im Raum wird nur dessen Ziel für eine Stunde um 1 K gehoben oder gesenkt. „Passt“ wird nur gemerkt. Rückmelden darf jeder im Haus, nicht nur Verwalter.
+- **Momentaufnahme:** Zu jeder Rückmeldung merkt sich die Wärmeregie Uhrzeit, Tagesart, Szene, Raum- und Haustemperatur, Ziel, Außentemperatur und Kesselwasser (60 Tage).
+- **Vorschläge:** Kommt dieselbe Rückmeldung in zwei Wochen dreimal vor (abzüglich „Passt“), erscheint ein Vorschlag mit Begründung: einen Abschnitt des Zeitplans früher beginnen (mehrfach kalt kurz davor), oder das Ziel einer Szene um 0,5 K heben oder senken, fürs Haus oder einen Raum. Annehmen, mit eigenem Wert anpassen oder ablehnen (kommt dann 30 Tage nicht wieder). **Nichts ändert sich von selbst.** Neue Meldungsart „Neuer Vorschlag“.
+
 ## [0.10.1] - 2026-11-21
 ### Hinzugefügt
 - **Linien ein- und ausblenden:** Über der Grafik „Räume und Kessel“ steht je Raum, für das Mittel, das Ziel und das Kesselwasser ein Knopf. Ein Tipp blendet die Linie aus oder wieder ein; die Auswahl bleibt im Browser gespeichert.
