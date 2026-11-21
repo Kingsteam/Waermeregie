@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 import pytest
@@ -873,3 +873,58 @@ async def test_cold_service_and_button(hass: HomeAssistant, setup) -> None:
     button = next(s.entity_id for s in hass.states.async_all("button") if "cold" in s.entity_id)
     await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
     assert mgr.status["warmup"]["cold"] is True
+
+
+async def test_history_command_backfills_from_recorder(
+    hass: HomeAssistant,
+    setup,
+    hass_ws_client,
+) -> None:
+    client, _ = await _configured(hass, hass_ws_client)
+    mgr = hass.data[DOMAIN]
+    now = dt_util.now().replace(second=0, microsecond=0)
+    slot = now - timedelta(minutes=now.minute % 10 + 30)
+    mgr.history = [
+        {"t": (slot + timedelta(minutes=10 * i)).isoformat(), "house_c": 20.0} for i in range(3)
+    ]
+    hass.config.components.add("recorder")
+    state = State("sensor.temp_wohnzimmer", "20.4", last_updated=slot - timedelta(minutes=1))
+    instance = MagicMock()
+
+    async def run(func):
+        return func()
+
+    instance.async_add_executor_job = run
+    with (
+        patch("homeassistant.components.recorder.get_instance", return_value=instance),
+        patch(
+            "homeassistant.components.recorder.history.get_significant_states",
+            return_value={"sensor.temp_wohnzimmer": [state]},
+        ) as fetch,
+    ):
+        await client.send_json_auto_id({"type": f"{DOMAIN}/history"})
+        msg = await client.receive_json()
+        assert msg["success"], msg
+        assert all(p["rooms"] == {"wohnzimmer": 20.4} for p in msg["result"]["points"])
+        # zweiter Aufruf fragt den Rekorder nicht noch einmal
+        await client.send_json_auto_id({"type": f"{DOMAIN}/history"})
+        assert (await client.receive_json())["success"]
+        assert fetch.call_count == 1
+
+
+async def test_activity_message_only_when_switched_on(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    async_mock_service(hass, "climate", "set_hvac_mode")
+    async_mock_service(hass, "climate", "set_temperature")
+    notify_calls = async_mock_service(hass, "notify", "handy")
+    client, cfg = await _configured(hass, hass_ws_client)
+    assert cfg["notifications"]["activity"] is False  # ab Werk aus
+    cfg["notifications"] = {**cfg["notifications"], "activity": True}
+    assert (await save(hass, client, cfg))["success"]
+    await client.send_json_auto_id({"type": f"{DOMAIN}/mode", "mode": "active"})
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    assert [c.data["message"] for c in notify_calls] == [
+        "Der Ofen startet jetzt. Grund: Wohnräume 2,0 K unter Ziel."
+    ]

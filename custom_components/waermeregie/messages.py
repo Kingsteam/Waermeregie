@@ -8,6 +8,7 @@ Arten (const.NOTIFY_KINDS):
   stove_error    Ofen meldet Störung (kommt auch in der Ruhezeit)
   overheat       Kesselschutz (kommt auch in der Ruhezeit)
   too_warm       Ofen ausgeschaltet, weil das Haus deutlich über Ziel ist
+  activity       was die Heizung gerade tut (Ofen startet, ist aus, ...), ab Werk aus
 
 Gleiche Meldung (Art + Raum) frühestens nach `repeat_min` wieder. In der
 Ruhezeit werden nicht kritische Meldungen gesammelt und danach in einer

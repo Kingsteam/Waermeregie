@@ -33,7 +33,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import engine, health, humidity, learning, messages, model, pellets
+from . import backfill, engine, health, humidity, learning, messages, model, pellets
 from .const import (
     DEBOUNCE_S,
     DOMAIN,
@@ -139,6 +139,7 @@ class WaermeregieManager:
         self._sent: dict[str, datetime] = {}
         self._held: dict[str, tuple[str, str]] = {}
         self._was_stove_error = False
+        self._backfill_done = False
         self._was_overheat = False
         # Verlauf für die Grafik (gespeichert), Brennen seit dem letzten Punkt
         self.history: list[dict[str, Any]] = []
@@ -466,6 +467,8 @@ class WaermeregieManager:
         if not shadow:
             for text in result.notices:
                 await self._notify("too_warm", "too_warm", text, now)
+            for text in result.activity:
+                await self._notify("activity", "activity:" + text[:24], text, now)
         sensor_alerts = await self._check_sensors(now, config, obs, result.status)
         pellet_status = await self._track_pellets(now, obs)
         await self._flush_held(now, result.status["alerts"])
@@ -518,6 +521,56 @@ class WaermeregieManager:
         keep = int(HISTORY_HOURS * 60 / HISTORY_STEP_MIN)
         cutoff = now - timedelta(hours=HISTORY_HOURS) - step
         self.history = [p for p in self.history[-keep:] if dt_util.parse_datetime(p["t"]) > cutoff]
+
+    async def async_backfill_history(self) -> None:
+        """Werte je Raum und Kessel für ältere Punkte aus dem HA-Verlauf nachtragen."""
+        if self._backfill_done or not backfill.needs_fill(self.history):
+            return
+        self._backfill_done = True  # höchstens einmal je Laufzeit versuchen
+        if "recorder" not in self.hass.config.components:
+            return
+        config = effective_config(self.config)
+        water_entity = config["stove"]["water_sensor"]
+        entities = {s["entity"] for room in config["rooms"] for s in room["temperature_sensors"]}
+        if water_entity:
+            entities.add(water_entity)
+        old = [p for p in self.history if "rooms" not in p]
+        if not entities or not old:
+            return
+        start = dt_util.parse_datetime(old[0]["t"]) - timedelta(minutes=backfill.MAX_AGE_MIN)
+        end = dt_util.parse_datetime(old[-1]["t"]) + timedelta(minutes=2 * HISTORY_STEP_MIN)
+        try:
+            from homeassistant.components.recorder import get_instance, history
+
+            states = await get_instance(self.hass).async_add_executor_job(
+                lambda: history.get_significant_states(
+                    self.hass,
+                    dt_util.as_utc(start),
+                    dt_util.as_utc(end),
+                    sorted(entities),
+                    include_start_time_state=True,
+                    significant_changes_only=False,
+                )
+            )
+        except Exception as err:  # Verlauf ist nur Zugabe: nie die Integration stören
+            _LOGGER.warning("Verlauf konnte nicht nachgetragen werden: %s", err)
+            return
+        series: backfill.Series = {}
+        for entity_id, rows in states.items():
+            values = []
+            for st in rows:
+                raw = st.state
+                if entity_id.startswith("climate."):
+                    raw = st.attributes.get("current_temperature")
+                try:
+                    values.append((st.last_updated, float(raw)))
+                except TypeError, ValueError:
+                    continue
+            series[entity_id] = sorted(values, key=lambda item: item[0])
+        count = backfill.fill(self.history, series, config["rooms"], water_entity, HISTORY_STEP_MIN)
+        if count:
+            _LOGGER.info("Verlauf: %d ältere Punkte um Räume und Kessel ergänzt", count)
+            self._save_state()
 
     def history_points(self, hours: float = 24) -> list[dict[str, Any]]:
         cutoff = dt_util.now() - timedelta(hours=hours)
