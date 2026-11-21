@@ -645,8 +645,9 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 warmup["residual_done"] = True
                 log.append("Mir ist kalt: die Restwärme im Kessel reicht nicht mehr")
             residual_open = usable
-            # Ofen nur, wenn es wirklich unter dem (angehobenen) Ziel ist
-            warmup_start = not usable and (house_deficit is None or house_deficit > 0)
+            # Keine nutzbare Restwärme: der Ofen startet, auch wenn die Fühler "warm genug"
+            # melden. Wer "Mir ist kalt" drückt, übersteuert die Messung (21.11.2026).
+            warmup_start = not usable
         if residual_open:
             want_comfort = False
         want = want_comfort or warmup_start or (frost_need and policy != STOVE_DENY)

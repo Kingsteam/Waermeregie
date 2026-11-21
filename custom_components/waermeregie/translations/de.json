@@ -204,7 +204,7 @@
     },
     "cold": {
       "name": "Mir ist kalt",
-      "description": "Für eine Weile wärmer. Die Wärmeregie entscheidet selbst: Ist im Kessel noch Wärme, öffnet sie nur die Heizkörper, sonst startet sie den Ofen.",
+      "description": "Für eine Weile wärmer. Die Wärmeregie entscheidet selbst: Ist im Kessel noch Wärme, öffnet sie nur die Heizkörper, sonst startet sie den Ofen, auch wenn die Fühler warm genug melden.",
       "fields": {
         "minutes": {
           "name": "Dauer",

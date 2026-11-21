@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-11-21
+### Geändert
+- **„Mir ist kalt“ heizt jetzt immer.** Bisher startete der Ofen nur, wenn die Räume laut Fühlern unter dem angehobenen Ziel lagen; lagen sie knapp darüber, passierte nichts („kein Bedarf“). Wer den Knopf drückt, übersteuert die Messung: Ist im Kessel keine nutzbare Restwärme, startet der Ofen. Die Restwärme wird weiter zuerst genutzt; Pause gegen Takten, Starts pro Tag, Störung und Kesselschutz gelten weiter.
+
 ## [0.9.1] - 2026-11-20
 ### Behoben
 - **Lernen ohne unrealistische Werte.** Über 99,5 °C meldet der Wasserfühler des Ofens seinen Anschlag (126 °C). Solche Werte machen eine laufende Messung von Nachwärme oder Abkühlrate jetzt ungültig, statt als echte Temperatur gelernt zu werden. Kesselschutz und Wärmeabfuhr reagieren weiter auf diese Werte.
