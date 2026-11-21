@@ -4,6 +4,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-21
+### Hinzugefügt
+- **Linien ein- und ausblenden:** Über der Grafik „Räume und Kessel“ steht je Raum, für das Mittel, das Ziel und das Kesselwasser ein Knopf. Ein Tipp blendet die Linie aus oder wieder ein; die Auswahl bleibt im Browser gespeichert.
+### Behoben
+- **Verlauf rückwirkend:** Nach dem Update auf 0.10.0 zeigte die Grafik nur das Mittel, weil die Werte je Raum und für den Kessel erst ab dann mitgeschrieben wurden. Jetzt werden sie für die älteren Punkte aus dem Verlauf von Home Assistant nachgetragen (einmalig beim ersten Öffnen). Der irreführende Hinweis „Kein Wasserfühler zugeordnet“ ist ersetzt.
+
 ## [0.10.0] - 2026-11-21
 ### Hinzugefügt
 - **Verlauf „Räume und Kessel“ in der Übersicht:** zwei Grafiken untereinander für die letzten 24 Stunden. Oben jede Raumtemperatur als eigene Linie, dazu das Mittel aller Räume (dick) und das Ziel (gestrichelt); unten das Kesselwasser. Die Brennzeiten des Ofens sind in beiden hinterlegt. Mit dem Finger oder der Maus über die Grafik fahren zeigt Uhrzeit und alle Werte zu diesem Zeitpunkt. Die Werte je Raum und für den Kessel werden ab dieser Version alle 10 Minuten mitgeschrieben; die Linien beginnen deshalb erst mit dem Update.

@@ -6,6 +6,17 @@ import { translator, type Lang, type T } from "./i18n";
 import type { HistoryPoint } from "./types";
 import { clockFromIso, formatNumber } from "./util";
 
+const STORE_KEY = "wr-history-hidden";
+
+function loadHidden(): Set<string> {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(STORE_KEY) ?? "[]");
+    return new Set(Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
 /** Höchstens so viele Räume als eigene Linie (feste Farbfolge, nie wiederholt). */
 export const MAX_ROOM_LINES = 8;
 const WIDTH = 600;
@@ -22,6 +33,7 @@ export class WrHistory extends LitElement {
     lang: { type: String },
     dark: { type: Boolean, reflect: true },
     _hover: { state: true },
+    _hidden: { state: true },
   };
 
   declare points: HistoryPoint[] | null;
@@ -29,6 +41,8 @@ export class WrHistory extends LitElement {
   declare lang: Lang;
   declare dark: boolean;
   declare _hover: number | null;
+  /** ausgeblendete Linien (Schlüssel wie "room:<id>", "house", "target", "water") */
+  declare _hidden: Set<string>;
 
   constructor() {
     super();
@@ -37,6 +51,26 @@ export class WrHistory extends LitElement {
     this.lang = "de";
     this.dark = false;
     this._hover = null;
+    this._hidden = loadHidden();
+  }
+
+  private _toggle(key: string) {
+    const next = new Set(this._hidden);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    this._hidden = next;
+    try {
+      window.localStorage.setItem(STORE_KEY, JSON.stringify([...next]));
+    } catch {
+      // ohne Speicher gilt die Auswahl nur bis zum Neuladen
+    }
+  }
+
+  private _chip(key: string, cls: string, label: string): TemplateResult {
+    const on = !this._hidden.has(key);
+    return html`<button class="chip ${on ? "" : "off"}" aria-pressed=${on ? "true" : "false"} @click=${() => this._toggle(key)}>
+      <i class="lg ${cls}"></i>${label}
+    </button>`;
   }
 
   private get _t(): T {
@@ -85,31 +119,40 @@ export class WrHistory extends LitElement {
     const t = this._t;
     const shown = (this.rooms ?? []).slice(0, MAX_ROOM_LINES);
     const hidden = (this.rooms ?? []).length - shown.length;
-    const roomDefs: SeriesDef[] = [
+    const vis = (key: string) => !this._hidden.has(key);
+    const allDefs: SeriesDef[] = [
       { key: "target", get: (p) => p.target_c, step: true },
       ...shown.map((r) => ({ key: `room:${r.id}`, get: (p: HistoryPoint) => p.rooms?.[r.id] })),
       { key: "house", get: (p) => p.house_c },
     ];
+    const roomDefs = allDefs.filter((d) => vis(d.key));
     const roomClasses: Record<string, string> = { target: "target", house: "house" };
     shown.forEach((r, i) => (roomClasses[`room:${r.id}`] = `s${i + 1}`));
     const box = { width: WIDTH, padLeft: 4, padRight: 4, padTop: 8, padBottom: 20 };
     const rm = buildMulti(this.points, { ...box, height: 200 }, roomDefs);
-    const wm = buildMulti(this.points, { ...box, height: 130 }, [{ key: "water", get: (p) => p.water_c }]);
-    if (!rm && !wm) return html`<p class="muted">${t("history.empty")}</p>`;
+    const waterAll = buildMulti(this.points, { ...box, height: 130 }, [{ key: "water", get: (p) => p.water_c }]);
+    const wm = vis("water") ? waterAll : null;
+    const chips = html`<div class="chips" role="group" aria-label=${t("history.show")}>
+      ${shown.map((r, k) => this._chip(`room:${r.id}`, `s${k + 1}`, r.name))}
+      ${this._chip("house", "house", t("history.house"))} ${this._chip("target", "target", t("chart.target"))}
+      ${this._chip("water", "water", t("history.water"))}
+    </div>`;
+    if (!rm && !wm)
+      return html`${chips}
+        <p class="muted">${t(roomDefs.length || vis("water") ? "history.empty" : "history.all_hidden")}</p>`;
     const num = (v: number | null | undefined) => `${formatNumber(v, this.lang, 1)} °C`;
     const ref = rm ?? wm;
     const i = this._hover !== null && ref && this._hover < ref.times.length ? this._hover : null;
     const val = (m: MultiModel | null, key: string) => (i === null ? null : (m?.series.find((s) => s.key === key)?.values[i] ?? null));
     const tipLeft = i !== null && ref ? ref.xs[i] / WIDTH : 0;
     return html`
+      ${chips}
+      <div class="area">
       ${rm
         ? html`<figure>
             <h4>${t("history.rooms")}</h4>
             ${this._chart(rm, 200, t("history.rooms_aria"), roomClasses)}
             <figcaption class="legend">
-              ${shown.map((r, k) => html`<span><i class="lg s${k + 1}"></i>${r.name}</span>`)}
-              <span><i class="lg house"></i>${t("history.house")}</span>
-              <span><i class="lg target"></i>${t("chart.target")}</span>
               <span><i class="lg band"></i>${t("chart.burning")}</span>
             </figcaption>
             ${hidden > 0 ? html`<div class="note">${t("history.more_rooms", { n: String(hidden) })}</div>` : nothing}
@@ -120,12 +163,15 @@ export class WrHistory extends LitElement {
             <h4>${t("history.water")}</h4>
             ${this._chart(wm, 130, t("history.water_aria"), { water: "water" })}
           </figure>`
-        : html`<p class="muted">${t("history.no_water")}</p>`}
+        : vis("water") && !waterAll
+          ? html`<p class="muted">${t("history.no_water")}</p>`
+          : nothing}
       ${i !== null && ref
         ? html`<div class="tip ${tipLeft > 0.6 ? "left" : ""}" style="--x:${tipLeft}" role="status">
             <b>${clockFromIso(ref.times[i])}</b>
             ${rm
               ? html`${shown.map((r, k) => {
+                    if (!vis(`room:${r.id}`)) return nothing;
                     const v = val(rm, `room:${r.id}`);
                     return v === null ? nothing : html`<div><i class="lg s${k + 1}"></i><span>${r.name}</span><em>${num(v)}</em></div>`;
                   })}
@@ -135,6 +181,7 @@ export class WrHistory extends LitElement {
             ${val(wm, "water") !== null ? html`<div><i class="lg water"></i><span>${t("history.water_short")}</span><em>${num(val(wm, "water"))}</em></div>` : nothing}
           </div>`
         : nothing}
+      </div>
     `;
   }
 
@@ -262,6 +309,37 @@ export class WrHistory extends LitElement {
     .xlabels span {
       bottom: 3px;
       transform: translateX(-50%);
+    }
+    .area {
+      position: relative;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 12px;
+    }
+    .chip {
+      font: inherit;
+      font-size: 12px;
+      color: var(--wr-text);
+      background: none;
+      border: 1px solid var(--wr-div);
+      border-radius: 999px;
+      padding: 5px 10px;
+      min-height: 30px;
+      cursor: pointer;
+    }
+    .chip.off {
+      color: var(--wr-text2);
+      text-decoration: line-through;
+    }
+    .chip.off .lg {
+      opacity: 0.3;
+    }
+    .chip:focus-visible {
+      outline: 2px solid var(--wr-primary);
+      outline-offset: 2px;
     }
     .legend {
       display: flex;

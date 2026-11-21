@@ -199,10 +199,11 @@ async def ws_warmup(hass: HomeAssistant, connection, msg: dict) -> None:
         vol.Optional("hours", default=24): vol.All(vol.Coerce(float), vol.Range(min=1, max=48)),
     }
 )
-@callback
-def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
+@websocket_api.async_response
+async def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
     if not (mgr := _manager(hass)):
         return _not_loaded(connection, msg)
+    await mgr.async_backfill_history()
     connection.send_result(msg["id"], {"points": mgr.history_points(msg["hours"])})
 
 
