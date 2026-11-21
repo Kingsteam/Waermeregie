@@ -155,6 +155,13 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
 }
 ```
 
+## Regeln (ab 0.12.0)
+
+- Config `rules`: Liste `{ "id", "template": "nobody_home"|"cold_outside"|"wind"|"forecast_drop", "enabled", "trial_until": iso|null, "params": {...} }`. Grenzen und Standardwerte je Vorlage unter `defaults.limits.rule_templates` als `[kleinster, größter, Standard]`. `nobody_home` hat zusätzlich `scene`, `require_lock`, `lock` (Entität), `wind` optional `wind_entity`.
+- Status `rules`: je Regel `{ "id", "template", "name", "sentence", "state": "off"|"active"|"waiting"|"unknown"|"trial"|"trial_done", "detail", "last", "hits" }`.
+- Status `why`: kurze Sätze zur aktuellen Szene und zu wirkenden Regeln. Status `scene.source` kann zusätzlich `"rule"` (Szene durch Regel) und `"lead"` (Abschnitt vorgezogen) sein.
+- Status `protected`: Schutzregeln `{ "key", "fixed", "text", "param"?, "value"?, "unit"?, "warning"? }`; nicht feste werden über `parameters[param]` geändert.
+
 ## Rückmeldungen und Vorschläge
 
 - `waermeregie/feedback` (alle): `{kind: "cold"|"ok"|"warm", room?: string}` → Status. Ohne `room` gilt es fürs ganze Haus.

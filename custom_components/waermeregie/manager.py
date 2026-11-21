@@ -33,7 +33,18 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import backfill, engine, feedback, health, humidity, learning, messages, model, pellets
+from . import (
+    backfill,
+    engine,
+    feedback,
+    health,
+    humidity,
+    learning,
+    messages,
+    model,
+    pellets,
+    rules,
+)
 from .const import (
     DEBOUNCE_S,
     DOMAIN,
@@ -50,6 +61,8 @@ from .const import (
     MODE_ACTIVE,
     MODE_SHADOW,
     OPENING_CHECK_DROP_K,
+    OVERHEAT_C,
+    OVERHEAT_CLEAR_C,
     STORAGE_KEY_CONFIG,
     STORAGE_KEY_STATE,
     STORAGE_VERSION,
@@ -76,6 +89,10 @@ def _paths(config: dict) -> list[tuple[Any, Any]]:
                 out.append((room[key], i))
         for sensor in room["temperature_sensors"]:
             out.append((sensor, "entity"))
+    for rule in config.get("rules") or []:
+        for key in ("lock", "wind_entity"):
+            if key in rule["params"]:
+                out.append((rule["params"], key))
     return out
 
 
@@ -142,6 +159,8 @@ class WaermeregieManager:
         self._backfill_done = False
         self.feedback: dict[str, Any] = feedback.empty()
         self._suggested: set[str] | None = None  # schon gemeldete Vorschläge
+        self._forecast: list[tuple[datetime, float]] = []
+        self._forecast_at: datetime | None = None
         self._was_overheat = False
         # Verlauf für die Grafik (gespeichert), Brennen seit dem letzten Punkt
         self.history: list[dict[str, Any]] = []
@@ -458,9 +477,22 @@ class WaermeregieManager:
         now = dt_util.now()
         config = effective_config(self.config)
         obs = self.observe(now, config)
+        ruled = rules.evaluate(
+            config["rules"],
+            await self._rule_facts(now, config, obs),
+            self.state.get("rules"),
+            now,
+            config["scenes"],
+        )
+        obs.rule_scene = ruled["effects"]["scene"]
+        obs.rule_delta_k = ruled["effects"]["target_delta"]
+        obs.rule_lead_min = ruled["effects"]["lead_min"]
         result = engine.evaluate(config, self.state, obs)
         self.state = result.state
+        self.state["rules"] = ruled["state"]
         shadow = self.config["mode"] != MODE_ACTIVE
+        for text in ruled["log"]:
+            self._add_log(now, text, shadow)
         for text in result.log:
             self._add_log(now, text, shadow)
         if not shadow:
@@ -487,6 +519,9 @@ class WaermeregieManager:
             },
             "pellets": pellet_status,
             "feedback": await self._feedback_status(now),
+            "rules": ruled["status"],
+            "why": self._why(result.status, ruled),
+            "protected": self._protected(),
             "log": list(reversed(self.log[-50:])),
         }
         self._save_state()
@@ -938,6 +973,166 @@ class WaermeregieManager:
         self.state["pause_until"] = None
         self._add_log(now, text + by, shadow)
         return await self.async_evaluate()
+
+    # --- Regeln des Besitzers ---------------------------------------------------------
+    async def _rule_facts(self, now: datetime, config: dict, obs: engine.Observation) -> dict:
+        """Was die Regeln wissen müssen: Personen, Schloss, Wind, Vorhersage."""
+        people = [*config["persons"], *([config["pet"]] if config["pet"] else [])]
+        home: list[bool | None] = []
+        for entity_id in people:
+            st = self._state(entity_id)
+            if st is None:
+                home.append(None)
+            elif entity_id.startswith("binary_sensor."):
+                home.append(st.state == STATE_ON)
+            else:
+                home.append(st.state == "home")
+        away = None
+        if people and None not in home:
+            away = not any(home)
+        elif any(home):
+            away = False  # jemand ist sicher da, auch wenn ein anderer unbekannt ist
+        locks: dict[str, bool | None] = {}
+        sensors: dict[str, float | None] = {}
+        need_forecast = False
+        for rule in config["rules"]:
+            lock = rule["params"].get("lock")
+            if lock:
+                st = self._state(lock)
+                if st is None:
+                    locks[lock] = None
+                elif lock.startswith("lock."):
+                    locks[lock] = st.state == "locked"
+                else:  # binary_sensor der Klasse "lock": an = aufgesperrt
+                    locks[lock] = st.state != STATE_ON
+            wind = rule["params"].get("wind_entity")
+            if wind:
+                sensors[wind] = self._float(wind)
+            need_forecast = need_forecast or (
+                rule["template"] == "forecast_drop" and rule["enabled"]
+            )
+        wind_kmh = None
+        weather = self._state(config["weather"])
+        if weather is not None:
+            try:
+                wind_kmh = float(weather.attributes.get("wind_speed"))
+                unit = str(weather.attributes.get("wind_speed_unit") or "km/h")
+                wind_kmh *= {"m/s": 3.6, "mph": 1.609, "kn": 1.852}.get(unit, 1.0)
+            except TypeError, ValueError:
+                wind_kmh = None
+        if need_forecast:
+            await self._update_forecast(now, config["weather"])
+        return {
+            "everyone_away": away,
+            "locks": locks,
+            "sensors": sensors,
+            "outdoor_c": obs.outdoor_c,
+            "wind_kmh": wind_kmh,
+            "forecast": self._forecast if need_forecast else [],
+        }
+
+    async def _update_forecast(self, now: datetime, weather: str | None) -> None:
+        """Stündliche Vorhersage höchstens alle 30 Minuten holen."""
+        if not weather or (self._forecast_at and now - self._forecast_at < timedelta(minutes=30)):
+            return
+        self._forecast_at = now
+        try:
+            data = await self.hass.services.async_call(
+                "weather",
+                "get_forecasts",
+                {"entity_id": weather, "type": "hourly"},
+                blocking=True,
+                return_response=True,
+            )
+            rows = ((data or {}).get(weather) or {}).get("forecast") or []
+            forecast = []
+            for row in rows:
+                when = dt_util.parse_datetime(str(row.get("datetime")))
+                if when is not None and row.get("temperature") is not None:
+                    forecast.append((dt_util.as_local(when), float(row["temperature"])))
+            self._forecast = forecast
+        except Exception as err:  # Vorhersage ist Zugabe: die Regel bleibt dann "unbekannt"
+            _LOGGER.debug("Vorhersage nicht verfügbar: %s", err)
+            self._forecast = []
+
+    def _why(self, status: dict, ruled: dict) -> list[str]:
+        """Kurze Sätze: warum gilt gerade diese Szene und dieses Ziel?"""
+        scene = status.get("scene") or {}
+        source = scene.get("source")
+        out = []
+        if source == "override":
+            out.append(f"Szene „{scene.get('name')}“ von Hand gewählt")
+        elif source == "rule":
+            out.append(f"Szene „{scene.get('name')}“ durch eine Regel statt nach Zeitplan")
+        elif source == "lead":
+            out.append(
+                f"Szene „{scene.get('name')}“ beginnt wegen einer Regel früher als im Zeitplan"
+            )
+        else:
+            out.append(f"Szene „{scene.get('name')}“ laut Zeitplan")
+        if (status.get("warmup") or {}).get("active"):
+            out.append("Aufheizen läuft: Ziele sind angehoben")
+        delta = ruled["effects"]["target_delta"]
+        if delta:
+            out.append(f"Ziele durch Regeln {delta:+.1f} K".replace(".", ","))
+        return [*out, *ruled["why"]]
+
+    def _protected(self) -> list[dict[str, Any]]:
+        """Schutzregeln für die Anzeige: feste und solche, die mit Warnung änderbar sind."""
+        p = self.config["parameters"]
+        return [
+            {
+                "key": "overheat",
+                "fixed": True,
+                "text": f"Kesselschutz: ab {OVERHEAT_C:g} °C Ofen aus und alle Heizkörper auf, "
+                f"bis das Wasser unter {OVERHEAT_CLEAR_C:g} °C ist",
+            },
+            {
+                "key": "frost",
+                "fixed": True,
+                "text": f"Frostschutz: kein Raum unter {p['frost_c']:g} °C, auch bei offenem "
+                "Fenster oder in Abwesenheit",
+            },
+            {
+                "key": "reignite",
+                "fixed": True,
+                "text": "Läuft der Ofen von selbst wieder an und es ist warm genug, wird er "
+                "ausgeschaltet",
+            },
+            {
+                "key": "min_pause_min",
+                "fixed": False,
+                "param": "min_pause_min",
+                "value": p["min_pause_min"],
+                "unit": "min",
+                "text": f"Pause gegen Takten: mindestens {p['min_pause_min']:g} min zwischen "
+                "zwei Heizblöcken",
+                "warning": "Eine kürzere Pause lässt den Ofen öfter zünden. Das kostet Pellets "
+                "und belastet Zündkerze und Brennkammer.",
+            },
+            {
+                "key": "max_starts_per_day",
+                "fixed": False,
+                "param": "max_starts_per_day",
+                "value": p["max_starts_per_day"],
+                "unit": "",
+                "text": f"Höchstens {p['max_starts_per_day']:g} Starts pro Tag",
+                "warning": "Mehr Starts bedeuten mehr Zündungen und mehr Verschleiß. Die Grenze "
+                "schützt auch davor, dass ein Fehler den Ofen den ganzen Tag takten lässt.",
+            },
+            {
+                "key": "hard_stop_above_k",
+                "fixed": False,
+                "param": "hard_stop_above_k",
+                "value": p["hard_stop_above_k"],
+                "unit": "K",
+                "text": f"Sofort aus, wenn das Haus {p['hard_stop_above_k']:g} K über Ziel ist"
+                if p["hard_stop_above_k"]
+                else "Sofort aus bei deutlich zu warmem Haus: abgeschaltet",
+                "warning": "Mit einem höheren Wert oder 0 heizt der Ofen weiter, auch wenn das "
+                "Haus schon deutlich zu warm ist (wie am 20.11.).",
+            },
+        ]
 
     # --- Rückmeldungen und Vorschläge ---------------------------------------------------
     async def _feedback_status(self, now: datetime) -> dict:

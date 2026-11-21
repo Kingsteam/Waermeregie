@@ -968,3 +968,50 @@ async def test_feedback_room_and_house_and_suggestion_roundtrip(
     # unbekannter Raum wird abgelehnt
     await client.send_json_auto_id({"type": f"{DOMAIN}/feedback", "kind": "ok", "room": "keller"})
     assert not (await client.receive_json())["success"]
+
+
+async def test_rule_nobody_home_switches_scene_and_shows_why(
+    hass: HomeAssistant, setup, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    registry = er.async_get(hass)
+    for domain, uid, obj in (("person", "p1", "anna"), ("lock", "l1", "haustuer")):
+        registry.async_get_or_create(domain, "test", uid, suggested_object_id=obj)
+    hass.states.async_set("person.anna", "home")
+    hass.states.async_set("lock.haustuer", "locked")
+    client, cfg = await _configured(hass, hass_ws_client)
+    cfg["persons"] = ["person.anna"]
+    cfg["rules"] = [
+        {
+            "template": "nobody_home",
+            "params": {
+                "scene": "abwesend",
+                "after_min": 5,
+                "require_lock": True,
+                "lock": "lock.haustuer",
+            },
+        }
+    ]
+    assert (await save(hass, client, cfg))["success"]
+    mgr = hass.data[DOMAIN]
+    # im Speicher steht die Register-ID, nicht die entity_id
+    stored = mgr._to_storage(mgr.config)
+    assert stored["rules"][0]["params"]["lock"] != "lock.haustuer"
+    assert mgr.status["rules"][0]["state"] == "waiting"
+    assert mgr.status["scene"]["source"] == "schedule"
+    hass.states.async_set("person.anna", "not_home")
+    await mgr.async_evaluate()
+    assert mgr.status["scene"]["source"] == "schedule"  # noch keine 5 Minuten
+    freezer.tick(timedelta(minutes=6))
+    await mgr.async_evaluate()
+    assert mgr.status["scene"]["id"] == "abwesend"
+    assert mgr.status["scene"]["source"] == "rule"
+    assert mgr.status["rules"][0]["state"] == "active"
+    assert any("Niemand zu Hause" in w for w in mgr.status["why"])
+    assert any("greift" in e["text"] for e in mgr.log)
+    hass.states.async_set("lock.haustuer", "unlocked")
+    await mgr.async_evaluate()
+    assert mgr.status["scene"]["source"] == "schedule"
+    # Schutzregeln: feste und änderbare
+    keys = {p["key"]: p["fixed"] for p in mgr.status["protected"]}
+    assert keys["overheat"] is True and keys["frost"] is True
+    assert keys["min_pause_min"] is False

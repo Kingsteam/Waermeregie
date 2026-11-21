@@ -1,6 +1,6 @@
 # Regeln (Konzept, Stand 21.11.2026)
 
-Entwurf, mit dem Besitzer abgestimmt. Etappe 1 (Rückmeldungen und Vorschläge) ist seit 0.11.0 gebaut, der Rest noch nicht.
+Entwurf, mit dem Besitzer abgestimmt. Etappe 1 (Rückmeldungen und Vorschläge) ist seit 0.11.0 gebaut, Etappe 2 (Regeln aus Vorlagen) seit 0.12.0. Offen: freier Editor, Lernwerte, Puffer.
 
 ## Hierarchie
 
@@ -37,6 +37,6 @@ Was weiter unten steht, gewinnt immer. Eine Ebene kann die darunter nie übersti
 ## Etappen
 
 1. Rückmeldungen und erste Vorschläge (erledigt, 0.11.0).
-2. Regeln aus festen Vorlagen mit Reiter „Regeln“, Probelauf, „Warum gerade so?“.
+2. Regeln aus festen Vorlagen mit Reiter „Regeln“, Probelauf, „Warum gerade so?“ (erledigt, 0.12.0).
 3. Freier Regel-Editor und Lernwerte.
 4. Puffer-Regeln.

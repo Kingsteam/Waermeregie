@@ -39,3 +39,27 @@ describe("adjustValue (Vorschlag anpassen)", () => {
     expect(adjustValue(temp, "40")).toBeNull();
   });
 });
+
+import { newRule, ruleProblems, templateLimits } from "../src/tabs/rules";
+
+describe("Regeln aus Vorlagen", () => {
+  const limits = templateLimits({
+    limits: { rule_templates: { wind: { above_kmh: [10, 100, 35], target_delta_k: [0, 2, 0], lead_min: [0, 120, 30] }, nobody_home: { after_min: [5, 240, 30] } } },
+  });
+  it("neue Regel bekommt die Standardwerte des Servers", () => {
+    const r = newRule("wind", limits, ["komfort"]);
+    expect(r.params).toEqual({ above_kmh: 35, target_delta_k: 0, lead_min: 30, wind_entity: null });
+    expect(newRule("nobody_home", limits, ["komfort", "abwesend"]).params.scene).toBe("abwesend");
+  });
+  it("zählt Werte außerhalb der Grenzen und fehlendes Schloss", () => {
+    const wind = newRule("wind", limits, []);
+    expect(ruleProblems([wind], limits)).toBe(0);
+    wind.params.above_kmh = 500;
+    expect(ruleProblems([wind], limits)).toBe(1);
+    const home = newRule("nobody_home", limits, ["abwesend"]);
+    home.params.require_lock = true;
+    expect(ruleProblems([home], limits)).toBe(1);
+    home.params.lock = "lock.x";
+    expect(ruleProblems([home], limits)).toBe(0);
+  });
+});

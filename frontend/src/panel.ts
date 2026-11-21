@@ -12,29 +12,33 @@ import "./tabs/rooms";
 import "./tabs/schedule";
 import "./tabs/scenes";
 import "./tabs/house";
+import "./tabs/rules";
+import { ruleProblems, templateLimits } from "./tabs/rules";
 import { invalidParameters } from "./tabs/house";
 import type { Config, Defaults, Hass, HistoryPoint, Mode, Status } from "./types";
 import { clone, errorMessage, formatStamp, normalizeConfig, pickLang, sameData, quietValid, sortLogNewestFirst, validateSlots, WEEK_KEYS } from "./util";
 import { renderShadowBanner, type ViewCtx } from "./views";
 
-type Tab = "overview" | "rooms" | "schedule" | "scenes" | "house" | "log";
+type Tab = "overview" | "rooms" | "schedule" | "scenes" | "rules" | "house" | "log";
 const TABS: { id: Tab; icon: string }[] = [
   { id: "overview", icon: "mdi:view-dashboard-outline" },
   { id: "rooms", icon: "mdi:floor-plan" },
   { id: "schedule", icon: "mdi:calendar-clock" },
   { id: "scenes", icon: "mdi:palette-outline" },
+  { id: "rules", icon: "mdi:format-list-checks" },
   { id: "house", icon: "mdi:fireplace" },
   { id: "log", icon: "mdi:format-list-bulleted" },
 ];
-const EDITOR_TABS: Tab[] = ["rooms", "schedule", "scenes", "house"];
+const EDITOR_TABS: Tab[] = ["rooms", "schedule", "scenes", "rules", "house"];
 /** Welche Teile der Einstellungen zu welchem Reiter gehören („rest“ = alles andere). */
 const TAB_KEYS: Partial<Record<Tab, (keyof Config)[] | "rest">> = {
   rooms: ["rooms"],
   schedule: ["day_types", "week"],
   scenes: ["scenes"],
+  rules: ["rules"],
   house: "rest",
 };
-const OWN_KEYS = new Set<string>(["rooms", "day_types", "week", "scenes", "mode"]);
+const OWN_KEYS = new Set<string>(["rooms", "day_types", "week", "scenes", "rules", "mode"]);
 
 /** Prüft den Entwurf vor dem Speichern; liefert Anzahl der Probleme. */
 export function draftProblems(c: Config, defaults: Defaults | null): number {
@@ -50,6 +54,7 @@ export function draftProblems(c: Config, defaults: Defaults | null): number {
   for (const k of WEEK_KEYS) if (!c.week[k] || !dayIds.includes(c.week[k] as string)) n++;
   n += invalidParameters(c, defaults).length;
   if (c.notifications && !quietValid(c.notifications)) n++;
+  n += ruleProblems(c.rules, templateLimits(defaults));
   return n;
 }
 
@@ -371,6 +376,16 @@ export class WaermeregiePanel extends LitElement {
             ?readonly=${ro}
             @config-changed=${onChange}
           ></wr-scenes-editor>`;
+      case "rules":
+        return html`${adminHint}<wr-rules-editor
+            .hass=${common.hass}
+            .config=${common.config}
+            .defaults=${common.defaults}
+            .lang=${common.lang}
+            .status=${this._status}
+            ?readonly=${ro}
+            @config-changed=${onChange}
+          ></wr-rules-editor>`;
       case "house":
         return html`${adminHint}${this._renderModeSwitch()}<wr-house-editor
             .hass=${common.hass}

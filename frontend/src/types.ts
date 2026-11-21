@@ -98,6 +98,8 @@ export interface Config {
   week: Partial<Record<WeekKey, string>>;
   /** Szene, deren Ziele beim Aufheizen gelten (null = erste mit Ofen erlaubt) */
   warmup_scene?: string | null;
+  /** Regeln des Besitzers aus Vorlagen (ab 0.12.0) */
+  rules?: Rule[];
   parameters: Record<string, number>;
   mode: Mode;
 }
@@ -170,7 +172,7 @@ export interface Status {
   scene: {
     id: string;
     name: string;
-    source: "schedule" | "override";
+    source: "schedule" | "override" | "rule" | "lead";
     until: string | null;
     next_change: string | null;
   } | null;
@@ -214,6 +216,10 @@ export interface Status {
   } | null;
   warmup?: Warmup | null;
   learn?: Learn | null;
+  /** Regeln: Zustand je Regel, Begründung und Schutzregeln (ab 0.12.0) */
+  rules?: RuleStatus[];
+  why?: string[];
+  protected?: ProtectedRule[];
   /** Rückmeldungen: offene Vorschläge (ab 0.11.0) */
   feedback?: { suggestions: Suggestion[]; last?: { t: string; kind: string; room: string | null } | null } | null;
   pellets?: {
@@ -235,6 +241,38 @@ export interface Status {
     boost: unknown;
   } | null;
   log: LogEntry[];
+}
+
+export type RuleTemplate = "nobody_home" | "cold_outside" | "wind" | "forecast_drop";
+
+export interface Rule {
+  id: string;
+  template: RuleTemplate;
+  enabled: boolean;
+  /** Probelauf bis (ISO); danach wartet die Regel auf eine Entscheidung */
+  trial_until: string | null;
+  params: Record<string, number | string | boolean | null>;
+}
+
+export interface RuleStatus {
+  id: string;
+  template: RuleTemplate;
+  name: string;
+  sentence: string;
+  state: "off" | "active" | "waiting" | "unknown" | "trial" | "trial_done";
+  detail: string;
+  last: string | null;
+  hits: number;
+}
+
+export interface ProtectedRule {
+  key: string;
+  fixed: boolean;
+  text: string;
+  param?: string;
+  value?: number;
+  unit?: string;
+  warning?: string;
 }
 
 /** Vorschlag aus den Rückmeldungen; wirkt erst nach dem Annehmen. */
