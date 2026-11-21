@@ -49,7 +49,7 @@ export interface DayType {
   slots: Slot[];
 }
 
-export type NotifyKind = "opening" | "opening_check" | "sensor" | "pellets" | "stove_error" | "overheat" | "too_warm";
+export type NotifyKind = "opening" | "opening_check" | "sensor" | "pellets" | "stove_error" | "overheat" | "too_warm" | "activity";
 
 export interface Notifications {
   opening: boolean;
@@ -59,6 +59,7 @@ export interface Notifications {
   stove_error: boolean;
   overheat: boolean;
   too_warm: boolean;
+  activity: boolean;
   opening_delay_min: number;
   repeat_min: number;
   ventilate_max_min: number;

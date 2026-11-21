@@ -163,6 +163,7 @@ NOTIFY_KINDS: Final = (
     "stove_error",
     "overheat",
     "too_warm",
+    "activity",
 )
 NOTIFY_CRITICAL: Final = ("stove_error", "overheat")  # kommen auch in der Ruhezeit
 NOTIFY_LIMITS: Final[dict[str, tuple[float, float]]] = {
@@ -178,6 +179,7 @@ DEFAULT_NOTIFICATIONS: Final[dict] = {
     "stove_error": True,
     "overheat": True,
     "too_warm": True,
+    "activity": False,  # "Was die Heizung gerade tut": Ofen startet, ist aus, ...
     "opening_delay_min": 10,
     "repeat_min": 60,
     "ventilate_max_min": 30,

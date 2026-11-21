@@ -910,3 +910,21 @@ async def test_history_command_backfills_from_recorder(
         await client.send_json_auto_id({"type": f"{DOMAIN}/history"})
         assert (await client.receive_json())["success"]
         assert fetch.call_count == 1
+
+
+async def test_activity_message_only_when_switched_on(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    async_mock_service(hass, "climate", "set_hvac_mode")
+    async_mock_service(hass, "climate", "set_temperature")
+    notify_calls = async_mock_service(hass, "notify", "handy")
+    client, cfg = await _configured(hass, hass_ws_client)
+    assert cfg["notifications"]["activity"] is False  # ab Werk aus
+    cfg["notifications"] = {**cfg["notifications"], "activity": True}
+    assert (await save(hass, client, cfg))["success"]
+    await client.send_json_auto_id({"type": f"{DOMAIN}/mode", "mode": "active"})
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    assert [c.data["message"] for c in notify_calls] == [
+        "Der Ofen startet jetzt. Grund: Wohnräume 2,0 K unter Ziel."
+    ]

@@ -93,6 +93,8 @@ class Result:
     state: dict[str, Any]
     log: list[str]
     notices: list[str] = field(default_factory=list)  # Nachrichten aufs Handy (Art too_warm)
+    # Was die Heizung gerade tut, in ganzen Sätzen für das Handy (Art activity)
+    activity: list[str] = field(default_factory=list)
 
 
 def empty_state() -> dict[str, Any]:
@@ -227,6 +229,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
     state = {**empty_state(), **state}
     log: list[str] = []
     notices: list[str] = []
+    activity: list[str] = []
     actions: list[tuple] = []
     active = config["mode"] == MODE_ACTIVE
 
@@ -462,6 +465,10 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                     )
                 else:
                     log.append("Ofen ist aus (von Hand oder vom Ofen selbst), Heizblock beendet")
+                    activity.append(
+                        "Der Ofen ist ausgegangen (von Hand oder von selbst). "
+                        "Die Wärmeregie startet ihn wieder, wenn es zu kühl wird."
+                    )
                 state["self_off_since"] = self_off_since = None
         elif in_block and obs.stove.on and self_off_since is not None:
             state["self_off_since"] = self_off_since = None
@@ -480,6 +487,10 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             last = _dt(state.get("reignite_stop"))
             if last is None:
                 state["reignitions"].append(now.isoformat())  # je Selbstzündung einmal
+                activity.append(
+                    "Der Ofen wollte von selbst wieder anlaufen. Im Haus ist es warm genug, "
+                    "deshalb hat ihn die Wärmeregie gleich wieder ausgeschaltet."
+                )
             if last is None or now - last >= timedelta(minutes=REIGNITE_RESEND_MIN):
                 state["reignite_stop"] = now.isoformat()
                 actions.append(("stove_stop",))
@@ -524,6 +535,10 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 )
             else:
                 log.append("Ofen wurde von Hand eingeschaltet, Wärmeregie übernimmt den Block")
+                activity.append(
+                    "Der Ofen wurde von Hand eingeschaltet. Die Wärmeregie lässt ihn laufen "
+                    "und schaltet ihn aus, sobald es warm genug ist."
+                )
             state["reignite_watch"] = None
 
     if not obs.stove.on:
@@ -593,6 +608,10 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             pause_end = now + timedelta(minutes=p["min_pause_min"])
             actions.append(("stove_stop",))
             log.append(reason)
+            activity.append(
+                f"Der Ofen wird jetzt ausgeschaltet, er hat {int(elapsed)} Minuten geheizt. "
+                f"Grund: {stop_reason}."
+            )
         else:
             phase = "block"
             rest = max(0, int(p["min_burn_min"] - elapsed))
@@ -629,6 +648,10 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 log.append(
                     f"Mir ist kalt: im Kessel sind noch {_fmt_c(water)} °C, Heizkörper "
                     "öffnen, der Ofen bleibt vorerst aus"
+                )
+                activity.append(
+                    f"Mir ist kalt: Im Kessel ist noch Wärme ({_fmt_c(water)} °C). Die "
+                    "Heizkörper öffnen jetzt, der Ofen bleibt vorerst aus."
                 )
             elif usable and now - _dt(res["since"]) >= timedelta(minutes=COLD_RESIDUAL_CHECK_MIN):
                 rising = (
@@ -712,6 +735,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             starts_today += 1
             actions.append(("stove_start",))
             log.append(reason)
+            activity.append(f"Der Ofen startet jetzt. Grund: {why}.")
         elif want:
             state["prepare_since"] = None
             reason = f"Wärme nötig ({why}), aber {blocker}"
@@ -871,4 +895,6 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "boost": state["boost"],
         },
     }
-    return Result(status=status, actions=actions, state=state, log=log, notices=notices)
+    return Result(
+        status=status, actions=actions, state=state, log=log, notices=notices, activity=activity
+    )

@@ -991,3 +991,19 @@ def test_cold_residual_can_be_switched_off():
     state = {**engine.empty_state(), "warmup": _cold(now)}
     r = run(cfg, state, obs(now, wz=20.0, sz=18.5, stove=_idle(62.0)))
     assert ("stove_start",) in r.actions
+
+
+# --- Meldungen "Was die Heizung gerade tut" ------------------------------------------
+
+
+def test_activity_sentences_for_start_and_stop():
+    cfg = sample_config(mode="active")
+    r = run(cfg, engine.empty_state(), obs(at(16, "06:30"), wz=20.0, sz=18.5))
+    assert r.activity == ["Der Ofen startet jetzt. Grund: Wohnräume 0,9 K unter Ziel."]
+    r = run(cfg, r.state, obs(at(16, "08:05"), wz=22.0, sz=20.0, stove=_burning()))
+    assert len(r.activity) == 1
+    assert r.activity[0].startswith("Der Ofen wird jetzt ausgeschaltet, er hat 95 Minuten geheizt.")
+    assert "Grund:" in r.activity[0]
+    # ohne Ereignis keine Nachricht
+    r = run(cfg, r.state, obs(at(16, "08:06"), wz=22.0, sz=20.0))
+    assert r.activity == []

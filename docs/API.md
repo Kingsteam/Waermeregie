@@ -47,6 +47,7 @@ Entitäten werden im Panel immer als **entity_id** übergeben. Python speichert 
     "pellets": true,                   // Pellets nachfüllen
     "stove_error": true,               // Ofen meldet Störung (kommt auch in der Ruhezeit)
     "overheat": true,                  // Kesselschutz: Wasser zu heiß (kommt auch in der Ruhezeit)
+    "activity": false,                 // was die Heizung gerade tut, in ganzen Sätzen (Ofen startet / ist aus, mit Grund); ab Werk aus
     "too_warm": true,                  // Ofen ausgeschaltet, weil das Haus deutlich über Ziel ist (Handstart)
     "opening_delay_min": 10,           // Fenster-Meldung erst nach so vielen Minuten (0-240)
     "repeat_min": 60,                  // gleiche Meldung (Art + Raum) frühestens wieder nach (0-1440, 0 = keine Sperre)

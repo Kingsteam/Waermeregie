@@ -7,6 +7,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 ## [0.10.1] - 2026-11-21
 ### Hinzugefügt
 - **Linien ein- und ausblenden:** Über der Grafik „Räume und Kessel“ steht je Raum, für das Mittel, das Ziel und das Kesselwasser ein Knopf. Ein Tipp blendet die Linie aus oder wieder ein; die Auswahl bleibt im Browser gespeichert.
+- **Meldung „Was die Heizung gerade tut“** (unter *Meldungen*, ab Werk aus): verständliche Sätze aufs Handy, wenn der Ofen startet, ausgeschaltet wird oder von selbst anlaufen wollte, jeweils mit Grund. Zum Beispiel „Der Ofen startet jetzt. Grund: Wohnräume 0,7 K unter Ziel.“ In der Ruhezeit werden sie gesammelt.
 ### Behoben
 - **Verlauf rückwirkend:** Nach dem Update auf 0.10.0 zeigte die Grafik nur das Mittel, weil die Werte je Raum und für den Kessel erst ab dann mitgeschrieben wurden. Jetzt werden sie für die älteren Punkte aus dem Verlauf von Home Assistant nachgetragen (einmalig beim ersten Öffnen). Der irreführende Hinweis „Kein Wasserfühler zugeordnet“ ist ersetzt.
 

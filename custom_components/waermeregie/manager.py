@@ -467,6 +467,8 @@ class WaermeregieManager:
         if not shadow:
             for text in result.notices:
                 await self._notify("too_warm", "too_warm", text, now)
+            for text in result.activity:
+                await self._notify("activity", "activity:" + text[:24], text, now)
         sensor_alerts = await self._check_sensors(now, config, obs, result.status)
         pellet_status = await self._track_pellets(now, obs)
         await self._flush_held(now, result.status["alerts"])
