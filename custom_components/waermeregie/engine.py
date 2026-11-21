@@ -103,6 +103,7 @@ def empty_state() -> dict[str, Any]:
         "override": None,  # {"scene": id, "until": iso}
         "pause_until": None,
         "boost": None,  # {"delta": k, "until": iso}
+        "room_boost": {},  # je Raum-ID {"delta": k, "until": iso} (Rückmeldung zu kalt/zu warm)
         "block_start": None,
         "last_stop": None,
         "starts": [],  # iso-Zeitpunkte der Starts (letzte 2 Tage)
@@ -241,6 +242,9 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
         state["pause_until"] = None
     if state["boost"] and _dt(state["boost"]["until"]) <= now:
         state["boost"] = None
+    state["room_boost"] = {
+        rid: b for rid, b in (state.get("room_boost") or {}).items() if _dt(b["until"]) > now
+    }
     cutoff = now - timedelta(days=2)
     state["starts"] = [s for s in state["starts"] if _dt(s) > cutoff]
 
@@ -298,7 +302,8 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             and (now - ro.empty_since >= timedelta(minutes=p["presence_empty_min"]))
         ):
             target = max(target - PRESENCE_SETBACK_K, p["frost_c"])
-        target = _clamp_target(target + boost)
+        room_boost = state["room_boost"].get(room["id"])
+        target = _clamp_target(target + boost + (room_boost["delta"] if room_boost else 0.0))
 
         open_min = (now - ro.open_since).total_seconds() / 60 if ro.open_since else 0.0
         has_presence = bool(room["presence"])
@@ -893,6 +898,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             "scene": state["override"],
             "pause_until": state["pause_until"],
             "boost": state["boost"],
+            "room_boost": state["room_boost"],
         },
     }
     return Result(

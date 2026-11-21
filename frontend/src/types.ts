@@ -49,7 +49,7 @@ export interface DayType {
   slots: Slot[];
 }
 
-export type NotifyKind = "opening" | "opening_check" | "sensor" | "pellets" | "stove_error" | "overheat" | "too_warm" | "activity";
+export type NotifyKind = "opening" | "opening_check" | "sensor" | "pellets" | "stove_error" | "overheat" | "too_warm" | "activity" | "suggestion";
 
 export interface Notifications {
   opening: boolean;
@@ -60,6 +60,7 @@ export interface Notifications {
   overheat: boolean;
   too_warm: boolean;
   activity: boolean;
+  suggestion: boolean;
   opening_delay_min: number;
   repeat_min: number;
   ventilate_max_min: number;
@@ -213,6 +214,8 @@ export interface Status {
   } | null;
   warmup?: Warmup | null;
   learn?: Learn | null;
+  /** Rückmeldungen: offene Vorschläge (ab 0.11.0) */
+  feedback?: { suggestions: Suggestion[]; last?: { t: string; kind: string; room: string | null } | null } | null;
   pellets?: {
     stock_kg: number | null;
     capacity_kg?: number | null;
@@ -232,6 +235,20 @@ export interface Status {
     boost: unknown;
   } | null;
   log: LogEntry[];
+}
+
+/** Vorschlag aus den Rückmeldungen; wirkt erst nach dem Annehmen. */
+export interface Suggestion {
+  id: string;
+  type: "slot_earlier" | "target_up" | "target_down";
+  text: string;
+  count: number;
+  room: string | null;
+  scene?: string;
+  day_type?: string;
+  /** bisheriger und vorgeschlagener Wert: Uhrzeit "HH:MM" oder Temperatur */
+  from?: string | number;
+  to?: string | number;
 }
 
 export interface Warmup {

@@ -211,6 +211,20 @@
           "description": "The higher targets apply this long (30-360 min). Without a value the setting is used."
         }
       }
+    },
+    "feedback": {
+      "name": "Give feedback",
+      "description": "Say whether it is too cold, fine or too warm. Wärmeregie reacts at once and learns suggestions from it.",
+      "fields": {
+        "kind": {
+          "name": "Feeling",
+          "description": "cold, ok or warm."
+        },
+        "room": {
+          "name": "Room",
+          "description": "Room id (as in Wärmeregie). Empty = whole house."
+        }
+      }
     }
   }
 }

@@ -33,7 +33,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import backfill, engine, health, humidity, learning, messages, model, pellets
+from . import backfill, engine, feedback, health, humidity, learning, messages, model, pellets
 from .const import (
     DEBOUNCE_S,
     DOMAIN,
@@ -140,6 +140,8 @@ class WaermeregieManager:
         self._held: dict[str, tuple[str, str]] = {}
         self._was_stove_error = False
         self._backfill_done = False
+        self.feedback: dict[str, Any] = feedback.empty()
+        self._suggested: set[str] | None = None  # schon gemeldete Vorschläge
         self._was_overheat = False
         # Verlauf für die Grafik (gespeichert), Brennen seit dem letzten Punkt
         self.history: list[dict[str, Any]] = []
@@ -163,6 +165,7 @@ class WaermeregieManager:
         self.pellets = {**pellets.empty(), **(state.pop("pellets", None) or {})}
         self.health = state.pop("health", None) or {}
         self.history = state.pop("history", None) or []
+        self.feedback = feedback.ensure(state.pop("feedback", None))
         self.state = {**engine.empty_state(), **state}
 
     def _to_storage(self, config: dict) -> dict:
@@ -230,6 +233,7 @@ class WaermeregieManager:
             "pellets": self.pellets,
             "health": self.health,
             "history": self.history,
+            "feedback": self.feedback,
         }
 
     # --- Start / Stop ------------------------------------------------------------
@@ -482,6 +486,7 @@ class WaermeregieManager:
                 for entity_id, entry in self.health.items()
             },
             "pellets": pellet_status,
+            "feedback": await self._feedback_status(now),
             "log": list(reversed(self.log[-50:])),
         }
         self._save_state()
@@ -932,6 +937,109 @@ class WaermeregieManager:
         # wer aufheizen will, will keine Pause von Hand mehr
         self.state["pause_until"] = None
         self._add_log(now, text + by, shadow)
+        return await self.async_evaluate()
+
+    # --- Rückmeldungen und Vorschläge ---------------------------------------------------
+    async def _feedback_status(self, now: datetime) -> dict:
+        """Offene Vorschläge und letzte Rückmeldung; neue Vorschläge einmal melden."""
+        suggestions = feedback.suggest(self.feedback, self.config, now)
+        ids = {s["id"] for s in suggestions}
+        if self._suggested is not None:
+            for s in suggestions:
+                if s["id"] not in self._suggested:
+                    self._add_log(now, "Vorschlag: " + s["text"], False)
+                    await self._notify(
+                        "suggestion",
+                        "suggestion:" + s["id"],
+                        s["text"] + " Annehmen oder ablehnen kannst du in der Wärmeregie.",
+                        now,
+                    )
+        self._suggested = ids
+        entries = self.feedback["entries"]
+        return {"suggestions": suggestions, "last": entries[-1] if entries else None}
+
+    async def async_feedback(
+        self, kind: str, room: str | None = None, source: str | None = None
+    ) -> dict:
+        """Rückmeldung zu kalt / passt / zu warm fürs Haus (room None) oder einen Raum."""
+        if kind not in feedback.KINDS:
+            raise model.ConfigError("Rückmeldung muss cold, ok oder warm sein")
+        rooms = {r["id"]: r for r in self.config["rooms"]}
+        if room is not None and room not in rooms:
+            raise model.ConfigError("Raum unbekannt")
+        now = dt_util.now()
+        st = self.status or await self.async_evaluate()
+        rs = next((r for r in st.get("rooms") or [] if r["id"] == room), None)
+        house = st.get("house") or {}
+        stove = st.get("stove") or {}
+        feedback.record(
+            self.feedback,
+            now,
+            kind,
+            room,
+            {
+                "day_type": (st.get("day_type") or {}).get("id"),
+                "scene": (st.get("scene") or {}).get("id"),
+                "house_c": house.get("temperature_c"),
+                "target_c": house.get("target_c"),
+                "room_c": rs["temperature"] if rs else None,
+                "room_target": rs["target"] if rs else None,
+                "outdoor_c": house.get("outdoor_c"),
+                "water_c": stove.get("water_c"),
+                "burning": stove.get("burning"),
+            },
+        )
+        label = {"cold": "zu kalt", "ok": "passt", "warm": "zu warm"}[kind]
+        where = f"Raum {rooms[room]['name']}" if room else "ganzes Haus"
+        by = f" ({source})" if source else ""
+        shadow = self.config["mode"] != MODE_ACTIVE
+        self._add_log(now, f"Rückmeldung {label}: {where}{by}", shadow)
+        minutes = self.config["parameters"]["cold_min"]
+        until = now + timedelta(minutes=minutes)
+        if kind != "ok" and room is not None:
+            delta = feedback.ROOM_NUDGE_K if kind == "cold" else -feedback.ROOM_NUDGE_K
+            self.state["room_boost"] = {
+                **(self.state.get("room_boost") or {}),
+                room: {"delta": delta, "until": until.isoformat()},
+            }
+            self._add_log(
+                now,
+                f"{rooms[room]['name']}: Ziel {delta:+.0f} K bis {until.strftime('%H:%M')}",
+                shadow,
+            )
+        elif kind == "cold":
+            return await self.async_warmup(source=source, cold=True)
+        elif kind == "warm":
+            self.state["warmup"] = None
+            return await self.async_boost(-feedback.ROOM_NUDGE_K, minutes)
+        return await self.async_evaluate()
+
+    async def async_suggestion(self, suggestion_id: str, action: str, value: Any = None) -> dict:
+        """Vorschlag annehmen (auch mit eigenem Wert) oder ablehnen."""
+        now = dt_util.now()
+        suggestion = next(
+            (
+                s
+                for s in feedback.suggest(self.feedback, self.config, now)
+                if s["id"] == suggestion_id
+            ),
+            None,
+        )
+        if suggestion is None:
+            raise model.ConfigError("Diesen Vorschlag gibt es nicht mehr")
+        if action == "dismiss":
+            feedback.dismiss(self.feedback, suggestion_id, now)
+            self._add_log(now, "Vorschlag abgelehnt: " + suggestion["text"], False)
+        elif action == "accept":
+            try:
+                new = feedback.apply(self.config, suggestion, value)
+            except (TypeError, ValueError) as err:
+                raise model.ConfigError("Wert ungültig") from err
+            feedback.mark_used(self.feedback, suggestion, now)
+            self._add_log(now, "Vorschlag angenommen: " + suggestion["text"], False)
+            await self.async_save_config(new)
+        else:
+            raise model.ConfigError("Aktion muss accept oder dismiss sein")
         return await self.async_evaluate()
 
     async def async_set_mode(self, mode: str) -> dict:

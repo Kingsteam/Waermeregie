@@ -341,7 +341,7 @@ export class WrHouseEditor extends EditorBase {
   private _renderMessages() {
     const t = this.t;
     const n = this._msg();
-    const kinds: NotifyKind[] = ["opening", "opening_check", "sensor", "pellets", "stove_error", "overheat", "too_warm", "activity"];
+    const kinds: NotifyKind[] = ["opening", "opening_check", "sensor", "pellets", "stove_error", "overheat", "too_warm", "activity", "suggestion"];
     const quietOk = quietValid(n);
     const minutes = (key: "opening_delay_min" | "repeat_min" | "ventilate_max_min", min: number, max: number, step: number) => {
       const hintKey = `msg.${key}_hint` as I18nKey;

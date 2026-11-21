@@ -2,6 +2,7 @@
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
 import { loadConfig, loadHistory, subscribeStatus } from "./api";
 import { defineControls } from "./controls";
+import { defineFeedback } from "./feedback";
 import { artStyles, chartStyles, renderTrendChart, tankStyles } from "./graphics";
 import { overviewStyles, renderAlertStrip, renderHeroHead, renderPellets, renderRoomTiles } from "./overview";
 import { translator, type Lang } from "./i18n";
@@ -23,6 +24,7 @@ export interface CardConfig {
   show_pellets?: boolean;
   /** Räume anzeigen (Standard: ja) */
   show_rooms?: boolean;
+  show_feedback?: boolean;
 }
 
 export class WaermeregieCard extends LitElement {
@@ -162,6 +164,15 @@ export class WaermeregieCard extends LitElement {
                     .lang=${this._lang}
                     @wr-status=${(e: CustomEvent<Status>) => (this._status = e.detail)}
                   ></wr-controls>`}
+              ${c.show_feedback === false
+                ? nothing
+                : html`<wr-feedback
+                    style="margin-top:12px"
+                    .hass=${this.hass}
+                    .status=${this._status}
+                    .lang=${this._lang}
+                    @wr-status=${(e: CustomEvent<Status>) => (this._status = e.detail)}
+                  ></wr-feedback>`}
               ${c.chart !== false && this._history?.length ? renderTrendChart(this._history, t, this._lang, { height: 90, legend: false }) : nothing}
               ${c.show_pellets === false ? nothing : renderPellets(ctx, null, { compact: true })}
               ${c.show_rooms === false ? nothing : renderRoomTiles(ctx, c.rooms)}
@@ -221,6 +232,7 @@ export class WaermeregieCard extends LitElement {
  */
 function defineCard(): void {
   defineControls();
+  defineFeedback();
   const registry = window.customElements;
   if (!registry.get("waermeregie-card")) registry.define("waermeregie-card", WaermeregieCard);
 }

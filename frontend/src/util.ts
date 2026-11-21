@@ -16,6 +16,7 @@ export const DEFAULT_NOTIFICATIONS: Notifications = {
   overheat: true,
   too_warm: true,
   activity: false,
+  suggestion: true,
   opening_delay_min: 10,
   repeat_min: 60,
   ventilate_max_min: 30,

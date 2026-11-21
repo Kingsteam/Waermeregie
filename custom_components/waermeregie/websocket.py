@@ -31,6 +31,8 @@ def async_register(hass: HomeAssistant) -> None:
         ws_mode,
         ws_warmup,
         ws_history,
+        ws_feedback,
+        ws_suggestion,
         ws_learn_reset,
     ):
         websocket_api.async_register_command(hass, handler)
@@ -205,6 +207,40 @@ async def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
         return _not_loaded(connection, msg)
     await mgr.async_backfill_history()
     connection.send_result(msg["id"], {"points": mgr.history_points(msg["hours"])})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/feedback",
+        vol.Required("kind"): vol.In(["cold", "ok", "warm"]),
+        vol.Optional("room"): vol.Any(str, None),
+    }
+)
+@websocket_api.async_response
+async def ws_feedback(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Rückmeldung geben darf jeder im Haus, nicht nur Verwalter."""
+    if not (mgr := _manager(hass)):
+        return _not_loaded(connection, msg)
+    user = getattr(getattr(connection, "user", None), "name", None)
+    await _run(connection, msg, mgr.async_feedback(msg["kind"], msg.get("room"), source=user))
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/suggestion",
+        vol.Required("suggestion"): str,
+        vol.Required("action"): vol.In(["accept", "dismiss"]),
+        vol.Optional("value"): vol.Any(str, vol.Coerce(float)),
+    }
+)
+@websocket_api.async_response
+async def ws_suggestion(hass: HomeAssistant, connection, msg: dict) -> None:
+    if not (mgr := _manager(hass)):
+        return _not_loaded(connection, msg)
+    await _run(
+        connection, msg, mgr.async_suggestion(msg["suggestion"], msg["action"], msg.get("value"))
+    )
 
 
 @websocket_api.require_admin
