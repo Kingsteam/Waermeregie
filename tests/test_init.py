@@ -1206,3 +1206,36 @@ async def test_voice_assistant_gets_feedback_tool(
     mgr = hass.data[DOMAIN]
     assert mgr.status["feedback"]["last"]["kind"] == "cold"
     assert mgr.status["warmup"]["cold"] is True
+
+
+async def test_radiator_switched_off_is_switched_on_again(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    """Ein ausgeschalteter Heizkörper nimmt keinen Sollwert an: einschalten und neu setzen."""
+    temp_calls = async_mock_service(hass, "climate", "set_temperature")
+    async_mock_service(hass, "climate", "set_hvac_mode")
+    client, _ = await _configured(hass, hass_ws_client)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/mode", "mode": "active"})
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    mgr = hass.data[DOMAIN]
+    radiator = [c for c in temp_calls if c.data["entity_id"] == "climate.heizung_wohnzimmer"]
+    assert radiator and "hvac_mode" not in radiator[-1].data
+    count = len(radiator)
+    # jemand schaltet ihn aus: gleicher Sollwert, aber er muss wieder an
+    hass.states.async_set(
+        "climate.heizung_wohnzimmer",
+        "off",
+        {"current_temperature": 20.0, "hvac_modes": ["off", "heat"], "friendly_name": "HK WZ"},
+    )
+    await mgr.async_evaluate()
+    radiator = [c for c in temp_calls if c.data["entity_id"] == "climate.heizung_wohnzimmer"]
+    assert len(radiator) == count + 1
+    assert radiator[-1].data["hvac_mode"] == "heat"
+    assert any("HK WZ war ausgeschaltet" in e["text"] for e in mgr.status["log"])
+    # läuft er wieder, bleibt es beim Schonen der Batterie: kein weiterer Befehl
+    hass.states.async_set("climate.heizung_wohnzimmer", "heat", {"current_temperature": 20.0})
+    await mgr.async_evaluate()
+    assert len([c for c in temp_calls if c.data["entity_id"] == "climate.heizung_wohnzimmer"]) == (
+        count + 1
+    )

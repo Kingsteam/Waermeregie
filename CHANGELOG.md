@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-11-21
+### Behoben
+- **Ausgeschaltete Heizkörper:** Steht ein Heizkörperthermostat auf „Aus“, nimmt er keinen Sollwert an. Die Wärmeregie hat ihm trotzdem nur die Temperatur geschickt, er blieb zu. Der Ofen fand dann keine Abnahme für die Wärme und schaltete schnell selbst ab; auch Kesselschutz und Wärmeabfuhr konnten die Heizkörper so nicht öffnen. Jetzt schaltet die Wärmeregie einen ausgeschalteten Heizkörper beim Setzen wieder auf Heizen und schreibt das ins Protokoll. Soll ein Heizkörper bewusst aus bleiben, pausiere ihn in der Wärmeregie (Raum-Seite).
+
 ## [0.14.2] - 2026-11-21
 ### Behoben
 - **Sprachassistent:** Die Aktion „Rückmeldung“ kam beim KI-Sprachassistenten gar nicht an, er hat deshalb nach einem Heizkörper gefragt. Home Assistant will solche Werkzeuge über eine eigene Datei angeboten bekommen; die fehlte. Jetzt bekommt der Assistent das Werkzeug und dazu den Hinweis, bei „mir ist kalt“ oder „zu warm“ die Wärmeregie zu fragen, statt selbst an Heizkörpern zu drehen.

@@ -497,6 +497,10 @@ class WaermeregieManager:
         obs.rule_scene = ruled["effects"]["scene"]
         obs.rule_delta_k = ruled["effects"]["target_delta"]
         obs.rule_lead_min = ruled["effects"]["lead_min"]
+        # Ein ausgeschalteter Heizkörper (Betriebsart "off") übernimmt keinen Sollwert.
+        # Den gemerkten Wert vergessen, damit die Regel ihn neu setzt und dabei einschaltet.
+        for entity_id in self._radiators_off(config):
+            self.state.get("radiators", {}).pop(entity_id, None)
         result = engine.evaluate(config, self.state, obs)
         self.state = result.state
         self.state["rules"] = ruled["state"]
@@ -657,6 +661,20 @@ class WaermeregieManager:
                 domain, "select_option", {"entity_id": entity_id, "option": option}, now
             )
 
+    def _radiators_off(self, config: dict) -> list[str]:
+        """Heizkörper, die gerade ausgeschaltet sind, aber heizen könnten."""
+        out = []
+        for room in config["rooms"]:
+            for entity_id in room["radiators"]:
+                st = self._state(entity_id)
+                if (
+                    st is not None
+                    and st.state == "off"
+                    and "heat" in (st.attributes.get("hvac_modes") or [])
+                ):
+                    out.append(entity_id)
+        return out
+
     async def _execute(self, actions: list[tuple], now: datetime) -> None:
         stove = self.config["stove"]["climate"]
         setpoint = self.config["parameters"]["stove_block_setpoint_c"]
@@ -693,12 +711,14 @@ class WaermeregieManager:
                         False,
                     )
             elif action[0] == "radiator":
-                await self._call(
-                    "climate",
-                    "set_temperature",
-                    {"entity_id": action[1], "temperature": action[2]},
-                    now,
-                )
+                data: dict[str, Any] = {"entity_id": action[1], "temperature": action[2]}
+                st = self._state(action[1])
+                if st is not None and st.state == "off":
+                    # sonst bleibt der Sollwert wirkungslos (auch beim Kesselschutz)
+                    data["hvac_mode"] = "heat"
+                    name = st.attributes.get("friendly_name") or action[1]
+                    self._add_log(now, f"Heizkörper {name} war ausgeschaltet, eingeschaltet", False)
+                await self._call("climate", "set_temperature", data, now)
 
     # --- Benachrichtigungen ---------------------------------------------------------
     async def _notify(self, kind: str, key: str, text: str, now: datetime) -> None:
