@@ -161,6 +161,15 @@ def build_package(
                 "aussen_c": e.get("outdoor_c"),
                 "kessel_c": e.get("water_c"),
                 "ofen_brennt": e.get("burning"),
+                "ofen_phase": e.get("phase"),
+                "wind_kmh": e.get("wind_kmh"),
+                "wetter": e.get("weather"),
+                "jemand_zu_hause": e.get("someone_home"),
+                "raum_feuchte": e.get("room_humidity"),
+                "raum_fenster_offen": e.get("room_open"),
+                "alle_raeume_c": {
+                    room_alias[k]: v for k, v in (e.get("rooms") or {}).items() if k in room_alias
+                },
             }
         )
     return {

@@ -946,7 +946,19 @@ async def test_feedback_room_and_house_and_suggestion_roundtrip(
     assert msg["success"], msg
     assert msg["result"]["rooms"][0]["target"] == before + 1.0
     assert msg["result"]["feedback"]["last"]["room"] == "wohnzimmer"
-    assert msg["result"]["feedback"]["last"]["room_c"] == 19.0  # Momentaufnahme
+    last = msg["result"]["feedback"]["last"]
+    assert last["room_c"] == 19.0  # Momentaufnahme
+    assert last["rooms"] == {"wohnzimmer": 19.0} and "phase" in last and "wind_kmh" in last
+    # Automation mit Raumnamen und Quelle
+    await hass.services.async_call(
+        DOMAIN,
+        "feedback",
+        {"kind": "ok", "room": " WOHNZIMMER", "source": "Taster Wand"},
+        blocking=True,
+    )
+    last = mgr.status["feedback"]["last"]
+    assert (last["room"], last["source"]) == ("wohnzimmer", "Taster Wand")
+    assert "Taster Wand" in str(mgr.status["log"])
     # ganzes Haus zu kalt wirkt wie "Mir ist kalt"
     await hass.services.async_call(DOMAIN, "feedback", {"kind": "cold"}, blocking=True)
     assert mgr.status["warmup"]["cold"] is True

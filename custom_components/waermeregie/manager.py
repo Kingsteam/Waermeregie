@@ -169,6 +169,7 @@ class WaermeregieManager:
         self._forecast: list[tuple[datetime, float]] = []
         self._forecast_at: datetime | None = None
         self._last_wind: float | None = None
+        self._last_away: bool | None = None
         self._was_overheat = False
         # Verlauf für die Grafik (gespeichert), Brennen seit dem letzten Punkt
         self.history: list[dict[str, Any]] = []
@@ -1034,6 +1035,7 @@ class WaermeregieManager:
             except TypeError, ValueError:
                 wind_kmh = None
         self._last_wind = wind_kmh
+        self._last_away = away
         if need_forecast:
             await self._update_forecast(now, config["weather"])
         return {
@@ -1265,7 +1267,19 @@ class WaermeregieManager:
             raise model.ConfigError("Rückmeldung muss cold, ok oder warm sein")
         rooms = {r["id"]: r for r in self.config["rooms"]}
         if room is not None and room not in rooms:
-            raise model.ConfigError("Raum unbekannt")
+            # Automationen dürfen auch den Namen angeben ("Badezimmer")
+            wanted = room.strip().casefold()
+            room = next(
+                (
+                    r["id"]
+                    for r in rooms.values()
+                    if wanted in (r["name"].strip().casefold(), r["id"].casefold())
+                ),
+                None,
+            )
+            if room is None:
+                names = ", ".join(r["name"] for r in rooms.values())
+                raise model.ConfigError(f"Raum unbekannt. Es gibt: {names}")
         now = dt_util.now()
         st = self.status or await self.async_evaluate()
         rs = next((r for r in st.get("rooms") or [] if r["id"] == room), None)
@@ -1286,6 +1300,16 @@ class WaermeregieManager:
                 "outdoor_c": house.get("outdoor_c"),
                 "water_c": stove.get("water_c"),
                 "burning": stove.get("burning"),
+                # Umfeld rundherum, damit sich später Muster finden lassen
+                "phase": st.get("phase"),
+                "wind_kmh": round(self._last_wind, 1) if self._last_wind is not None else None,
+                "weather": getattr(self._state(self.config["weather"]), "state", None),
+                "someone_home": None if self._last_away is None else not self._last_away,
+                "room_humidity": rs.get("humidity") if rs else None,
+                "room_open": rs.get("open") if rs else None,
+                "room_occupied": rs.get("occupied") if rs else None,
+                "rooms": {r["id"]: r.get("temperature") for r in st.get("rooms") or []},
+                "source": source,
             },
         )
         # Lernwerte der Regeln (nur Rückmeldungen fürs ganze Haus)

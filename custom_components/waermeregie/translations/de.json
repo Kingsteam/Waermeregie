@@ -222,7 +222,11 @@
         },
         "room": {
           "name": "Raum",
-          "description": "Kennung des Raums (wie in der Wärmeregie). Leer = ganzes Haus."
+          "description": "Name oder Kennung des Raums wie in der Wärmeregie (z. B. Badezimmer). Leer = ganzes Haus."
+        },
+        "source": {
+          "name": "Quelle",
+          "description": "Freiwillig. Woher die Rückmeldung kommt, z. B. Taster Badezimmer. Steht im Protokoll."
         }
       }
     },

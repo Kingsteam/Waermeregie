@@ -10,6 +10,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - **Du entscheidest:** Jeder Vorschlag erscheint als Karte mit Begründung zum Annehmen, Anpassen oder Ablehnen. Von selbst wird nichts übernommen. Neue Regeln der KI laufen nach dem Annehmen zuerst einen Tag im Probelauf.
 - **Strenge Prüfung:** Die Antwort der KI gilt als nicht vertrauenswürdig. Durch kommt nur, was auf der Liste der verstellbaren Werte steht, in den Grenzen liegt und nicht zu weit springt (Ziele höchstens 1 K, Uhrzeiten höchstens 1 Stunde, höchstens 5 Änderungen und 2 neue Regeln je Anfrage). Schutzregeln, Geräte und Türschlösser kann die KI nie anfassen.
 - **Anonym:** Räume heißen im Paket „Raum A“, „Raum B“; Personen, Geräte und Adressen stehen nicht drin. Mit „Zeigen, was geschickt wird“ siehst du das Paket vorher, ohne dass etwas gesendet wird. Gesendet wird nur, wenn du fragst.
+- **Rückmeldungen mit mehr Umfeld:** Zu jeder Rückmeldung wird jetzt zusätzlich gespeichert: Wind, Wetterlage, ob jemand zu Hause ist, Zustand des Ofens, Feuchte und Fenster im Raum, ob der Raum belegt ist, die Temperaturen aller Räume und die Quelle. Uhrzeit, Wochentag, Tagesart, Szene, Haus-, Raum-, Außen- und Kesseltemperatur waren schon dabei.
+- **Rückmeldung per Automation:** Der Dienst `waermeregie.feedback` nimmt beim Raum jetzt auch den Namen (z. B. „Badezimmer“) und ein freies Feld `source` (z. B. „Taster Badezimmer“), das im Protokoll steht.
 - Dienst `waermeregie.ai_suggest` für Automationen (z. B. einmal pro Woche). Auch dann werden nur Vorschläge angelegt.
 
 ## [0.13.0] - 2026-11-21

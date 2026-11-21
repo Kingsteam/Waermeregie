@@ -221,8 +221,12 @@
           "description": "cold = zu kalt, ok = passt, warm = zu warm."
         },
         "room": {
-          "name": "Raum",
-          "description": "Kennung des Raums (wie in der Wärmeregie). Leer = ganzes Haus."
+          "name": "Room",
+          "description": "Room name or id as in Wärmeregie (e.g. Bathroom). Empty = whole house."
+        },
+        "source": {
+          "name": "Source",
+          "description": "Optional. Where the feedback came from, e.g. bathroom button. Shown in the log."
         }
       }
     },
