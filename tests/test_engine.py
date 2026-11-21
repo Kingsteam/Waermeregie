@@ -973,13 +973,15 @@ def test_cold_with_cold_boiler_starts_stove_at_once():
     assert ("stove_start",) in r.actions
 
 
-def test_cold_in_warm_house_does_not_start_stove():
+def test_cold_starts_stove_even_when_sensors_say_warm_enough():
+    """21.11.2026: Wohnräume 0,1 K über Ziel, Kessel kalt, trotzdem soll der Ofen heizen."""
     cfg = sample_config(mode="active")
     now = at(16, "06:10")
     state = {**engine.empty_state(), "warmup": _cold(now)}
-    r = run(cfg, state, obs(now, wz=23.0, sz=21.0, stove=_idle(30.0)))
-    assert ("stove_start",) not in r.actions
+    r = run(cfg, state, obs(now, wz=22.1, sz=20.1, stove=_idle(21.5)))
+    assert ("stove_start",) in r.actions
     assert r.status["warmup"]["cold"] is True
+    assert any("Mir ist kalt" in t for t in r.log)
 
 
 def test_cold_residual_can_be_switched_off():
