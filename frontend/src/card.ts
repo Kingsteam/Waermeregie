@@ -3,6 +3,7 @@ import { LitElement, html, css, nothing, type PropertyValues } from "lit";
 import { loadConfig, loadHistory, subscribeStatus } from "./api";
 import { defineControls } from "./controls";
 import { defineFeedback } from "./feedback";
+import { WaermeregieFeedbackCard } from "./feedback-card";
 import { artStyles, chartStyles, renderTrendChart, tankStyles } from "./graphics";
 import { overviewStyles, renderAlertStrip, renderHeroHead, renderPellets, renderRoomTiles } from "./overview";
 import { translator, type Lang } from "./i18n";
@@ -235,6 +236,7 @@ function defineCard(): void {
   defineFeedback();
   const registry = window.customElements;
   if (!registry.get("waermeregie-card")) registry.define("waermeregie-card", WaermeregieCard);
+  if (!registry.get("waermeregie-feedback-card")) registry.define("waermeregie-feedback-card", WaermeregieFeedbackCard);
 }
 if (window.customElements.get("home-assistant")) {
   defineCard();
@@ -264,4 +266,5 @@ if (!window.customCards.some((c) => c.type === "waermeregie-card")) {
   const lang = pickLang(typeof navigator !== "undefined" ? navigator.language : "de");
   const t = translator(lang);
   window.customCards.push({ type: "waermeregie-card", name: t("card.name"), description: t("card.description"), preview: false });
+  window.customCards.push({ type: "waermeregie-feedback-card", name: t("fbcard.name"), description: t("fbcard.description"), preview: false });
 }
