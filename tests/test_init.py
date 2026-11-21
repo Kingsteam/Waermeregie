@@ -953,7 +953,7 @@ async def test_feedback_room_and_house_and_suggestion_roundtrip(
     await hass.services.async_call(
         DOMAIN,
         "feedback",
-        {"kind": "ok", "room": " WOHNZIMMER", "source": "Taster Wand"},
+        {"kind": "warm", "room": " WOHNZIMMER", "source": "Taster Wand"},
         blocking=True,
     )
     last = mgr.status["feedback"]["last"]
