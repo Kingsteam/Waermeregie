@@ -34,6 +34,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from . import (
+    advisor,
     backfill,
     engine,
     feedback,
@@ -71,6 +72,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 SIGNAL_UPDATE = f"{DOMAIN}_update"
+AI_TIMEOUT_S = 120
 BAD_STATES = (STATE_UNAVAILABLE, STATE_UNKNOWN, None)
 
 
@@ -79,8 +81,9 @@ def _paths(config: dict) -> list[tuple[Any, Any]]:
     out: list[tuple[Any, Any]] = []
     for key in model.STOVE_KEYS:
         out.append((config["stove"], key))
-    for key in ("weather", "outdoor_sensor", "workday", "pet"):
-        out.append((config, key))
+    for key in ("weather", "outdoor_sensor", "workday", "pet", "ai_task"):
+        if key in config:
+            out.append((config, key))
     for i in range(len(config["persons"])):
         out.append((config["persons"], i))
     for room in config["rooms"]:
@@ -162,9 +165,11 @@ class WaermeregieManager:
         self._backfill_done = False
         self.feedback: dict[str, Any] = feedback.empty()
         self._suggested: set[str] | None = None  # schon gemeldete Vorschläge
+        self._ai_busy = False
         self._forecast: list[tuple[datetime, float]] = []
         self._forecast_at: datetime | None = None
         self._last_wind: float | None = None
+        self._last_away: bool | None = None
         self._was_overheat = False
         # Verlauf für die Grafik (gespeichert), Brennen seit dem letzten Punkt
         self.history: list[dict[str, Any]] = []
@@ -1030,6 +1035,7 @@ class WaermeregieManager:
             except TypeError, ValueError:
                 wind_kmh = None
         self._last_wind = wind_kmh
+        self._last_away = away
         if need_forecast:
             await self._update_forecast(now, config["weather"])
         return {
@@ -1160,7 +1166,8 @@ class WaermeregieManager:
     # --- Rückmeldungen und Vorschläge ---------------------------------------------------
     async def _feedback_status(self, now: datetime) -> dict:
         """Offene Vorschläge und letzte Rückmeldung; neue Vorschläge einmal melden."""
-        suggestions = feedback.suggest(self.feedback, self.config, now)
+        feedback.fill_after(self.feedback, self.history, now)
+        suggestions = self._suggestions(now)
         ids = {s["id"] for s in suggestions}
         if self._suggested is not None:
             for s in suggestions:
@@ -1174,7 +1181,84 @@ class WaermeregieManager:
                     )
         self._suggested = ids
         entries = self.feedback["entries"]
-        return {"suggestions": suggestions, "last": entries[-1] if entries else None}
+        ai = self.feedback.get("ai") or {}
+        return {
+            "suggestions": suggestions,
+            "last": entries[-1] if entries else None,
+            "ai": {
+                "available": bool(self.config.get("ai_task")),
+                "busy": self._ai_busy,
+                "t": ai.get("t"),
+                "summary": ai.get("summary"),
+                "dropped": ai.get("dropped", 0),
+                "error": ai.get("error"),
+            },
+        }
+
+    def _suggestions(self, now: datetime) -> list[dict]:
+        """Vorschläge aus dem Zählen und, falls vorhanden, die geprüften der KI."""
+        ai = (self.feedback.get("ai") or {}).get("suggestions") or []
+        return [*feedback.suggest(self.feedback, self.config, now), *ai]
+
+    # --- KI-Berater -----------------------------------------------------------------------
+    def ai_package(self) -> dict:
+        """Das anonyme Paket, das an die KI ginge (zum Ansehen, ohne zu senden)."""
+        return advisor.build_package(
+            self.config,
+            self.feedback["entries"],
+            (self.status or {}).get("rules") or [],
+            dt_util.now(),
+        )
+
+    async def async_ai_suggest(self, source: str | None = None) -> dict:
+        """Die KI von Home Assistant um Vorschläge fragen. Übernommen wird nichts."""
+        entity = self.config.get("ai_task")
+        if not entity:
+            raise model.ConfigError(
+                "Es ist keine KI eingetragen (Ofen & Haus, Abschnitt Umgebung: KI-Berater)"
+            )
+        if self._ai_busy:
+            raise model.ConfigError("Die KI wird gerade schon gefragt")
+        if not self.status:
+            await self.async_evaluate()
+        now = dt_util.now()
+        package = self.ai_package()
+        by = f" ({source})" if source else ""
+        self._ai_busy = True
+        result: dict[str, Any] = {"t": now.isoformat(), "suggestions": [], "dropped": 0}
+        try:
+            async with asyncio.timeout(AI_TIMEOUT_S):
+                response = await self.hass.services.async_call(
+                    "ai_task",
+                    "generate_data",
+                    {
+                        "task_name": "Wärmeregie Vorschläge",
+                        "entity_id": entity,
+                        "instructions": advisor.instructions(package),
+                    },
+                    blocking=True,
+                    return_response=True,
+                )
+            answer = advisor.parse((response or {}).get("data"))
+            _LOGGER.debug("KI-Berater: Antwort %s", answer)
+            result["suggestions"], result["dropped"] = advisor.vet(self.config, answer, now)
+            result["summary"] = advisor.real_names(
+                self.config, advisor.clean_text(answer.get("zusammenfassung"))
+            )
+            self._add_log(
+                now,
+                f"KI gefragt{by}: {len(result['suggestions'])} Vorschläge"
+                + (f", {result['dropped']} verworfen (nicht erlaubt)" if result["dropped"] else ""),
+                False,
+            )
+        except Exception as err:
+            _LOGGER.warning("KI-Berater: Anfrage fehlgeschlagen: %s", err)
+            result["error"] = "Die KI hat nicht brauchbar geantwortet. Bitte später noch einmal."
+            self._add_log(now, f"KI gefragt{by}: keine brauchbare Antwort", False)
+        finally:
+            self._ai_busy = False
+        self.feedback["ai"] = result
+        return await self.async_evaluate()
 
     async def async_feedback(
         self, kind: str, room: str | None = None, source: str | None = None
@@ -1184,7 +1268,19 @@ class WaermeregieManager:
             raise model.ConfigError("Rückmeldung muss cold, ok oder warm sein")
         rooms = {r["id"]: r for r in self.config["rooms"]}
         if room is not None and room not in rooms:
-            raise model.ConfigError("Raum unbekannt")
+            # Automationen dürfen auch den Namen angeben ("Badezimmer")
+            wanted = room.strip().casefold()
+            room = next(
+                (
+                    r["id"]
+                    for r in rooms.values()
+                    if wanted in (r["name"].strip().casefold(), r["id"].casefold())
+                ),
+                None,
+            )
+            if room is None:
+                names = ", ".join(r["name"] for r in rooms.values())
+                raise model.ConfigError(f"Raum unbekannt. Es gibt: {names}")
         now = dt_util.now()
         st = self.status or await self.async_evaluate()
         rs = next((r for r in st.get("rooms") or [] if r["id"] == room), None)
@@ -1205,6 +1301,17 @@ class WaermeregieManager:
                 "outdoor_c": house.get("outdoor_c"),
                 "water_c": stove.get("water_c"),
                 "burning": stove.get("burning"),
+                # Umfeld rundherum, damit sich später Muster finden lassen
+                "phase": st.get("phase"),
+                "wind_kmh": round(self._last_wind, 1) if self._last_wind is not None else None,
+                "weather": getattr(self._state(self.config["weather"]), "state", None),
+                "someone_home": None if self._last_away is None else not self._last_away,
+                "room_humidity": rs.get("humidity") if rs else None,
+                "room_open": rs.get("open") if rs else None,
+                "room_occupied": rs.get("occupied") if rs else None,
+                "rooms": {r["id"]: r.get("temperature") for r in st.get("rooms") or []},
+                "source": source,
+                "before": feedback.trend(self.history, now, room, -1),
             },
         )
         # Lernwerte der Regeln (nur Rückmeldungen fürs ganze Haus)
@@ -1246,30 +1353,34 @@ class WaermeregieManager:
     async def async_suggestion(self, suggestion_id: str, action: str, value: Any = None) -> dict:
         """Vorschlag annehmen (auch mit eigenem Wert) oder ablehnen."""
         now = dt_util.now()
-        suggestion = next(
-            (
-                s
-                for s in feedback.suggest(self.feedback, self.config, now)
-                if s["id"] == suggestion_id
-            ),
-            None,
-        )
+        suggestion = next((s for s in self._suggestions(now) if s["id"] == suggestion_id), None)
+        is_ai = suggestion is not None and suggestion["type"].startswith("ai_")
         if suggestion is None:
             raise model.ConfigError("Diesen Vorschlag gibt es nicht mehr")
         if action == "dismiss":
-            feedback.dismiss(self.feedback, suggestion_id, now)
+            if is_ai:
+                self._ai_drop(suggestion_id)
+            else:
+                feedback.dismiss(self.feedback, suggestion_id, now)
             self._add_log(now, "Vorschlag abgelehnt: " + suggestion["text"], False)
         elif action == "accept":
             try:
-                new = feedback.apply(self.config, suggestion, value)
-            except (TypeError, ValueError) as err:
-                raise model.ConfigError("Wert ungültig") from err
-            feedback.mark_used(self.feedback, suggestion, now)
-            self._add_log(now, "Vorschlag angenommen: " + suggestion["text"], False)
+                new = (advisor if is_ai else feedback).apply(self.config, suggestion, value)
+            except (TypeError, ValueError, KeyError, IndexError, StopIteration) as err:
+                raise model.ConfigError("Wert ungültig oder Vorschlag veraltet") from err
             await self.async_save_config(new)
+            if is_ai:
+                self._ai_drop(suggestion_id)
+            else:
+                feedback.mark_used(self.feedback, suggestion, now)
+            self._add_log(now, "Vorschlag angenommen: " + suggestion["text"], False)
         else:
             raise model.ConfigError("Aktion muss accept oder dismiss sein")
         return await self.async_evaluate()
+
+    def _ai_drop(self, suggestion_id: str) -> None:
+        ai = self.feedback.get("ai") or {}
+        ai["suggestions"] = [s for s in ai.get("suggestions") or [] if s["id"] != suggestion_id]
 
     async def async_set_mode(self, mode: str) -> dict:
         if mode not in (MODE_SHADOW, MODE_ACTIVE):

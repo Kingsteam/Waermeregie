@@ -32,6 +32,8 @@ def async_register(hass: HomeAssistant) -> None:
         ws_warmup,
         ws_history,
         ws_feedback,
+        ws_ai_suggest,
+        ws_ai_preview,
         ws_suggestion,
         ws_learn_reset,
     ):
@@ -207,6 +209,27 @@ async def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
         return _not_loaded(connection, msg)
     await mgr.async_backfill_history()
     connection.send_result(msg["id"], {"points": mgr.history_points(msg["hours"])})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/ai_suggest"})
+@websocket_api.async_response
+async def ws_ai_suggest(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Die KI um Vorschläge fragen (sendet das anonyme Paket)."""
+    if not (mgr := _manager(hass)):
+        return _not_loaded(connection, msg)
+    user = getattr(getattr(connection, "user", None), "name", None)
+    await _run(connection, msg, mgr.async_ai_suggest(source=user))
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/ai_preview"})
+@websocket_api.async_response
+async def ws_ai_preview(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Zeigen, was an die KI ginge. Sendet nichts."""
+    if not (mgr := _manager(hass)):
+        return _not_loaded(connection, msg)
+    connection.send_result(msg["id"], {"package": mgr.ai_package()})
 
 
 @websocket_api.websocket_command(

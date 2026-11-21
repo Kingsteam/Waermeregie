@@ -87,6 +87,15 @@ Auf dem Handy:
 
 ![Handy](bilder/handy.png)
 
+## KI-Berater (freiwillig)
+Hast du in Home Assistant eine KI eingerichtet (z. B. OpenAI), kannst du sie unter *Ofen & Haus → Umgebung → KI-Berater* eintragen. Im Reiter *Regeln* gibt es dann den Knopf **KI um Vorschläge fragen**.
+
+- Die KI bekommt deine verstellbaren Werte mit Grenzen, den Zeitplan, die Regeln und deine Rückmeldungen der letzten vier Wochen. Räume heißen dabei „Raum A“, „Raum B“; Personen, Geräte und Adressen gehen nicht mit. Mit **Zeigen, was geschickt wird** siehst du das Paket vorher.
+- Sie darf Werte ändern und neue Regeln vorschlagen. Jeder Vorschlag erscheint als Karte: Annehmen, Anpassen oder Nein danke. Von selbst ändert sich nichts.
+- Schutzregeln (Kesselschutz, Frostschutz, Pause gegen Takten, Starts pro Tag) kann die KI nicht anfassen. Was außerhalb der Grenzen liegt, wird verworfen.
+- Neue Regeln der KI laufen nach dem Annehmen zuerst einen Tag im Probelauf.
+- Für Automationen gibt es den Dienst `waermeregie.ai_suggest`. Auch er legt nur Vorschläge an.
+
 ## Pelletvorrat
 Die Wärmeregie zählt mit, wie lange der Ofen brennt, und schätzt daraus, wie viel noch im Behälter ist und wann er leer sein wird. Die Messung läuft auch im Schattenbetrieb.
 

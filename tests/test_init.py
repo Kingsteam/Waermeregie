@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import timedelta
+import json
 from unittest.mock import MagicMock, patch
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant, ServiceCall, State, SupportsResponse
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 import pytest
@@ -945,7 +946,19 @@ async def test_feedback_room_and_house_and_suggestion_roundtrip(
     assert msg["success"], msg
     assert msg["result"]["rooms"][0]["target"] == before + 1.0
     assert msg["result"]["feedback"]["last"]["room"] == "wohnzimmer"
-    assert msg["result"]["feedback"]["last"]["room_c"] == 19.0  # Momentaufnahme
+    last = msg["result"]["feedback"]["last"]
+    assert last["room_c"] == 19.0  # Momentaufnahme
+    assert last["rooms"] == {"wohnzimmer": 19.0} and "phase" in last and "wind_kmh" in last
+    # Automation mit Raumnamen und Quelle
+    await hass.services.async_call(
+        DOMAIN,
+        "feedback",
+        {"kind": "warm", "room": " WOHNZIMMER", "source": "Taster Wand"},
+        blocking=True,
+    )
+    last = mgr.status["feedback"]["last"]
+    assert (last["room"], last["source"]) == ("wohnzimmer", "Taster Wand")
+    assert "Taster Wand" in str(mgr.status["log"])
     # ganzes Haus zu kalt wirkt wie "Mir ist kalt"
     await hass.services.async_call(DOMAIN, "feedback", {"kind": "cold"}, blocking=True)
     assert mgr.status["warmup"]["cold"] is True
@@ -1045,3 +1058,76 @@ async def test_house_feedback_moves_learning_value_of_active_rule(
     )
     msg = await client.receive_json()
     assert msg["result"]["rules"][0]["learned"] == {"target_delta_k": 1.0}
+
+
+async def test_ai_suggest_roundtrip_with_mocked_ai(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    """Die KI wird gefragt, ihre Antwort geprüft; übernommen wird nur auf Annehmen."""
+    client, cfg = await _configured(hass, hass_ws_client)
+    mgr = hass.data[DOMAIN]
+    # ohne eingetragene KI: klare Absage, nichts wird gesendet
+    await client.send_json_auto_id({"type": f"{DOMAIN}/ai_suggest"})
+    msg = await client.receive_json()
+    assert not msg["success"] and "keine KI" in msg["error"]["message"]
+
+    er.async_get(hass).async_get_or_create("ai_task", "test", "ki", suggested_object_id="ki")
+    cfg["ai_task"] = "ai_task.ki"
+    assert (await save(hass, client, cfg))["success"]
+    answer = {
+        "zusammenfassung": "Morgens ist es etwas zu kühl.",
+        "aenderungen": [
+            {"id": "scene:komfort", "wert": 21.5, "begruendung": "Mehrmals zu kalt."},
+            {"id": "param:max_starts_per_day", "wert": 30, "begruendung": "Mehr heizen."},
+        ],
+        "neue_regeln": [{"template": "wind", "params": {"above_kmh": 40}}],
+    }
+    calls = []
+
+    async def generate(call: ServiceCall) -> dict:
+        calls.append(call)
+        return {"conversation_id": "x", "data": "Hier:\n" + json.dumps(answer)}
+
+    hass.services.async_register(
+        "ai_task", "generate_data", generate, supports_response=SupportsResponse.ONLY
+    )
+    # Vorschau sendet nichts
+    await client.send_json_auto_id({"type": f"{DOMAIN}/ai_preview"})
+    package = (await client.receive_json())["result"]["package"]
+    assert calls == [] and "Wohnzimmer" not in json.dumps(package)
+
+    await client.send_json_auto_id({"type": f"{DOMAIN}/ai_suggest"})
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    (call,) = calls
+    assert call.data["entity_id"] == "ai_task.ki"
+    assert "Wohnzimmer" not in call.data["instructions"]
+    fb = msg["result"]["feedback"]
+    assert fb["ai"]["summary"] == "Morgens ist es etwas zu kühl."
+    assert fb["ai"]["dropped"] == 1  # die Schutzregel
+    change, rule = fb["suggestions"]
+    assert (change["type"], rule["type"]) == ("ai_change", "ai_rule")
+    assert mgr.config["scenes"][0]["default_target"] == 21.0  # noch nichts geändert
+    assert mgr.config["rules"] == []
+
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/suggestion", "suggestion": change["id"], "action": "accept"}
+    )
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    assert mgr.config["scenes"][0]["default_target"] == 21.5
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/suggestion", "suggestion": rule["id"], "action": "dismiss"}
+    )
+    msg = await client.receive_json()
+    assert msg["result"]["feedback"]["suggestions"] == []
+    assert mgr.config["rules"] == []
+
+    # Dienst für Automationen; unbrauchbare Antwort ändert nichts und meldet es
+    answer.clear()
+    answer["aenderungen"] = "kaputt"
+    await hass.services.async_call(DOMAIN, "ai_suggest", {}, blocking=True)
+    assert mgr.status["feedback"]["suggestions"] == []
+    hass.services.async_remove("ai_task", "generate_data")
+    await hass.services.async_call(DOMAIN, "ai_suggest", {}, blocking=True)
+    assert mgr.status["feedback"]["ai"]["error"]

@@ -84,9 +84,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def feedback(call: ServiceCall) -> None:
         await _guard(
             _manager(hass).async_feedback(
-                call.data["kind"], call.data.get("room"), source="Dienst waermeregie.feedback"
+                call.data["kind"],
+                call.data.get("room") or None,
+                source=call.data.get("source") or "Dienst waermeregie.feedback",
             )
         )
+
+    async def ai_suggest(call: ServiceCall) -> None:
+        await _guard(_manager(hass).async_ai_suggest(source="Dienst waermeregie.ai_suggest"))
 
     async def cancel_warmup(call: ServiceCall) -> None:
         await _guard(
@@ -105,6 +110,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         ),
     )
     hass.services.async_register(DOMAIN, "cancel_warmup", cancel_warmup)
+    hass.services.async_register(DOMAIN, "ai_suggest", ai_suggest)
     hass.services.async_register(
         DOMAIN,
         "feedback",
@@ -113,6 +119,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             {
                 vol.Required("kind"): vol.In(["cold", "ok", "warm"]),
                 vol.Optional("room"): cv.string,
+                vol.Optional("source"): cv.string,
             }
         ),
     )

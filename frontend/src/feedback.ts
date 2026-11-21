@@ -10,7 +10,13 @@ import { errorMessage, formatNumber, normalizeTimeInput, parseTime } from "./uti
 
 /** Eingabe beim „Anpassen“ prüfen: Uhrzeit (HH:MM) oder Temperatur. null = ungültig. */
 export function adjustValue(s: Suggestion, raw: string): string | number | null {
-  if (s.type === "slot_earlier") {
+  if (s.type === "ai_rule") return null;
+  if (s.type === "ai_change" && typeof s.to === "number") {
+    const n = Number(raw.replace(",", ".").trim());
+    const ok = raw.trim() !== "" && Number.isFinite(n) && n >= (s.min ?? -Infinity) && n <= (s.max ?? Infinity);
+    return ok ? n : null;
+  }
+  if (s.type === "slot_earlier" || s.type === "ai_change") {
     const text = normalizeTimeInput(raw);
     return parseTime(text) === null ? null : text;
   }
@@ -23,6 +29,8 @@ export class WrFeedback extends LitElement {
     hass: { attribute: false },
     status: { attribute: false },
     lang: { type: String },
+    only: { type: String },
+    locked: { type: Boolean },
     _scope: { state: true },
     _busy: { state: true },
     _note: { state: true },
@@ -34,6 +42,10 @@ export class WrFeedback extends LitElement {
   declare hass: Hass;
   declare status: Status | null;
   declare lang: Lang;
+  /** "ai" = nur die KI-Vorschläge zeigen, ohne die Rückmelde-Knöpfe */
+  declare only: string | null;
+  /** Annehmen gesperrt (z. B. solange ungespeicherte Änderungen offen sind) */
+  declare locked: boolean;
   /** "" = ganzes Haus, sonst Raum-ID */
   declare _scope: string;
   declare _busy: boolean;
@@ -46,6 +58,8 @@ export class WrFeedback extends LitElement {
     super();
     this.status = null;
     this.lang = "de";
+    this.only = null;
+    this.locked = false;
     this._scope = "";
     this._busy = false;
     this._note = null;
@@ -62,7 +76,7 @@ export class WrFeedback extends LitElement {
     return this.hass?.user?.is_admin !== false;
   }
 
-  private async _run(fn: () => Promise<Status>, note: string | null) {
+  private async _run(fn: () => Promise<Status>, note: string | null, reload = false) {
     this._busy = true;
     this._error = null;
     this._note = null;
@@ -71,6 +85,8 @@ export class WrFeedback extends LitElement {
       this._note = note;
       this._edit = null;
       this.dispatchEvent(new CustomEvent<Status>("wr-status", { detail: status, bubbles: true, composed: true }));
+      // Einstellungen haben sich geändert: die Seite soll sie neu laden
+      if (reload) this.dispatchEvent(new CustomEvent("wr-reload", { bubbles: true, composed: true }));
     } catch (e) {
       this._error = errorMessage(e);
     } finally {
@@ -94,10 +110,13 @@ export class WrFeedback extends LitElement {
     const t = this._t;
     const editing = this._edit === s.id;
     const value = editing ? adjustValue(s, this._editValue) : null;
+    const ai = s.type === "ai_change" || s.type === "ai_rule";
+    const isTime = s.type === "slot_earlier" || (s.type === "ai_change" && typeof s.to === "string");
+    const accepted = t(ai ? "feedback.accepted_ai" : "feedback.accepted");
     return html`<div class="sugg" role="group" aria-label=${t("feedback.suggestion")}>
-      <ha-icon icon="mdi:lightbulb-on-outline"></ha-icon>
+      <ha-icon icon=${ai ? "mdi:creation-outline" : "mdi:lightbulb-on-outline"}></ha-icon>
       <div class="stext">
-        <div class="slabel">${t("feedback.suggestion")}</div>
+        <div class="slabel">${t(ai ? "feedback.suggestion_ai" : "feedback.suggestion")}</div>
         <div>${s.text}</div>
         ${this._isAdmin
           ? editing
@@ -105,14 +124,18 @@ export class WrFeedback extends LitElement {
                 class="row"
                 @submit=${(e: Event) => {
                   e.preventDefault();
-                  if (value !== null) void this._run(() => answerSuggestion(this.hass, s.id, "accept", value), t("feedback.accepted"));
+                  if (value !== null) void this._run(() => answerSuggestion(this.hass, s.id, "accept", value), accepted, true);
                 }}
               >
                 <label>
-                  ${t(s.type === "slot_earlier" ? "feedback.adjust_time" : "feedback.adjust_temp")}
+                  ${isTime
+                    ? t("feedback.adjust_time")
+                    : ai
+                      ? t("feedback.adjust_value", { min: formatNumber(s.min ?? 0, this.lang, 1), max: formatNumber(s.max ?? 0, this.lang, 1) })
+                      : t("feedback.adjust_temp")}
                   <input
                     type="text"
-                    inputmode=${s.type === "slot_earlier" ? "numeric" : "decimal"}
+                    inputmode=${isTime ? "numeric" : "decimal"}
                     .value=${this._editValue}
                     class=${value === null ? "bad" : ""}
                     @input=${(e: Event) => (this._editValue = (e.target as HTMLInputElement).value)}
@@ -122,10 +145,12 @@ export class WrFeedback extends LitElement {
                 <button type="button" ?disabled=${this._busy} @click=${() => (this._edit = null)}>${t("cancel")}</button>
               </form>`
             : html`<div class="row">
-                <button class="primary" ?disabled=${this._busy} @click=${() => this._run(() => answerSuggestion(this.hass, s.id, "accept"), t("feedback.accepted"))}>
+                <button class="primary" ?disabled=${this._busy || this.locked} @click=${() => this._run(() => answerSuggestion(this.hass, s.id, "accept"), accepted, true)}>
                   ${t("feedback.accept")}
                 </button>
-                <button ?disabled=${this._busy} @click=${() => this._startEdit(s)}>${t("feedback.adjust")}</button>
+                ${s.type === "ai_rule"
+                  ? nothing
+                  : html`<button ?disabled=${this._busy || this.locked} @click=${() => this._startEdit(s)}>${t("feedback.adjust")}</button>`}
                 <button ?disabled=${this._busy} @click=${() => this._run(() => answerSuggestion(this.hass, s.id, "dismiss"), t("feedback.dismissed"))}>
                   ${t("feedback.dismiss")}
                 </button>
@@ -138,7 +163,13 @@ export class WrFeedback extends LitElement {
   protected override render() {
     const t = this._t;
     const rooms = this.status?.rooms ?? [];
-    const suggestions = this.status?.feedback?.suggestions ?? [];
+    const all = this.status?.feedback?.suggestions ?? [];
+    const suggestions = this.only === "ai" ? all.filter((s) => s.type.startsWith("ai_")) : all;
+    if (this.only === "ai")
+      return html`${suggestions.map((s) => this._renderSuggestion(s))}
+        ${this.locked && suggestions.length ? html`<div class="hint">${t("feedback.locked")}</div>` : nothing}
+        ${this._note ? html`<div class="hint" role="status">${this._note}</div>` : nothing}
+        ${this._error ? html`<div class="hint err" role="alert">${this._error}</div>` : nothing}`;
     return html`
       ${suggestions.map((s) => this._renderSuggestion(s))}
       <div class="bar">

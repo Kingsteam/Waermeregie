@@ -86,6 +86,7 @@ export interface Config {
     dump_learn?: boolean;
   };
   weather: string | null;
+  ai_task?: string | null;
   outdoor_sensor: string | null;
   workday: string | null;
   persons: string[];
@@ -221,7 +222,12 @@ export interface Status {
   why?: string[];
   protected?: ProtectedRule[];
   /** Rückmeldungen: offene Vorschläge (ab 0.11.0) */
-  feedback?: { suggestions: Suggestion[]; last?: { t: string; kind: string; room: string | null } | null } | null;
+  feedback?: {
+    suggestions: Suggestion[];
+    last?: { t: string; kind: string; room: string | null } | null;
+    /** KI-Berater: eingetragen?, letzte Anfrage */
+    ai?: { available: boolean; busy: boolean; t: string | null; summary: string | null; dropped: number; error: string | null } | null;
+  } | null;
   pellets?: {
     stock_kg: number | null;
     capacity_kg?: number | null;
@@ -296,7 +302,10 @@ export interface ProtectedRule {
 /** Vorschlag aus den Rückmeldungen; wirkt erst nach dem Annehmen. */
 export interface Suggestion {
   id: string;
-  type: "slot_earlier" | "target_up" | "target_down";
+  type: "slot_earlier" | "target_up" | "target_down" | "ai_change" | "ai_rule";
+  /** nur KI-Vorschläge: Grenzen für „Anpassen“ */
+  min?: number | null;
+  max?: number | null;
   text: string;
   count: number;
   room: string | null;

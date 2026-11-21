@@ -11,6 +11,34 @@ def _give(data, when, kind, room=None, day_type="buero", scene="nacht"):
     feedback.record(data, when, kind, room, {"day_type": day_type, "scene": scene})
 
 
+def test_trend_before_and_after_feedback():
+    when = at(17, "06:05")
+    history = [
+        {
+            "t": (when + timedelta(minutes=m - 5)).isoformat(),
+            "house_c": 19.0 + m / 100,
+            "target_c": 21.0,
+            "outdoor_c": -1.0,
+            "water_c": 40.0,
+            "burning": m > 0,
+            "rooms": {"bad": 18.0 + m / 100},
+        }
+        for m in range(-120, 70, 10)  # Punkte alle 10 min, bis 60 min danach
+    ]
+    before = feedback.trend(history, when, "bad", -1)
+    assert [p["min"] for p in before] == [-90, -60, -30]
+    assert before[-1]["room_c"] == 17.7 and before[-1]["burning"] is False
+    assert feedback.trend(history, when, None, -1)[0]["room_c"] is None
+    data = feedback.empty()
+    feedback.record(data, when, "cold", "bad", {"before": before})
+    # zu früh: noch nichts; später: was der Verlauf hergibt (90 min danach fehlt hier)
+    assert feedback.fill_after(data, history, when + timedelta(minutes=60)) == 0
+    assert feedback.fill_after(data, history, when + timedelta(minutes=100)) == 1
+    assert [p["min"] for p in data["entries"][0]["after"]] == [30, 60]
+    assert data["entries"][0]["after"][0]["burning"] is True
+    assert feedback.fill_after(data, history, when + timedelta(minutes=200)) == 0  # nur einmal
+
+
 def test_three_cold_mornings_suggest_earlier_start():
     cfg = sample_config()
     data = feedback.empty()

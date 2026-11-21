@@ -222,9 +222,17 @@
         },
         "room": {
           "name": "Raum",
-          "description": "Kennung des Raums (wie in der Wärmeregie). Leer = ganzes Haus."
+          "description": "Name oder Kennung des Raums wie in der Wärmeregie (z. B. Badezimmer). Leer = ganzes Haus."
+        },
+        "source": {
+          "name": "Quelle",
+          "description": "Freiwillig. Woher die Rückmeldung kommt, z. B. Taster Badezimmer. Steht im Protokoll."
         }
       }
+    },
+    "ai_suggest": {
+      "name": "KI um Vorschläge fragen",
+      "description": "Schickt eine anonyme Zusammenfassung der Einstellungen und Rückmeldungen an die in der Wärmeregie eingetragene KI. Vorschläge erscheinen in der Wärmeregie; geändert wird erst, wenn du einen annimmst."
     }
   }
 }

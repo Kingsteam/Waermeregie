@@ -1,10 +1,11 @@
 // Reiter „Regeln“: Regeln des Besitzers aus Vorlagen (Satz in Klartext mit Eingabefeldern),
 // die Zeile „Warum gerade so?“ und die Schutzregeln mit Schloss (docs/REGELN.md).
 import { html, css, nothing, type TemplateResult } from "lit";
+import { askAi, previewAi } from "../api";
 import type { I18nKey } from "../i18n";
 import { baseStyles } from "../styles";
 import type { ProtectedRule, Rule, RuleCondition, RuleStatus, RuleTemplate, Status } from "../types";
-import { clockFromIso, normalizeLimit, normalizeTimeInput, paramLimits, parseTime } from "../util";
+import { clockFromIso, errorMessage, normalizeLimit, normalizeTimeInput, paramLimits, parseTime } from "../util";
 import { EditorBase, inputValue, readNumber } from "./editor-base";
 
 const TEMPLATE_ORDER: RuleTemplate[] = ["nobody_home", "cold_outside", "wind", "forecast_drop"];
@@ -109,17 +110,30 @@ export class WrRulesEditor extends EditorBase {
   static override properties = {
     ...EditorBase.properties,
     status: { attribute: false },
+    dirty: { type: Boolean },
+    _aiBusy: { state: true },
+    _aiError: { state: true },
+    _aiPackage: { state: true },
     _unlock: { state: true },
     _unlocked: { state: true },
   };
 
   declare status: Status | null;
+  /** ungespeicherte Änderungen offen: KI-Vorschläge nicht annehmen */
+  declare dirty: boolean;
+  declare _aiBusy: boolean;
+  declare _aiError: string | null;
+  declare _aiPackage: string | null;
   declare _unlock: string | null;
   declare _unlocked: string | null;
 
   constructor() {
     super();
     this.status = null;
+    this.dirty = false;
+    this._aiBusy = false;
+    this._aiError = null;
+    this._aiPackage = null;
     this._unlock = null;
     this._unlocked = null;
   }
@@ -492,6 +506,62 @@ export class WrRulesEditor extends EditorBase {
         : nothing}`;
   }
 
+  private async _askAi() {
+    this._aiBusy = true;
+    this._aiError = null;
+    try {
+      const status = await askAi(this.hass);
+      this.dispatchEvent(new CustomEvent<Status>("wr-status", { detail: status, bubbles: true, composed: true }));
+    } catch (e) {
+      this._aiError = errorMessage(e);
+    } finally {
+      this._aiBusy = false;
+    }
+  }
+
+  private async _previewAi() {
+    if (this._aiPackage !== null) {
+      this._aiPackage = null;
+      return;
+    }
+    try {
+      this._aiPackage = JSON.stringify((await previewAi(this.hass)).package, null, 2);
+    } catch (e) {
+      this._aiError = errorMessage(e);
+    }
+  }
+
+  private _renderAi() {
+    const t = this.t;
+    const ai = this.status?.feedback?.ai;
+    if (!ai || this.readonly) return nothing;
+    const count = (this.status?.feedback?.suggestions ?? []).filter((s) => s.type.startsWith("ai_")).length;
+    return html`<h3>${t("ai.title")}</h3>
+      <div class="hint">${t("ai.hint")}</div>
+      <div class="card ai">
+        ${ai.available
+          ? html`<div class="row">
+              <button class="primary" ?disabled=${this._aiBusy || ai.busy} @click=${() => void this._askAi()}>
+                <ha-icon icon="mdi:creation-outline"></ha-icon> ${t(this._aiBusy || ai.busy ? "ai.asking" : "ai.ask")}
+              </button>
+              <button @click=${() => void this._previewAi()}>${t(this._aiPackage === null ? "ai.preview" : "ai.preview_hide")}</button>
+            </div>`
+          : html`<div class="muted">${t("ai.missing")}</div>`}
+        ${this._aiError ? html`<div class="warn" role="alert">${this._aiError}</div>` : nothing}
+        ${ai.error ? html`<div class="warn">${ai.error}</div>` : nothing}
+        ${ai.t && !ai.error
+          ? html`<div class="airesult" role="status">
+              <b>${t("ai.last", { time: new Date(ai.t).toLocaleString(this.lang, { dateStyle: "short", timeStyle: "short" }) })}</b>
+              ${ai.summary ? html`<div>${ai.summary}</div>` : nothing}
+              ${count === 0 ? html`<div class="muted">${t("ai.none")}</div>` : nothing}
+              ${ai.dropped ? html`<div class="muted">${t("ai.dropped", { n: ai.dropped })}</div>` : nothing}
+            </div>`
+          : nothing}
+        <wr-feedback .hass=${this.hass} .status=${this.status} .lang=${this.lang} only="ai" ?locked=${this.dirty}></wr-feedback>
+        ${this._aiPackage !== null ? html`<pre class="pkg" tabindex="0" aria-label=${t("ai.preview")}>${this._aiPackage}</pre>` : nothing}
+      </div>`;
+  }
+
   protected override render() {
     const t = this.t;
     const rules = this.config.rules ?? [];
@@ -518,6 +588,7 @@ export class WrRulesEditor extends EditorBase {
             )}
           </div>`
         : nothing}
+      ${this._renderAi()}
       <h3>${t("rules.protected")}</h3>
       <div class="hint">${t("rules.protected_hint")}</div>
       <div class="card locked">${prot.map((p) => this._renderProtected(p))}</div>
@@ -534,6 +605,28 @@ export class WrRulesEditor extends EditorBase {
       }
       h3 {
         margin: 8px 0 0;
+      }
+      .ai {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ai button ha-icon {
+        --mdc-icon-size: 18px;
+      }
+      .airesult {
+        font-size: 14px;
+      }
+      .pkg {
+        margin: 0;
+        max-height: 320px;
+        overflow: auto;
+        padding: 10px;
+        font-size: 12px;
+        border: 1px solid var(--wr-border);
+        border-radius: var(--wr-radius);
+        white-space: pre-wrap;
+        word-break: break-word;
       }
       .why {
         border-left: 3px solid var(--wr-heat);
