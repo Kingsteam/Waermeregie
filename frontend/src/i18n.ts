@@ -605,6 +605,10 @@ export const de = {
   "room.offset_hint": "Korrektur in K, wird zum Messwert addiert (z. B. -0,5, wenn der Fühler zu warm misst).",
 
   "card.chart": "Verlauf",
+  "fbcard.name": "Wärmeregie Rückmeldung",
+  "fbcard.description": "Drei Knöpfe: zu kalt, passt, zu warm. Für einen festen Raum, z. B. am Tablet.",
+  "fbcard.title_room": "Wie ist es hier gerade?",
+  "fbcard.title_house": "Wie ist es im Haus gerade?",
   "card.name": "Wärmeregie",
   "card.description": "Ofen, Szene und Räume auf einen Blick.",
   "card.no_rooms": "Keine Räume ausgewählt.",
@@ -1217,6 +1221,10 @@ export const en: Partial<Record<I18nKey, string>> = {
   "room.offset_hint": "Correction in K, added to the reading (e.g. -0.5 if the sensor reads too warm).",
 
   "card.chart": "History",
+  "fbcard.name": "Wärmeregie feedback",
+  "fbcard.description": "Three buttons: too cold, fine, too warm. For one fixed room, e.g. on a tablet.",
+  "fbcard.title_room": "How is it in here right now?",
+  "fbcard.title_house": "How is it in the house right now?",
   "card.name": "Wärmeregie",
   "card.description": "Stove, scene and rooms at a glance.",
   "card.no_rooms": "No rooms selected.",

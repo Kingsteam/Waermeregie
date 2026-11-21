@@ -237,6 +237,7 @@ async def ws_ai_preview(hass: HomeAssistant, connection, msg: dict) -> None:
         vol.Required("type"): f"{DOMAIN}/feedback",
         vol.Required("kind"): vol.In(["cold", "ok", "warm"]),
         vol.Optional("room"): vol.Any(str, None),
+        vol.Optional("source"): vol.All(str, vol.Length(max=60)),
     }
 )
 @websocket_api.async_response
@@ -245,7 +246,8 @@ async def ws_feedback(hass: HomeAssistant, connection, msg: dict) -> None:
     if not (mgr := _manager(hass)):
         return _not_loaded(connection, msg)
     user = getattr(getattr(connection, "user", None), "name", None)
-    await _run(connection, msg, mgr.async_feedback(msg["kind"], msg.get("room"), source=user))
+    source = ", ".join(x for x in (msg.get("source"), user) if x) or None
+    await _run(connection, msg, mgr.async_feedback(msg["kind"], msg.get("room"), source=source))
 
 
 @websocket_api.require_admin

@@ -9,11 +9,17 @@ from unittest.mock import MagicMock, patch
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, State, SupportsResponse
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import (
+    area_registry as ar,
+    device_registry as dr,
+    entity_registry as er,
+    intent,
+)
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_mock_service
 
+from custom_components.waermeregie import intents
 from custom_components.waermeregie.const import DOMAIN, STORAGE_KEY_CONFIG
 
 # Erfundenes Haus: alle Entitäten im Register (Plattform „test“)
@@ -1131,3 +1137,44 @@ async def test_ai_suggest_roundtrip_with_mocked_ai(
     hass.services.async_remove("ai_task", "generate_data")
     await hass.services.async_call(DOMAIN, "ai_suggest", {}, blocking=True)
     assert mgr.status["feedback"]["ai"]["error"]
+
+
+async def test_feedback_intent_room_from_sentence_device_or_house(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    await _configured(hass, hass_ws_client)
+    mgr = hass.data[DOMAIN]
+    # Raum im Satz
+    response = await intent.async_handle(
+        hass,
+        "test",
+        intents.INTENT_FEEDBACK,
+        {"kind": {"value": "ok"}, "room": {"value": "Wohnzimmer"}},
+    )
+    assert "Wohnzimmer" in response.speech["plain"]["speech"]
+    last = mgr.status["feedback"]["last"]
+    assert (last["kind"], last["room"], last["source"]) == ("ok", "wohnzimmer", "Sprachassistent")
+    # kein Raum im Satz: Bereich des Sprachgeräts
+    area = ar.async_get(hass).async_create("Wohnzimmer")
+    entry = MockConfigEntry(domain="test")
+    entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id, identifiers={("test", "lautsprecher")}
+    )
+    dr.async_get(hass).async_update_device(device.id, area_id=area.id)
+    await intent.async_handle(
+        hass, "test", intents.INTENT_FEEDBACK, {"kind": {"value": "ok"}}, device_id=device.id
+    )
+    assert mgr.status["feedback"]["last"]["room"] == "wohnzimmer"
+    # weder noch: ganzes Haus
+    response = await intent.async_handle(
+        hass,
+        "test",
+        intents.INTENT_FEEDBACK,
+        {"kind": {"value": "ok"}, "room": {"value": "Keller"}},
+    )
+    assert mgr.status["feedback"]["last"]["room"] is None
+    assert response.speech["plain"]["speech"] == "Gemerkt, danke."
+    # unbekannte Art wird abgelehnt
+    with pytest.raises(intent.IntentError):
+        await intent.async_handle(hass, "test", intents.INTENT_FEEDBACK, {"kind": {"value": "x"}})

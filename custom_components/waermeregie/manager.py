@@ -1302,7 +1302,7 @@ class WaermeregieManager:
                 "water_c": stove.get("water_c"),
                 "burning": stove.get("burning"),
                 # Umfeld rundherum, damit sich später Muster finden lassen
-                "phase": st.get("phase"),
+                "phase": stove.get("phase"),
                 "wind_kmh": round(self._last_wind, 1) if self._last_wind is not None else None,
                 "weather": getattr(self._state(self.config["weather"]), "state", None),
                 "someone_home": None if self._last_away is None else not self._last_away,

@@ -22,8 +22,8 @@ export const setWarmup = (hass: Hass, req: WarmupRequest) => hass.callWS<Status>
 
 export type FeedbackKind = "cold" | "ok" | "warm";
 /** Rückmeldung fürs ganze Haus (room null) oder einen Raum. */
-export const sendFeedback = (hass: Hass, kind: FeedbackKind, room: string | null) =>
-  hass.callWS<Status>({ type: "waermeregie/feedback", kind, ...(room ? { room } : {}) });
+export const sendFeedback = (hass: Hass, kind: FeedbackKind, room: string | null, source?: string) =>
+  hass.callWS<Status>({ type: "waermeregie/feedback", kind, ...(room ? { room } : {}), ...(source ? { source } : {}) });
 
 /** Vorschlag annehmen (auch mit eigenem Wert) oder ablehnen. */
 export const answerSuggestion = (hass: Hass, id: string, action: "accept" | "dismiss", value?: string | number) =>

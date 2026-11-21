@@ -14,7 +14,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 import voluptuous as vol
 
-from . import model, panel, websocket
+from . import intents, model, panel, websocket
 from .const import DOMAIN
 from .manager import WaermeregieManager
 
@@ -47,6 +47,7 @@ async def _guard(coro) -> None:
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Dienste und WebSocket-Befehle einmalig anmelden."""
     websocket.async_register(hass)
+    intents.async_setup_intents(hass)
 
     async def set_scene(call: ServiceCall) -> None:
         await _guard(
