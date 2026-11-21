@@ -179,3 +179,153 @@ def test_rule_lead_starts_next_warmer_slot_early_and_delta_is_clamped_by_limits(
     o.rule_delta_k = 0.5
     r = run(cfg, engine.empty_state(), o)
     assert r.status["rooms"][0]["target"] == 21.5
+
+
+# --- Freie Regeln (Etappe 3) -----------------------------------------------------------
+
+
+def _custom(cfg, conditions, **over):
+    rule = rules.default_rule("custom", cfg["scenes"])
+    rule.update({"id": "abend_bad", "name": "Abends Bad wärmer"})
+    rule["params"]["conditions"] = conditions
+    rule["params"].update(over)
+    return rule
+
+
+def test_custom_rule_needs_all_conditions_and_builds_a_sentence():
+    cfg = sample_config()
+    cfg["rules"] = [
+        _custom(
+            cfg,
+            [
+                {"type": "time", "from": "22:00", "to": "06:00"},
+                {"type": "outdoor", "op": "below", "value": 5},
+                {"type": "room_temp", "room": "schlafzimmer", "op": "below", "value": 18},
+            ],
+            target_delta_k=1.0,
+        )
+    ]
+    cfg = model.validate(cfg)
+    facts = {
+        "outdoor_c": 2.0,
+        "rooms": {"schlafzimmer": {"name": "Schlafzimmer", "temperature": 17.0}},
+    }
+    r = rules.evaluate(cfg["rules"], facts, None, at(16, "23:30"), cfg["scenes"], cfg)
+    assert r["status"][0]["state"] == "active"
+    assert r["effects"]["target_delta"] == 1.0
+    assert r["status"][0]["sentence"] == (
+        "Wenn es zwischen 22:00 und 06:00 Uhr ist und es draußen unter 5 °C hat und es im "
+        "Raum „Schlafzimmer“ unter 18 °C hat, dann Ziele 1 K höher."
+    )
+    # außerhalb der Uhrzeit: wartet
+    r = rules.evaluate(cfg["rules"], facts, None, at(16, "12:00"), cfg["scenes"], cfg)
+    assert r["status"][0]["state"] == "waiting"
+    # ein Wert unbekannt, keiner falsch: kann nicht prüfen, wirkt nicht
+    r = rules.evaluate(cfg["rules"], {"outdoor_c": 2.0}, None, at(16, "23:30"), cfg["scenes"], cfg)
+    assert r["status"][0]["state"] == "unknown"
+    assert r["effects"]["target_delta"] == 0.0
+
+
+def test_custom_rule_can_lower_targets_or_set_a_scene_within_limits():
+    cfg = sample_config()
+    cfg["rules"] = [
+        _custom(cfg, [{"type": "persons", "value": "all_away"}], target_delta_k=-2.0),
+        {
+            **_custom(cfg, [{"type": "day_type", "value": "wochenende"}], scene="sparen"),
+            "id": "wochenende_sparen",
+            "name": "Am Wochenende sparen",
+        },
+    ]
+    cfg = model.validate(cfg)
+    facts = {"everyone_away": True, "day_type": {"id": "wochenende", "name": "Wochenende"}}
+    r = rules.evaluate(cfg["rules"], facts, None, at(21, "10:00"), cfg["scenes"], cfg)
+    assert r["effects"]["target_delta"] == -2.0
+    assert r["effects"]["scene"] == "sparen"
+
+
+def test_validate_rejects_bad_custom_rules_and_learn_bounds():
+    cfg = sample_config()
+    good = _custom(cfg, [{"type": "outdoor", "op": "below", "value": 5}])
+    for bad in (
+        {**good, "name": ""},
+        _custom(cfg, [{"type": "outdoor", "op": "below", "value": 99}]),
+        _custom(cfg, [{"type": "room_temp", "room": "keller", "op": "below", "value": 18}]),
+        _custom(cfg, [{"type": "time", "from": "25:00", "to": "06:00"}]),
+        _custom(cfg, [{"type": "unbekannt"}]),
+        {**good, "learn": {"lead_min": [0, 500]}},
+        {**good, "learn": {"scene": [0, 1]}},
+    ):
+        cfg["rules"] = [bad]
+        with pytest.raises(model.ConfigError):
+            model.validate(cfg)
+
+
+# --- Lernwerte ---------------------------------------------------------------------
+
+
+def test_learn_value_steps_once_a_day_and_never_leaves_the_bounds():
+    cfg = sample_config()
+    rule = _rule("cold_outside", cfg, below_c=0, target_delta_k=0.5, lead_min=30)
+    rule["learn"] = {"lead_min": [20, 50]}
+    cfg["rules"] = [rule]
+    cfg = model.validate(cfg)
+    now = at(16, "07:00")
+    r = _eval(cfg, {"outdoor_c": -3.0}, None, now)
+    state = r["state"]
+    # zu kalt, während die Regel wirkt: 10 min früher
+    state, log = rules.learn_feedback(cfg["rules"], state, "cold", {}, now)
+    assert any("30 → 40" in t for t in log)
+    # am selben Tag kein zweiter Schritt
+    state, log = rules.learn_feedback(cfg["rules"], state, "cold", {}, now + timedelta(hours=2))
+    assert log == []
+    state, log = rules.learn_feedback(cfg["rules"], state, "cold", {}, now + timedelta(days=1))
+    assert any("40 → 50" in t for t in log)
+    # an der Grenze: kein Schritt mehr, einmal ein Hinweis
+    state, log = rules.learn_feedback(cfg["rules"], state, "cold", {}, now + timedelta(days=2))
+    assert len(log) == 1 and "Grenze" in log[0]
+    state, log = rules.learn_feedback(cfg["rules"], state, "cold", {}, now + timedelta(days=3))
+    assert log == []
+    r = _eval(cfg, {"outdoor_c": -3.0}, state, now + timedelta(days=3))
+    assert r["effects"]["lead_min"] == 50  # der gelernte Wert wirkt
+    assert r["status"][0]["learned"] == {"lead_min": 50}
+    assert r["status"][0]["at_limit"] == ["lead_min"]
+    assert "50 min früher" in r["status"][0]["sentence"]
+    # zu warm: wieder zurück
+    state, log = rules.learn_feedback(cfg["rules"], r["state"], "warm", {}, now + timedelta(days=4))
+    assert any("50 → 40" in t for t in log)
+
+
+def test_threshold_learns_when_cold_just_above_it_and_fixed_values_never_move():
+    cfg = sample_config()
+    learning = _rule("cold_outside", cfg, below_c=0)
+    learning["learn"] = {"below_c": [-2, 3]}
+    fixed = {**_rule("wind", cfg, above_kmh=35), "learn": {}}
+    cfg["rules"] = [learning, fixed]
+    cfg = model.validate(cfg)
+    now = at(16, "07:00")
+    facts = {"outdoor_c": 1.5, "wind_kmh": 30.0}
+    state = _eval(cfg, facts, None, now)["state"]
+    state, log = rules.learn_feedback(cfg["rules"], state, "cold", facts, now)
+    assert log == ["Gelernt: Regel „Kalt draußen“: 0 → 1 (Rückmeldung zu kalt)"]
+    r = _eval(cfg, facts, state, now + timedelta(minutes=1))
+    assert r["status"][0]["learned"] == {"below_c": 1}
+    assert r["status"][1]["learned"] == {}
+    # "passt" lernt nichts
+    assert rules.learn_feedback(cfg["rules"], state, "ok", facts, now + timedelta(days=1))[1] == []
+
+
+def test_nobody_home_wait_grows_after_short_absence():
+    cfg = sample_config()
+    rule = _rule("nobody_home", cfg, after_min=30)
+    rule["learn"] = {"after_min": [10, 60]}
+    cfg["rules"] = [rule]
+    cfg = model.validate(cfg)
+    now = at(16, "09:00")
+    away, home = {"everyone_away": True}, {"everyone_away": False}
+    r = _eval(cfg, away, None, now)
+    r = _eval(cfg, away, r["state"], now + timedelta(minutes=31))
+    assert r["status"][0]["state"] == "active"
+    # zehn Minuten später schon wieder da: Wartezeit war zu kurz
+    r = _eval(cfg, home, r["state"], now + timedelta(minutes=41))
+    assert any("30 → 35" in t for t in r["log"])
+    assert r["status"][0]["learned"] == {"after_min": 35}

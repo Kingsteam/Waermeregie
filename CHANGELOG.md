@@ -4,6 +4,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-21
+### Hinzugefügt
+- **Eigene Regeln** (Etappe 3): Im Reiter „Regeln“ gibt es „+ Eigene Regel“. Du gibst ihr einen Namen und stellst bis zu fünf Bedingungen aus Auswahllisten zusammen, die alle gelten müssen: Personen, Türschloss, Außentemperatur, Wind, Raumtemperatur, Kesselwasser, Uhrzeit, Tagesart. Als Wirkung: Szene wechseln, Ziele um höchstens 2 K heben oder senken, früher beginnen. Unter der Regel steht der fertige Satz in Klartext.
+- **Lernwerte:** Neben Zahlenwerten einer Regel (Wartezeit, „früher beginnen“, Ziel-Verschiebung, Temperatur- und Windschwelle) steht „lernen lassen“. Du gibst Grenzen vor, innerhalb davon stellt die Wärmeregie den Wert selbst nach: höchstens einen Schritt am Tag, aus deinen Rückmeldungen „Zu kalt / Zu warm“ fürs ganze Haus und aus der Dauer deiner Abwesenheiten. Der aktuelle Stand steht daneben („jetzt 40“), jeder Schritt im Protokoll. An deiner Grenze bleibt der Wert stehen und es gibt einen Hinweis. Schutzregeln lernen nie.
+### Behoben
+- Schutzregeln zeigen „1,5 K“ mit Komma.
+
 ## [0.12.0] - 2026-11-21
 ### Hinzugefügt
 - **Reiter „Regeln“** (Etappe 2 des Konzepts in `docs/REGELN.md`). Regeln sind Sätze in Klartext mit Eingabefeldern, ein- und ausschaltbar, aus vier Vorlagen:

@@ -63,3 +63,31 @@ describe("Regeln aus Vorlagen", () => {
     expect(ruleProblems([home], limits)).toBe(0);
   });
 });
+
+import { newCondition } from "../src/tabs/rules";
+
+describe("Freie Regel und Lernwerte", () => {
+  const limits = templateLimits({ limits: { rule_templates: { custom: { after_min: [0, 240, 0], target_delta_k: [-2, 2, 0], lead_min: [0, 120, 0] } } } });
+  const cond = { outdoor: [-30, 40] as [number, number], time: null, lock: null };
+  it("braucht Namen und mindestens eine gültige Bedingung", () => {
+    const r = newRule("custom", limits, ["komfort"]);
+    expect(r.id.startsWith("eigene_")).toBe(true);
+    expect(ruleProblems([r], limits, cond)).toBe(2); // kein Name, keine Bedingung
+    r.name = "Abends wärmer";
+    r.params.conditions = [newCondition("outdoor", "bad", "wochenende")];
+    expect(ruleProblems([r], limits, cond)).toBe(0);
+    r.params.conditions = [{ type: "outdoor", op: "below", value: 99 }, { type: "time", from: "25:00", to: "06:00" }, { type: "lock", entity: null }];
+    expect(ruleProblems([r], limits, cond)).toBe(3);
+  });
+  it("Grenzen eines Lernwerts müssen in den erlaubten Bereich passen", () => {
+    const r = newRule("custom", limits, []);
+    r.name = "x";
+    r.params.conditions = [newCondition("persons", "", "")];
+    r.learn = { lead_min: [20, 60] };
+    expect(ruleProblems([r], limits, cond)).toBe(0);
+    r.learn = { lead_min: [60, 20] };
+    expect(ruleProblems([r], limits, cond)).toBe(1);
+    r.learn = { lead_min: [0, 500] };
+    expect(ruleProblems([r], limits, cond)).toBe(1);
+  });
+});

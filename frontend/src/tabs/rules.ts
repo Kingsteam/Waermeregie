@@ -3,16 +3,47 @@
 import { html, css, nothing, type TemplateResult } from "lit";
 import type { I18nKey } from "../i18n";
 import { baseStyles } from "../styles";
-import type { ProtectedRule, Rule, RuleStatus, RuleTemplate, Status } from "../types";
-import { clockFromIso, normalizeLimit, paramLimits } from "../util";
+import type { ProtectedRule, Rule, RuleCondition, RuleStatus, RuleTemplate, Status } from "../types";
+import { clockFromIso, normalizeLimit, normalizeTimeInput, paramLimits, parseTime } from "../util";
 import { EditorBase, inputValue, readNumber } from "./editor-base";
 
 const TEMPLATE_ORDER: RuleTemplate[] = ["nobody_home", "cold_outside", "wind", "forecast_drop"];
+const COND_TYPES: RuleCondition["type"][] = ["persons", "lock", "outdoor", "wind", "room_temp", "water", "time", "day_type"];
+
+/** Zahlengrenzen der Bedingungen aus `defaults.limits.rule_conditions`. */
+export function conditionLimits(defaults: { limits?: unknown } | null | undefined): Record<string, [number, number] | null> {
+  const raw = (defaults?.limits as { rule_conditions?: Record<string, [number, number] | null> } | undefined)?.rule_conditions;
+  return raw && typeof raw === "object" ? raw : {};
+}
+
+/** Neue Bedingung mit sinnvollen Startwerten. */
+export function newCondition(type: RuleCondition["type"], firstRoom: string, firstDay: string): RuleCondition {
+  switch (type) {
+    case "persons":
+      return { type, value: "all_away" };
+    case "lock":
+      return { type, entity: null, value: "locked" };
+    case "outdoor":
+      return { type, op: "below", value: 0 };
+    case "wind":
+      return { type, op: "above", value: 35 };
+    case "room_temp":
+      return { type, room: firstRoom, op: "below", value: 19 };
+    case "water":
+      return { type, op: "above", value: 50 };
+    case "time":
+      return { type, from: "06:00", to: "09:00" };
+    case "day_type":
+      return { type, value: firstDay };
+  }
+}
+
 const ICONS: Record<RuleTemplate, string> = {
   nobody_home: "mdi:home-export-outline",
   cold_outside: "mdi:snowflake-thermometer",
   wind: "mdi:weather-windy",
   forecast_drop: "mdi:trending-down",
+  custom: "mdi:puzzle-outline",
 };
 
 type TemplateLimits = Record<string, Record<string, [number, number, number]>>;
@@ -33,13 +64,38 @@ export function newRule(template: RuleTemplate, limits: TemplateLimits, sceneIds
     params.lock = null;
   }
   if (template === "wind") params.wind_entity = null;
-  return { id: template, template, enabled: true, trial_until: null, params };
+  if (template === "custom") {
+    params.conditions = [];
+    params.scene = null;
+    const id = `eigene_${Math.random().toString(36).slice(2, 7)}`;
+    return { id, template, enabled: true, trial_until: null, params, name: "", learn: {} };
+  }
+  return { id: template, template, enabled: true, trial_until: null, params, learn: {} };
 }
 
 /** Probleme, die das Speichern verhindern sollen (Anzahl). */
-export function ruleProblems(rules: Rule[] | undefined, limits: TemplateLimits): number {
+export function ruleProblems(
+  rules: Rule[] | undefined,
+  limits: TemplateLimits,
+  condLimits: Record<string, [number, number] | null> = {},
+): number {
   let n = 0;
   for (const r of rules ?? []) {
+    for (const [key, b] of Object.entries(r.learn ?? {})) {
+      const lim = limits[r.template]?.[key];
+      if (!lim || !Number.isFinite(b[0]) || !Number.isFinite(b[1]) || b[0] > b[1] || b[0] < lim[0] || b[1] > lim[1]) n++;
+    }
+    if (r.template === "custom") {
+      if (!(r.name ?? "").trim()) n++;
+      const conds = (r.params.conditions as RuleCondition[] | undefined) ?? [];
+      if (!conds.length) n++;
+      for (const c of conds) {
+        const lim = condLimits[c.type];
+        if (lim && (typeof c.value !== "number" || !Number.isFinite(c.value) || c.value < lim[0] || c.value > lim[1])) n++;
+        if (c.type === "lock" && !c.entity) n++;
+        if (c.type === "time" && (parseTime(c.from ?? "") === null || parseTime(c.to ?? "") === null)) n++;
+      }
+    }
     for (const [key, lim] of Object.entries(limits[r.template] ?? {})) {
       const v = r.params[key];
       if (typeof v !== "number" || !Number.isFinite(v) || v < lim[0] || v > lim[1]) n++;
@@ -94,8 +150,193 @@ export class WrRulesEditor extends EditorBase {
         .value=${typeof value === "number" ? String(value).replace(".", this.lang === "de" ? "," : ".") : ""}
         ?disabled=${this.readonly}
         @change=${(e: Event) => this._update(rule.id, (r) => (r.params[key] = readNumber(e) ?? Number.NaN))}
-      /><span class="unit">${unit}</span></span
+      /><span class="unit">${unit}</span>${this._learnChip(rule, key, lim)}</span
     >`;
+  }
+
+  /** Knopf „lernt“ an einem Zahlenwert, mit den Grenzen des Besitzers. */
+  private _learnChip(rule: Rule, key: string, lim: [number, number, number] | undefined): TemplateResult | typeof nothing {
+    const learnable = ((this.defaults?.limits as { rule_learn?: string[] } | undefined)?.rule_learn ?? []).includes(key);
+    if (!learnable || !lim) return nothing;
+    const t = this.t;
+    const bounds = rule.learn?.[key];
+    const st = (this.status?.rules ?? []).find((s) => s.id === rule.id);
+    const now = st?.learned?.[key];
+    const setBound = (i: 0 | 1) => (e: Event) =>
+      this._update(rule.id, (r) => {
+        const b = [...(r.learn?.[key] ?? [lim[0], lim[1]])] as [number, number];
+        b[i] = readNumber(e) ?? Number.NaN;
+        r.learn = { ...(r.learn ?? {}), [key]: b };
+      });
+    const bad = bounds ? !(bounds[0] <= bounds[1] && bounds[0] >= lim[0] && bounds[1] <= lim[1]) : false;
+    return html`<button
+        class="lchip ${bounds ? "on" : ""}"
+        aria-pressed=${bounds ? "true" : "false"}
+        title=${t("rule.learn_hint")}
+        ?disabled=${this.readonly}
+        @click=${() =>
+          this._update(rule.id, (r) => {
+            const next = { ...(r.learn ?? {}) };
+            if (next[key]) delete next[key];
+            else {
+              const v = typeof r.params[key] === "number" ? (r.params[key] as number) : lim[2];
+              const span = (lim[1] - lim[0]) / 4;
+              next[key] = [Math.max(lim[0], Math.round(v - span)), Math.min(lim[1], Math.round(v + span))];
+            }
+            r.learn = next;
+          })}
+      >
+        ${t(bounds ? "rule.learns" : "rule.learn_off")}</button
+      >${bounds
+        ? html`<span class="lb ${bad ? "bad" : ""}"
+            >${t("rule.learn_between")}
+            <input type="text" inputmode="decimal" aria-label=${t("rule.learn_min")} .value=${String(bounds[0])} ?disabled=${this.readonly} @change=${setBound(0)} />
+            –
+            <input type="text" inputmode="decimal" aria-label=${t("rule.learn_max")} .value=${String(bounds[1])} ?disabled=${this.readonly} @change=${setBound(1)} />
+            ${now !== undefined ? html`<b>${t("rule.learn_now", { value: String(now).replace(".", ",") })}</b>` : nothing}
+            ${st?.at_limit?.includes(key) ? html`<span class="warn">${t("rule.learn_limit")}</span>` : nothing}
+          </span>`
+        : nothing}`;
+  }
+
+  private _cond(rule: Rule, index: number, mutate: (c: RuleCondition) => void) {
+    this._update(rule.id, (r) => {
+      const list = (r.params.conditions as RuleCondition[]) ?? [];
+      if (list[index]) mutate(list[index]);
+    });
+  }
+
+  private _condRow(rule: Rule, c: RuleCondition, index: number): TemplateResult {
+    const t = this.t;
+    const ro = this.readonly;
+    const lim = conditionLimits(this.defaults)[c.type];
+    const numBad = lim ? typeof c.value !== "number" || c.value < lim[0] || c.value > lim[1] : false;
+    const opSel = html`<select aria-label=${t("rule.c.op")} ?disabled=${ro} @change=${(e: Event) => this._cond(rule, index, (x) => (x.op = inputValue(e) as "below" | "above"))}>
+      <option value="below" ?selected=${c.op === "below"}>${t("rule.c.below")}</option>
+      <option value="above" ?selected=${c.op !== "below"}>${t("rule.c.above")}</option>
+    </select>`;
+    const num = (unit: string) =>
+      html`<span class="inl"
+        ><input
+          type="text"
+          inputmode="decimal"
+          class=${numBad ? "bad" : ""}
+          aria-label=${t("rule.c.value")}
+          .value=${typeof c.value === "number" ? String(c.value).replace(".", this.lang === "de" ? "," : ".") : ""}
+          ?disabled=${ro}
+          @change=${(e: Event) => this._cond(rule, index, (x) => (x.value = readNumber(e) ?? Number.NaN))} /><span class="unit">${unit}</span></span
+      >`;
+    const time = (key: "from" | "to") =>
+      html`<input
+        type="text"
+        class="time ${parseTime(c[key] ?? "") === null ? "bad" : ""}"
+        aria-label=${t(key === "from" ? "rule.c.from" : "rule.c.to")}
+        .value=${c[key] ?? ""}
+        ?disabled=${ro}
+        @change=${(e: Event) => this._cond(rule, index, (x) => (x[key] = normalizeTimeInput(inputValue(e))))}
+      />`;
+    let body: TemplateResult;
+    switch (c.type) {
+      case "persons":
+        body = html`<select ?disabled=${ro} @change=${(e: Event) => this._cond(rule, index, (x) => (x.value = inputValue(e)))}>
+          <option value="all_away" ?selected=${c.value !== "someone_home"}>${t("rule.c.all_away")}</option>
+          <option value="someone_home" ?selected=${c.value === "someone_home"}>${t("rule.c.someone_home")}</option>
+        </select>`;
+        break;
+      case "lock":
+        body = html`<select ?disabled=${ro} @change=${(e: Event) => this._cond(rule, index, (x) => (x.value = inputValue(e)))}>
+            <option value="locked" ?selected=${c.value !== "unlocked"}>${t("rule.c.locked")}</option>
+            <option value="unlocked" ?selected=${c.value === "unlocked"}>${t("rule.c.unlocked")}</option>
+          </select>
+          <div class="pick">
+            <wr-entity-picker
+              .hass=${this.hass}
+              .lang=${this.lang}
+              ?disabled=${ro}
+              ?invalid=${!c.entity}
+              .domains=${["lock", "binary_sensor"]}
+              .deviceClasses=${["lock"]}
+              .value=${c.entity ?? null}
+              .label=${t("rule.p.lock")}
+              @value-changed=${(e: CustomEvent) => this._cond(rule, index, (x) => (x.entity = e.detail.value ?? null))}
+            ></wr-entity-picker>
+          </div>`;
+        break;
+      case "room_temp":
+        body = html`<select aria-label=${t("rule.c.room")} ?disabled=${ro} @change=${(e: Event) => this._cond(rule, index, (x) => (x.room = inputValue(e)))}>
+            ${this.config.rooms.map((r) => html`<option value=${r.id} ?selected=${c.room === r.id}>${r.name}</option>`)}
+          </select>
+          ${opSel} ${num("°C")}`;
+        break;
+      case "time":
+        body = html`${time("from")} ${t("rule.c.until")} ${time("to")}`;
+        break;
+      case "day_type":
+        body = html`<select ?disabled=${ro} @change=${(e: Event) => this._cond(rule, index, (x) => (x.value = inputValue(e)))}>
+          ${this.config.day_types.map((d) => html`<option value=${d.id} ?selected=${c.value === d.id}>${d.name}</option>`)}
+        </select>`;
+        break;
+      default:
+        body = html`${opSel} ${num(c.type === "wind" ? "km/h" : "°C")}`;
+    }
+    return html`<div class="crow">
+      <span class="ctype">${t(`rule.c.type.${c.type}` as I18nKey)}</span> ${body}
+      ${ro
+        ? nothing
+        : html`<button
+            class="icon"
+            aria-label=${t("rule.c.remove")}
+            title=${t("rule.c.remove")}
+            @click=${() => this._update(rule.id, (r) => (r.params.conditions = ((r.params.conditions as RuleCondition[]) ?? []).filter((_, i) => i !== index)))}
+          >
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>`}
+    </div>`;
+  }
+
+  private _customBody(rule: Rule): TemplateResult {
+    const t = this.t;
+    const ro = this.readonly;
+    const conds = (rule.params.conditions as RuleCondition[] | undefined) ?? [];
+    const firstRoom = this.config.rooms[0]?.id ?? "";
+    const firstDay = this.config.day_types[0]?.id ?? "";
+    return html`<label class="field"
+        ><span class="lbl">${t("rule.c.name")}</span>
+        <input
+          type="text"
+          maxlength="60"
+          class=${(rule.name ?? "").trim() ? "" : "bad"}
+          .value=${rule.name ?? ""}
+          ?disabled=${ro}
+          @change=${(e: Event) => this._update(rule.id, (r) => (r.name = inputValue(e)))}
+      /></label>
+      <div class="kw">${t("rule.c.if")}</div>
+      ${conds.length ? conds.map((c, i) => this._condRow(rule, c, i)) : html`<div class="warn">${t("rule.c.none")}</div>`}
+      ${ro || conds.length >= 5
+        ? nothing
+        : html`<select
+            class="addc"
+            aria-label=${t("rule.c.add")}
+            @change=${(e: Event) => {
+              const type = inputValue(e) as RuleCondition["type"] | "";
+              (e.target as HTMLSelectElement).value = "";
+              if (type) this._update(rule.id, (r) => (r.params.conditions = [...(((r.params.conditions as RuleCondition[]) ?? []) as RuleCondition[]), newCondition(type, firstRoom, firstDay)]));
+            }}
+          >
+            <option value="">${t("rule.c.add")}</option>
+            ${COND_TYPES.map((type) => html`<option value=${type}>${t(`rule.c.type.${type}` as I18nKey)}</option>`)}
+          </select>`}
+      <div class="sent">
+        <span class="kw">${t("rule.s.since")}</span> ${this._num(rule, "after_min", "min")}
+      </div>
+      <div class="sent">
+        <span class="kw">${t("rule.c.then")}</span>
+        <select aria-label=${t("rule.p.scene")} ?disabled=${ro} @change=${(e: Event) => this._update(rule.id, (r) => (r.params.scene = inputValue(e) || null))}>
+          <option value="">${t("rule.c.no_scene")}</option>
+          ${this.config.scenes.map((s) => html`<option value=${s.id} ?selected=${rule.params.scene === s.id}>${t("rule.c.scene", { name: s.name })}</option>`)}
+        </select>
+        · ${t("rule.c.targets_by")} ${this._num(rule, "target_delta_k", "K")} · ${this._num(rule, "lead_min", "min")} ${t("rule.s.earlier")}
+      </div>`;
   }
 
   private _sentence(rule: Rule): TemplateResult {
@@ -143,6 +384,8 @@ export class WrRulesEditor extends EditorBase {
       case "wind":
         return html`${t("rule.s.wind_if")} ${this._num(rule, "above_kmh", "km/h")} ${t("rule.s.is_then")} ${effects}
           ${this.config.weather || p.wind_entity ? nothing : html`<div class="warn">${t("rule.no_weather")}</div>`}`;
+      case "custom":
+        return html``;
       case "forecast_drop":
         return html`${t("rule.s.fc_if")} ${this._num(rule, "hours", "h")} ${t("rule.s.fc_by")} ${this._num(rule, "drop_k", "K")}
           ${t("rule.s.fc_then")} ${effects}
@@ -168,7 +411,7 @@ export class WrRulesEditor extends EditorBase {
     return html`<div class="card rule ${rule.enabled ? "" : "off"}">
       <div class="head">
         <ha-icon icon=${ICONS[rule.template]}></ha-icon>
-        <h3>${t(`rule.name.${rule.template}` as I18nKey)}</h3>
+        <h3>${rule.template === "custom" ? rule.name || t("rule.name.custom") : t(`rule.name.${rule.template}` as I18nKey)}</h3>
         <span class="spacer"></span>
         <label class="chk sw"
           ><input
@@ -180,7 +423,8 @@ export class WrRulesEditor extends EditorBase {
           />${t(rule.enabled ? "rule.on" : "rule.off")}</label
         >
       </div>
-      <div class="sent">${this._sentence(rule)}</div>
+      ${rule.template === "custom" ? this._customBody(rule) : html`<div class="sent">${this._sentence(rule)}</div>`}
+      ${rule.template === "custom" && st?.sentence ? html`<div class="muted">${st.sentence}</div>` : nothing}
       <div class="meta">${this._statePill(st, rule)}</div>
       ${this.readonly
         ? nothing
@@ -251,7 +495,7 @@ export class WrRulesEditor extends EditorBase {
   protected override render() {
     const t = this.t;
     const rules = this.config.rules ?? [];
-    const free = TEMPLATE_ORDER.filter((tpl) => !rules.some((r) => r.template === tpl));
+    const free: RuleTemplate[] = [...TEMPLATE_ORDER.filter((tpl) => !rules.some((r) => r.template === tpl)), "custom"];
     const why = this.status?.why ?? [];
     const prot = this.status?.protected ?? [];
     return html`
@@ -328,6 +572,66 @@ export class WrRulesEditor extends EditorBase {
       .inl .unit {
         margin-left: 3px;
         color: var(--wr-text2);
+      }
+      .lchip {
+        margin-left: 6px;
+        padding: 1px 8px;
+        min-height: 0;
+        font-size: 12px;
+        border-style: dashed;
+        color: var(--wr-text2);
+      }
+      .lchip.on {
+        border-style: solid;
+        border-color: var(--wr-primary);
+        background: color-mix(in srgb, var(--wr-primary) 14%, transparent);
+        color: var(--wr-text);
+      }
+      .lb {
+        font-size: 13px;
+        color: var(--wr-text2);
+        margin-left: 4px;
+        white-space: normal;
+      }
+      .lb input {
+        width: 44px;
+      }
+      .lb.bad input {
+        border-color: var(--wr-err);
+      }
+      .lb b {
+        color: var(--wr-text);
+        font-weight: 500;
+        margin-left: 4px;
+      }
+      .kw {
+        font-weight: 600;
+      }
+      .crow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        padding: 6px 10px;
+        border: 1px solid var(--wr-div);
+        border-radius: 8px;
+      }
+      .crow select,
+      .addc {
+        width: auto;
+        padding: 3px 6px;
+      }
+      .ctype {
+        font-weight: 500;
+        min-width: 110px;
+      }
+      .crow .icon {
+        margin-left: auto;
+      }
+      input.time {
+        width: 64px;
+        text-align: center;
+        padding: 3px 6px;
       }
       .sent select {
         width: auto;
