@@ -507,6 +507,11 @@ class WaermeregieManager:
                 "outdoor_c": None if obs.outdoor_c is None else round(obs.outdoor_c, 1),
                 "burning": self._burned_in_step,
                 "pellets_kg": pellet_status.get("stock_kg"),
+                "water_c": None if obs.stove.water_c is None else round(obs.stove.water_c, 1),
+                "rooms": {
+                    r["id"]: None if r["temperature"] is None else round(r["temperature"], 1)
+                    for r in status.get("rooms") or []
+                },
             }
         )
         self._burned_in_step = obs.stove.burning

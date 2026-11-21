@@ -580,6 +580,8 @@ async def test_history_points_every_ten_minutes(
     assert points[-1]["house_c"] == 19.0
     assert points[-1]["target_c"] == 21.0
     assert points[-1]["burning"] is True
+    assert points[-1]["rooms"] == {"wohnzimmer": 19.0}  # je Raum für die Grafik
+    assert "water_c" in points[-1]
     # übersteht das Neuladen
     assert await hass.config_entries.async_reload(setup.entry_id)
     await hass.async_block_till_done()

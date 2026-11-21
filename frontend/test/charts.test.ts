@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChart, burnRuns, heroState, houseTemps, pelletFill, suggestArrival, warmupLabel, yRange } from "../src/charts";
+import { buildChart, buildMulti, burnRuns, nearestIndex, niceStep, heroState, houseTemps, pelletFill, suggestArrival, warmupLabel, yRange } from "../src/charts";
 import { translator } from "../src/i18n";
 import { emptyText, heroText } from "../src/overview";
 import type { HistoryPoint, Status } from "../src/types";
@@ -139,5 +139,54 @@ describe("Aufheizen und Kopfzeile", () => {
       { temperature: null, target: 19 },
     ] as never;
     expect(houseTemps(status({ rooms }))).toEqual({ temp: 21, target: 20.3 });
+  });
+});
+
+describe("buildMulti", () => {
+  const box = { width: 600, height: 200, padLeft: 4, padRight: 4, padTop: 8, padBottom: 20 };
+  const defs = [
+    { key: "target", get: (p: HistoryPoint) => p.target_c, step: true },
+    { key: "room:a", get: (p: HistoryPoint) => p.rooms?.a },
+    { key: "room:b", get: (p: HistoryPoint) => p.rooms?.b },
+    { key: "house", get: (p: HistoryPoint) => p.house_c },
+  ];
+
+  it("zeichnet je Raum eine Linie und lässt Lücken", () => {
+    const pts = points(6, (i) => ({ rooms: { a: 20 + i * 0.2, b: i === 3 ? null : 22 } }));
+    const m = buildMulti(pts, box, defs)!;
+    expect(m.series.map((s) => s.key)).toEqual(["target", "room:a", "room:b", "house"]);
+    expect(m.series[1].values).toHaveLength(6);
+    expect(m.series[2].values[3]).toBeNull();
+    expect(m.series[2].path.match(/M/g)).toHaveLength(2); // Lücke: zwei Teilstücke
+    expect(m.xs[0]).toBe(4);
+    expect(m.xs[5]).toBe(596);
+    expect(m.yMin).toBeLessThanOrEqual(20);
+    expect(m.yMax).toBeGreaterThanOrEqual(22);
+  });
+
+  it("alte Punkte ohne Raumwerte: nur Mittel und Ziel", () => {
+    const m = buildMulti(points(4, () => ({})), box, defs)!;
+    expect(m.series[1].path).toBe("");
+    expect(m.series[3].path).not.toBe("");
+  });
+
+  it("liefert null ohne Messwerte", () => {
+    expect(buildMulti(points(4, () => ({ water_c: null })), box, [{ key: "water", get: (p) => p.water_c }])).toBeNull();
+    expect(buildMulti([], box, defs)).toBeNull();
+  });
+
+  it("Kessel: Achse in runden Schritten, auch bei großer Spanne", () => {
+    const m = buildMulti(points(12, (i) => ({ water_c: 20 + i * 7, burning: i > 2 && i < 6 })), box, [{ key: "water", get: (p) => p.water_c }])!;
+    const step = m.yTicks[1].value - m.yTicks[0].value;
+    expect([10, 20]).toContain(step);
+    expect(m.yTicks.length).toBeLessThanOrEqual(8);
+    expect(m.bands).toHaveLength(1);
+  });
+
+  it("niceStep und nearestIndex", () => {
+    expect(niceStep(4, 7)).toBe(1);
+    expect(niceStep(80, 4)).toBe(20);
+    expect(nearestIndex([4, 100, 200, 596], 160)).toBe(2);
+    expect(nearestIndex([4, 100, 200, 596], -50)).toBe(0);
   });
 });

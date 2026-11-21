@@ -251,6 +251,10 @@ export interface HistoryPoint {
   outdoor_c?: number | null;
   burning?: boolean | null;
   pellets_kg?: number | null;
+  /** Kesselwasser (ab 0.10.0) */
+  water_c?: number | null;
+  /** Temperatur je Raum-ID (ab 0.10.0) */
+  rooms?: Record<string, number | null> | null;
 }
 
 // Minimaler Ausschnitt des Home-Assistant-Objekts, den wir brauchen.

@@ -138,6 +138,119 @@ export function buildChart(points: HistoryPoint[] | null | undefined, box: Chart
   return { width: box.width, height: box.height, left, right, top, bottom, yMin, yMax, house, target, bands, yTicks, xTicks, last };
 }
 
+export interface SeriesDef {
+  key: string;
+  get: (p: HistoryPoint) => number | null | undefined;
+  /** Stufenlinie (Zielwert) statt Verbindungslinie */
+  step?: boolean;
+}
+
+export interface MultiModel {
+  width: number;
+  height: number;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  yMin: number;
+  yMax: number;
+  /** je Reihe: SVG-Pfad (mit Lücken) und Werte je Zeitpunkt */
+  series: { key: string; path: string; values: (number | null)[] }[];
+  /** x-Position und Zeitstempel je Zeitpunkt (für den Zeiger) */
+  xs: number[];
+  times: string[];
+  bands: { x: number; w: number }[];
+  yTicks: { y: number; value: number }[];
+  xTicks: { x: number; label: string }[];
+  /** Wert -> y (für Punkte am Zeiger) */
+  y: (v: number) => number;
+}
+
+/** Ganzzahlige Schrittweite der y-Achse: 1, 2, 5, 10, 20 ... */
+export function niceStep(span: number, maxTicks: number): number {
+  const raw = span / Math.max(1, maxTicks);
+  for (const s of [1, 2, 5, 10, 20, 50]) if (s >= raw) return s;
+  return 100;
+}
+
+/**
+ * Diagramm mit mehreren Reihen auf EINER y-Achse. Liefert null, wenn keine Reihe
+ * mindestens zwei Messpunkte hat.
+ */
+export function buildMulti(points: HistoryPoint[] | null | undefined, box: ChartBox, defs: SeriesDef[]): MultiModel | null {
+  const pts = (points ?? []).filter((p) => p && typeof p.t === "string" && !Number.isNaN(Date.parse(p.t)));
+  pts.sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+  const raw = defs.map((d) => ({ def: d, values: pts.map((p) => (num(d.get(p)) ? (d.get(p) as number) : null)) }));
+  const lines = raw.filter((s) => !s.def.step);
+  if (!lines.some((s) => s.values.filter(num).length >= 2)) return null;
+  const left = box.padLeft ?? 28;
+  const right = box.width - (box.padRight ?? 8);
+  const top = box.padTop ?? 8;
+  const bottom = box.height - (box.padBottom ?? 18);
+  const t0 = Date.parse(pts[0].t);
+  const span = Math.max(1, Date.parse(pts[pts.length - 1].t) - t0);
+  const r = (v: number) => Math.round(v * 10) / 10;
+  const xs = pts.map((p) => r(left + ((Date.parse(p.t) - t0) / span) * (right - left)));
+  const all = raw.flatMap((s) => s.values).filter(num);
+  let [yMin, yMax] = yRange(all);
+  const maxTicks = Math.max(2, Math.floor((bottom - top) / 24));
+  const every = niceStep(yMax - yMin, maxTicks);
+  yMin = Math.floor(yMin / every) * every;
+  yMax = Math.ceil(yMax / every) * every;
+  const y = (v: number) => r(bottom - ((v - yMin) / (yMax - yMin)) * (bottom - top));
+
+  const series = raw.map(({ def, values }) => {
+    let path = "";
+    let pen = false;
+    let prevY: number | null = null;
+    values.forEach((v, i) => {
+      if (v === null) {
+        pen = false;
+        prevY = null;
+        return;
+      }
+      const py = y(v);
+      if (def.step) {
+        if (prevY === null) path += `M${xs[i]},${py}`;
+        else path += `H${xs[i]}${py !== prevY ? `V${py}` : ""}`;
+        prevY = py;
+      } else {
+        path += `${pen ? "L" : "M"}${xs[i]},${py}`;
+        pen = true;
+      }
+    });
+    return { key: def.key, path, values };
+  });
+
+  const stepW = pts.length > 1 ? (right - left) / (pts.length - 1) : 0;
+  const bands = burnRuns(pts).map(([a, b]) => {
+    const xb = b < pts.length ? xs[b] : Math.min(right, xs[b - 1] + stepW);
+    return { x: xs[a], w: r(Math.max(1, xb - xs[a])) };
+  });
+  const yTicks: MultiModel["yTicks"] = [];
+  for (let v = yMin; v <= yMax; v += every) yTicks.push({ y: y(v), value: v });
+  const xTicks: MultiModel["xTicks"] = [];
+  const seen = new Set<string>();
+  pts.forEach((p, i) => {
+    const m = minutesFromIso(p.t);
+    if (m === null) return;
+    const hour = Math.floor(m / 60);
+    const key = `${p.t.slice(0, 10)} ${hour}`;
+    if (hour % 6 === 0 && !seen.has(key)) {
+      seen.add(key);
+      xTicks.push({ x: xs[i], label: formatTimeOfDay(hour * 60) });
+    }
+  });
+  return { width: box.width, height: box.height, left, right, top, bottom, yMin, yMax, series, xs, times: pts.map((p) => p.t), bands, yTicks, xTicks, y };
+}
+
+/** Index des Zeitpunkts, der einer x-Position am nächsten liegt. */
+export function nearestIndex(xs: number[], x: number): number {
+  let best = 0;
+  for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i] - x) < Math.abs(xs[best] - x)) best = i;
+  return best;
+}
+
 /** Füllstand des Pelletbehälters in Prozent (0-100) oder null. */
 export function pelletFill(p: Status["pellets"], capacityKg?: number | null): number | null {
   if (!p) return null;
