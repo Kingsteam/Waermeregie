@@ -98,7 +98,7 @@ Hast du in Home Assistant eine KI eingerichtet (z. B. OpenAI), kannst du sie unt
 
 ## Rückmeldung am Tablet und per Sprache
 - **Tablet:** Füge im Dashboard die Karte *Wärmeregie Rückmeldung* hinzu und trage den Raum ein. Beispiel: `type: custom:waermeregie-feedback-card`, `room: Bad`, `source: Tablet Bad`.
-- **Sprache:** Mit einem KI-Sprachassistenten (z. B. OpenAI, Zugriff „Assist“ eingeschaltet) reicht „Mir ist kalt“ oder „Im Schlafzimmer ist es zu warm“. Ohne Raum gilt der Bereich des Geräts, in das du sprichst.
+- **Sprache:** Mit einem KI-Sprachassistenten (z. B. OpenAI, Zugriff „Assist“ eingeschaltet) reicht „Mir ist kalt“ oder „Im Schlafzimmer ist es zu warm“. Ohne Raum zählt es fürs ganze Haus; „Mir ist kalt“ heizt dann an wie der Knopf.
 
 ## Pelletvorrat
 Die Wärmeregie zählt mit, wie lange der Ofen brennt, und schätzt daraus, wie viel noch im Behälter ist und wann er leer sein wird. Die Messung läuft auch im Schattenbetrieb.

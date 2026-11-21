@@ -168,7 +168,7 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
 - `waermeregie/feedback` (alle): `{kind: "cold"|"ok"|"warm", room?: string}` → Status. Ohne `room` gilt es fürs ganze Haus.
 - `waermeregie/suggestion` (Verwalter): `{suggestion: id, action: "accept"|"dismiss", value?: string|number}` → Status. `value` ersetzt den vorgeschlagenen Wert (Uhrzeit `HH:MM` oder Temperatur).
 - `waermeregie/feedback` nimmt zusätzlich `source` (höchstens 60 Zeichen); im Protokoll steht „Quelle, Benutzer“.
-- Aktion (Intent) `WaermeregieFeedback`: Felder `kind` (`cold`/`ok`/`warm`), `room` (frei gesprochen, freiwillig). Ohne Raum zählt der Bereich des Sprachgeräts (`intents.match_room`), sonst das ganze Haus.
+- Aktion (Intent) `WaermeregieFeedback`: Felder `kind` (`cold`/`ok`/`warm`), `room` (frei gesprochen, freiwillig). Nur ein genannter Raum (`intents.match_room`) gibt eine Raum-Rückmeldung; sonst ganzes Haus, der Bereich des Sprachgeräts steht in `source`.
 - Karte `custom:waermeregie-feedback-card`: `room`, `title`, `source`.
 - `waermeregie/ai_suggest` (Verwalter): `{}` → Status. Fragt die in `config.ai_task` eingetragene KI (Dienst `ai_task.generate_data`), prüft die Antwort (`advisor.vet`) und legt Vorschläge der Art `ai_change` (`item`, `from`, `to`, `min`, `max`) und `ai_rule` (`rule`) an. Übernommen wird nichts.
 - `waermeregie/ai_preview` (Verwalter): `{}` → `{package}`: das anonyme Paket, ohne zu senden.

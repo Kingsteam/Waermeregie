@@ -7,7 +7,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 ## [0.14.1] - 2026-11-21
 ### Hinzugefügt
 - **Karte „Wärmeregie Rückmeldung“** für Tablets: drei große Knöpfe *Zu kalt / Passt / Zu warm* für einen festen Raum, mit Bestätigung nach dem Tippen. Im Dashboard: `type: custom:waermeregie-feedback-card`, dazu `room` (Name oder Kennung, leer = ganzes Haus), auf Wunsch `title` und `source` (z. B. „Tablet Küche“).
-- **Sprachassistent:** neue Aktion `WaermeregieFeedback`. KI-Sprachassistenten in Home Assistant (z. B. OpenAI mit Zugriff „Assist“) können damit eine Rückmeldung eintragen, wenn du sagst „mir ist kalt“ oder „im Bad ist es zu warm“. Nennst du keinen Raum, gilt der Bereich des Geräts, in das du sprichst; passt keiner, zählt es fürs ganze Haus.
+- **Sprachassistent:** neue Aktion `WaermeregieFeedback`. KI-Sprachassistenten in Home Assistant (z. B. OpenAI mit Zugriff „Assist“) können damit eine Rückmeldung eintragen, wenn du sagst „mir ist kalt“ oder „im Bad ist es zu warm“. Nennst du keinen Raum, zählt es fürs ganze Haus: „Mir ist kalt“ heizt dann an wie der Knopf (der Ofen kann starten). Wo du gesprochen hast, steht als Quelle im Protokoll.
 ### Behoben
 - Rückmeldungen speichern jetzt auch den Zustand des Ofens (blieb in 0.14.0 leer).
 

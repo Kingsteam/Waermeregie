@@ -1154,7 +1154,7 @@ async def test_feedback_intent_room_from_sentence_device_or_house(
     assert "Wohnzimmer" in response.speech["plain"]["speech"]
     last = mgr.status["feedback"]["last"]
     assert (last["kind"], last["room"], last["source"]) == ("ok", "wohnzimmer", "Sprachassistent")
-    # kein Raum im Satz: Bereich des Sprachgeräts
+    # kein Raum im Satz: ganzes Haus, "zu kalt" heizt an; der Bereich steht als Quelle dabei
     area = ar.async_get(hass).async_create("Wohnzimmer")
     entry = MockConfigEntry(domain="test")
     entry.add_to_hass(hass)
@@ -1162,11 +1162,14 @@ async def test_feedback_intent_room_from_sentence_device_or_house(
         config_entry_id=entry.entry_id, identifiers={("test", "lautsprecher")}
     )
     dr.async_get(hass).async_update_device(device.id, area_id=area.id)
-    await intent.async_handle(
-        hass, "test", intents.INTENT_FEEDBACK, {"kind": {"value": "ok"}}, device_id=device.id
+    response = await intent.async_handle(
+        hass, "test", intents.INTENT_FEEDBACK, {"kind": {"value": "cold"}}, device_id=device.id
     )
-    assert mgr.status["feedback"]["last"]["room"] == "wohnzimmer"
-    # weder noch: ganzes Haus
+    last = mgr.status["feedback"]["last"]
+    assert (last["room"], last["source"]) == (None, "Sprachassistent Wohnzimmer")
+    assert mgr.status["warmup"]["cold"] is True
+    assert "wärmer" in response.speech["plain"]["speech"]
+    # unbekannter Raum: ganzes Haus
     response = await intent.async_handle(
         hass,
         "test",

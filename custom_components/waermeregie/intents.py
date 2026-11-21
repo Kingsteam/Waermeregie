@@ -1,8 +1,8 @@
 """Aktion für Sprachassistenten: Rückmeldung zu kalt / passt / zu warm.
 
 Home Assistant bietet angemeldete Aktionen (Intents) den KI-Sprachassistenten als Werkzeug
-an. Der Raum kommt aus dem Satz oder, wenn keiner genannt wird, aus dem Bereich des
-Geräts, in das gesprochen wurde. Passt kein Raum, zählt es fürs ganze Haus.
+an. Ein im Satz genannter Raum ergibt eine Raum-Rückmeldung. Ohne Raum zählt es fürs ganze
+Haus (bei "zu kalt" also Aufheizen); der Bereich des Sprachgeräts steht nur als Quelle dabei.
 """
 
 from __future__ import annotations
@@ -75,7 +75,9 @@ class FeedbackIntent(intent.IntentHandler):
         "Report how the temperature feels to the heating control (Waermeregie). "
         "Use when someone says they are cold, too warm, or that the temperature is fine. "
         "kind: cold = too cold, ok = fine, warm = too warm. "
-        "room: the room meant, if one was named; omit it to use the room of the voice device."
+        "For 'I am cold' this starts warming up the house (the stove may start). "
+        "room: only if the person named a specific room; otherwise omit it (whole house). "
+        "Prefer this over changing a thermostat or radiator directly."
     )
 
     @property
@@ -94,11 +96,13 @@ class FeedbackIntent(intent.IntentHandler):
             raise intent.IntentHandleError("Die Wärmeregie ist nicht eingerichtet.")
         rooms = manager.config["rooms"]
         spoken = (slots.get("room") or {}).get("value")
-        room = match_room(rooms, spoken) or match_room(
-            rooms, _device_area(hass, intent_obj.device_id)
-        )
+        # Nur ein genannter Raum zählt als Raum-Rückmeldung. Ohne Raum gilt es fürs ganze
+        # Haus ("Mir ist kalt" heizt dann wirklich an); wo gesprochen wurde, steht als Quelle.
+        room = match_room(rooms, spoken)
+        area = _device_area(hass, intent_obj.device_id)
+        source = f"Sprachassistent {area}" if area else "Sprachassistent"
         try:
-            await manager.async_feedback(kind, room, source="Sprachassistent")
+            await manager.async_feedback(kind, room, source=source)
         except model.ConfigError as err:
             raise intent.IntentHandleError(str(err)) from err
         name = next((r["name"] for r in rooms if r["id"] == room), "")
