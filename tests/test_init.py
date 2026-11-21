@@ -7,6 +7,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 from freezegun.api import FrozenDateTimeFactory
+from homeassistant.components import llm as llm_component
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, State, SupportsResponse
 from homeassistant.helpers import (
@@ -14,7 +15,9 @@ from homeassistant.helpers import (
     device_registry as dr,
     entity_registry as er,
     intent,
+    llm,
 )
+from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_mock_service
@@ -1181,3 +1184,25 @@ async def test_feedback_intent_room_from_sentence_device_or_house(
     # unbekannte Art wird abgelehnt
     with pytest.raises(intent.IntentError):
         await intent.async_handle(hass, "test", intents.INTENT_FEEDBACK, {"kind": {"value": "x"}})
+
+
+async def test_voice_assistant_gets_feedback_tool(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    """Der KI-Sprachassistent bekommt das Werkzeug wirklich angeboten und kann es aufrufen."""
+    await _configured(hass, hass_ws_client)
+    assert await async_setup_component(hass, "llm", {})
+    context = llm.LLMContext(
+        platform="test", context=None, language="de", assistant="conversation", device_id=None
+    )
+    result = await llm_component.async_get_tools(hass, context, llm.LLM_API_ASSIST)
+    (tool,) = [t for t in result.tools if t.name == "waermeregie__WaermeregieFeedback"]
+    assert "cold" in tool.description and "Waermeregie" in result.prompt
+    await tool.async_call(
+        hass,
+        llm.ToolInput(tool_name=tool.name, tool_args={"kind": "cold"}),
+        context,
+    )
+    mgr = hass.data[DOMAIN]
+    assert mgr.status["feedback"]["last"]["kind"] == "cold"
+    assert mgr.status["warmup"]["cold"] is True
