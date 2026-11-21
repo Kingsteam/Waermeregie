@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-11-21
+### Behoben
+- **Sprachassistent:** Die Aktion „Rückmeldung“ kam beim KI-Sprachassistenten gar nicht an, er hat deshalb nach einem Heizkörper gefragt. Home Assistant will solche Werkzeuge über eine eigene Datei angeboten bekommen; die fehlte. Jetzt bekommt der Assistent das Werkzeug und dazu den Hinweis, bei „mir ist kalt“ oder „zu warm“ die Wärmeregie zu fragen, statt selbst an Heizkörpern zu drehen.
+
 ## [0.14.1] - 2026-11-21
 ### Hinzugefügt
 - **Karte „Wärmeregie Rückmeldung“** für Tablets: drei große Knöpfe *Zu kalt / Passt / Zu warm* für einen festen Raum, mit Bestätigung nach dem Tippen. Im Dashboard: `type: custom:waermeregie-feedback-card`, dazu `room` (Name oder Kennung, leer = ganzes Haus), auf Wunsch `title` und `source` (z. B. „Tablet Küche“).
