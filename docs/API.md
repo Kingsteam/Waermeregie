@@ -158,7 +158,9 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
 
 ```jsonc
 {"points": [
-  {"t": "2026-11-19T18:10:00+01:00", "house_c": 22.1, "target_c": 22.5, "outdoor_c": 9.9, "burning": true, "pellets_kg": 13.6}
+  {"t": "2026-11-19T18:10:00+01:00", "house_c": 22.1, "target_c": 22.5, "outdoor_c": 9.9, "burning": true, "pellets_kg": 13.6,
+   "water_c": 61.5,                          // Kesselwasser (null ohne Fühler; fehlt in Punkten vor 0.10.0)
+   "rooms": {"wohnzimmer": 21.8}}            // Temperatur je Raum-ID (fehlt in Punkten vor 0.10.0)
 ]}
 ```
 Ein Punkt je 10 Minuten, höchstens 48 Stunden, im Laufzustand gespeichert (übersteht Neustarts). Werte können `null` sein.

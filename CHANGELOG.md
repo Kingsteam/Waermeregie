@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-21
+### Hinzugefügt
+- **Verlauf „Räume und Kessel“ in der Übersicht:** zwei Grafiken untereinander für die letzten 24 Stunden. Oben jede Raumtemperatur als eigene Linie, dazu das Mittel aller Räume (dick) und das Ziel (gestrichelt); unten das Kesselwasser. Die Brennzeiten des Ofens sind in beiden hinterlegt. Mit dem Finger oder der Maus über die Grafik fahren zeigt Uhrzeit und alle Werte zu diesem Zeitpunkt. Die Werte je Raum und für den Kessel werden ab dieser Version alle 10 Minuten mitgeschrieben; die Linien beginnen deshalb erst mit dem Update.
+
 ## [0.9.2] - 2026-11-21
 ### Geändert
 - **„Mir ist kalt“ heizt jetzt immer.** Bisher startete der Ofen nur, wenn die Räume laut Fühlern unter dem angehobenen Ziel lagen; lagen sie knapp darüber, passierte nichts („kein Bedarf“). Wer den Knopf drückt, übersteuert die Messung: Ist im Kessel keine nutzbare Restwärme, startet der Ofen. Die Restwärme wird weiter zuerst genutzt; Pause gegen Takten, Starts pro Tag, Störung und Kesselschutz gelten weiter.

@@ -2,6 +2,7 @@
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
 import { loadConfig, loadHistory, pelletsRefill, saveConfig, setMode, subscribeStatus } from "./api";
 import { defineControls } from "./controls";
+import { defineHistory } from "./history";
 import { chartStyles, artStyles, renderTrendChart, tankStyles } from "./graphics";
 import { overviewStyles, renderAlertStrip, renderHeroHead, renderPellets, renderRoomTiles, renderStoveCard } from "./overview";
 import { translator, type I18nKey, type Lang, type T } from "./i18n";
@@ -432,6 +433,17 @@ export class WaermeregiePanel extends LitElement {
               : nothing}
           </div>
         </div>
+        ${this._history?.length
+          ? html`<div class="card">
+              <h3 style="margin:0 0 10px">${t("history.title")}</h3>
+              <wr-history
+                .points=${this._history}
+                .rooms=${(this._status?.rooms ?? []).map((r) => ({ id: r.id, name: r.name }))}
+                .lang=${this._lang}
+                ?dark=${this.hass?.themes?.darkMode === true}
+              ></wr-history>
+            </div>`
+          : nothing}
         <div class="mid">
           ${renderPellets(ctx, () => this._action(() => pelletsRefill(this.hass)))}
           ${renderStoveCard(ctx)}
@@ -713,6 +725,7 @@ export class WaermeregiePanel extends LitElement {
 }
 
 defineControls();
+defineHistory();
 if (!customElements.get("waermeregie-panel")) customElements.define("waermeregie-panel", WaermeregiePanel);
 
 declare global {
