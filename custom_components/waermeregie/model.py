@@ -171,6 +171,10 @@ def limits() -> dict[str, Any]:
         "ventilate_humidity": list(VENTILATE_HUMIDITY_LIMITS),
         "ventilate_rise": list(VENTILATE_RISE_LIMITS),
         # Vorlage -> Parameter -> [kleinster, größter, Standard]
+        "rule_conditions": {
+            k: (None if v is None else list(v)) for k, v in rules.CONDITIONS.items()
+        },
+        "rule_learn": list(rules.LEARN_STEP),
         "rule_templates": {
             t: {k: list(v) for k, v in ps.items()} for t, ps in rules.TEMPLATES.items()
         },
@@ -265,8 +269,50 @@ def _target(value: Any, what: str) -> float:
     return round(v * 2) / 2
 
 
-def _rules(raw: Any, scene_ids: list[str]) -> list[dict[str, Any]]:
-    """Regeln aus Vorlagen prüfen (docs/REGELN.md)."""
+def _conditions(raw: Any, what: str, cfg: dict) -> list[dict[str, Any]]:
+    """Bedingungen einer freien Regel prüfen."""
+    if not isinstance(raw, list) or len(raw) > rules.MAX_CONDITIONS:
+        raise ConfigError(f"{what}: höchstens {rules.MAX_CONDITIONS} Bedingungen")
+    out: list[dict[str, Any]] = []
+    for cond in raw:
+        kind = cond.get("type") if isinstance(cond, dict) else None
+        if kind not in rules.CONDITIONS:
+            raise ConfigError(f"{what}: unbekannte Bedingung")
+        item: dict[str, Any] = {"type": kind}
+        limits = rules.CONDITIONS[kind]
+        if limits is not None:
+            value = _num(cond.get("value"), f"{what}: Wert")
+            if not limits[0] <= value <= limits[1]:
+                raise ConfigError(
+                    f"{what}: Wert muss zwischen {limits[0]:g} und {limits[1]:g} liegen"
+                )
+            item["value"] = value
+            item["op"] = "below" if cond.get("op") == "below" else "above"
+        if kind == "persons":
+            item["value"] = "someone_home" if cond.get("value") == "someone_home" else "all_away"
+        elif kind == "lock":
+            item["entity"] = _entity(cond.get("entity"), ("lock", "binary_sensor"), what)
+            item["value"] = "unlocked" if cond.get("value") == "unlocked" else "locked"
+        elif kind == "room_temp":
+            if cond.get("room") not in [r["id"] for r in cfg["rooms"]]:
+                raise ConfigError(f"{what}: bitte einen Raum wählen")
+            item["room"] = cond["room"]
+        elif kind == "day_type":
+            if cond.get("value") not in [d["id"] for d in cfg["day_types"]]:
+                raise ConfigError(f"{what}: bitte eine Tagesart wählen")
+            item["value"] = cond["value"]
+        elif kind == "time":
+            for key in ("from", "to"):
+                text = str(cond.get(key) or "")
+                if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", text):
+                    raise ConfigError(f"{what}: Uhrzeit im Format HH:MM")
+                item[key] = text
+        out.append(item)
+    return out
+
+
+def _rules(raw: Any, scene_ids: list[str], cfg: dict) -> list[dict[str, Any]]:
+    """Regeln prüfen (docs/REGELN.md)."""
     if raw is None:
         return []
     if not isinstance(raw, list) or len(raw) > rules.MAX_RULES:
@@ -277,7 +323,10 @@ def _rules(raw: Any, scene_ids: list[str]) -> list[dict[str, Any]]:
         if not isinstance(rule, dict) or rule.get("template") not in rules.TEMPLATES:
             raise ConfigError(f"Regel {i + 1}: unbekannte Vorlage")
         template = rule["template"]
-        what = f"Regel „{rules.NAMES[template]}“"
+        name = str(rule.get("name") or "").strip()[:60] if template == "custom" else ""
+        what = f"Regel „{name or rules.NAMES[template]}“"
+        if template == "custom" and not name:
+            raise ConfigError("Eigene Regel: bitte einen Namen eintragen")
         rule_id = _id(rule.get("id") or template, what)
         if rule_id in seen:
             raise ConfigError(f"{what}: gibt es schon")
@@ -303,6 +352,26 @@ def _rules(raw: Any, scene_ids: list[str]) -> list[dict[str, Any]]:
             params["wind_entity"] = _entity(
                 given.get("wind_entity"), ("sensor",), f"{what}: Windfühler"
             )
+        if template == "custom":
+            scene = given.get("scene") or None
+            if scene is not None and scene not in scene_ids:
+                raise ConfigError(f"{what}: Szene unbekannt")
+            params["scene"] = scene
+            params["conditions"] = _conditions(given.get("conditions") or [], what, cfg)
+        learn: dict[str, list[float]] = {}
+        for key, bounds in (rule.get("learn") or {}).items():
+            if key not in rules.TEMPLATES[template] or key not in rules.LEARN_STEP:
+                raise ConfigError(f"{what}: {key} kann kein Lernwert sein")
+            lo, hi, _default = rules.TEMPLATES[template][key]
+            try:
+                low, high = float(bounds[0]), float(bounds[1])
+            except (TypeError, ValueError, IndexError) as err:
+                raise ConfigError(f"{what}: Grenzen des Lernwerts fehlen") from err
+            if not lo <= low <= high <= hi:
+                raise ConfigError(
+                    f"{what}: Grenzen des Lernwerts müssen zwischen {lo:g} und {hi:g} liegen"
+                )
+            learn[key] = [low, high]
         trial = rule.get("trial_until")
         if trial is not None:
             try:
@@ -316,6 +385,8 @@ def _rules(raw: Any, scene_ids: list[str]) -> list[dict[str, Any]]:
                 "enabled": bool(rule.get("enabled", True)),
                 "trial_until": None if trial is None else str(trial),
                 "params": params,
+                "learn": learn,
+                **({"name": name} if template == "custom" else {}),
             }
         )
     return out
@@ -551,7 +622,7 @@ def validate(raw: Any) -> dict[str, Any]:
             f"({params['dump_end_c']:g} °C ist nicht unter {params['dump_start_c']:g} °C)"
         )
     out["parameters"] = params
-    out["rules"] = _rules(cfg.get("rules"), scene_ids)
+    out["rules"] = _rules(cfg.get("rules"), scene_ids, out)
 
     mode = cfg.get("mode", MODE_SHADOW)
     if mode not in (MODE_SHADOW, MODE_ACTIVE):

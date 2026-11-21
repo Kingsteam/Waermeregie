@@ -243,7 +243,18 @@ export interface Status {
   log: LogEntry[];
 }
 
-export type RuleTemplate = "nobody_home" | "cold_outside" | "wind" | "forecast_drop";
+export type RuleTemplate = "nobody_home" | "cold_outside" | "wind" | "forecast_drop" | "custom";
+
+/** Bedingung einer freien Regel (alle müssen gelten). */
+export interface RuleCondition {
+  type: "persons" | "lock" | "outdoor" | "wind" | "room_temp" | "water" | "time" | "day_type";
+  op?: "below" | "above";
+  value?: number | string;
+  entity?: string | null;
+  room?: string;
+  from?: string;
+  to?: string;
+}
 
 export interface Rule {
   id: string;
@@ -251,7 +262,11 @@ export interface Rule {
   enabled: boolean;
   /** Probelauf bis (ISO); danach wartet die Regel auf eine Entscheidung */
   trial_until: string | null;
-  params: Record<string, number | string | boolean | null>;
+  params: Record<string, number | string | boolean | null | RuleCondition[]>;
+  /** nur freie Regel */
+  name?: string;
+  /** Lernwerte: Parameter -> [kleinster, größter] */
+  learn?: Record<string, [number, number]>;
 }
 
 export interface RuleStatus {
@@ -263,6 +278,9 @@ export interface RuleStatus {
   detail: string;
   last: string | null;
   hits: number;
+  /** aktueller Stand der Lernwerte */
+  learned?: Record<string, number>;
+  at_limit?: string[];
 }
 
 export interface ProtectedRule {

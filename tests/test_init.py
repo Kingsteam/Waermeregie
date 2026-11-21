@@ -1015,3 +1015,33 @@ async def test_rule_nobody_home_switches_scene_and_shows_why(
     keys = {p["key"]: p["fixed"] for p in mgr.status["protected"]}
     assert keys["overheat"] is True and keys["frost"] is True
     assert keys["min_pause_min"] is False
+
+
+async def test_house_feedback_moves_learning_value_of_active_rule(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    er.async_get(hass).async_get_or_create("sensor", "test", "aussen", suggested_object_id="aussen")
+    hass.states.async_set("sensor.aussen", "-4.0")
+    client, cfg = await _configured(hass, hass_ws_client)
+    cfg["outdoor_sensor"] = "sensor.aussen"
+    cfg["rules"] = [
+        {
+            "template": "cold_outside",
+            "params": {"below_c": 0, "target_delta_k": 0.5, "lead_min": 30},
+            "learn": {"target_delta_k": [0, 1.5]},
+        }
+    ]
+    assert (await save(hass, client, cfg))["success"]
+    mgr = hass.data[DOMAIN]
+    assert mgr.status["rules"][0]["state"] == "active"
+    await client.send_json_auto_id({"type": f"{DOMAIN}/feedback", "kind": "cold"})
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    assert msg["result"]["rules"][0]["learned"] == {"target_delta_k": 1.0}
+    assert any("0,5 → 1" in e["text"] for e in mgr.log)
+    # Rückmeldung für einen einzelnen Raum verstellt keine Lernwerte
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/feedback", "kind": "warm", "room": "wohnzimmer"}
+    )
+    msg = await client.receive_json()
+    assert msg["result"]["rules"][0]["learned"] == {"target_delta_k": 1.0}

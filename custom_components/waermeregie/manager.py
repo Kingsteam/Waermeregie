@@ -93,6 +93,9 @@ def _paths(config: dict) -> list[tuple[Any, Any]]:
         for key in ("lock", "wind_entity"):
             if key in rule["params"]:
                 out.append((rule["params"], key))
+        for cond in rule["params"].get("conditions") or []:
+            if "entity" in cond:
+                out.append((cond, "entity"))
     return out
 
 
@@ -161,6 +164,7 @@ class WaermeregieManager:
         self._suggested: set[str] | None = None  # schon gemeldete Vorschläge
         self._forecast: list[tuple[datetime, float]] = []
         self._forecast_at: datetime | None = None
+        self._last_wind: float | None = None
         self._was_overheat = False
         # Verlauf für die Grafik (gespeichert), Brennen seit dem letzten Punkt
         self.history: list[dict[str, Any]] = []
@@ -483,6 +487,7 @@ class WaermeregieManager:
             self.state.get("rules"),
             now,
             config["scenes"],
+            config,
         )
         obs.rule_scene = ruled["effects"]["scene"]
         obs.rule_delta_k = ruled["effects"]["target_delta"]
@@ -996,8 +1001,12 @@ class WaermeregieManager:
         sensors: dict[str, float | None] = {}
         need_forecast = False
         for rule in config["rules"]:
-            lock = rule["params"].get("lock")
-            if lock:
+            cond_locks = [
+                c.get("entity") for c in rule["params"].get("conditions") or [] if c.get("entity")
+            ]
+            for lock in [rule["params"].get("lock"), *cond_locks]:
+                if not lock:
+                    continue
                 st = self._state(lock)
                 if st is None:
                     locks[lock] = None
@@ -1020,6 +1029,7 @@ class WaermeregieManager:
                 wind_kmh *= {"m/s": 3.6, "mph": 1.609, "kn": 1.852}.get(unit, 1.0)
             except TypeError, ValueError:
                 wind_kmh = None
+        self._last_wind = wind_kmh
         if need_forecast:
             await self._update_forecast(now, config["weather"])
         return {
@@ -1029,6 +1039,17 @@ class WaermeregieManager:
             "outdoor_c": obs.outdoor_c,
             "wind_kmh": wind_kmh,
             "forecast": self._forecast if need_forecast else [],
+            "water_c": obs.stove.water_c,
+            "day_type": (lambda d: {"id": d["id"], "name": d["name"]})(
+                engine.day_type_for(config, now, obs.workday)[0]
+            ),
+            "rooms": {
+                room["id"]: {
+                    "name": room["name"],
+                    "temperature": getattr(obs.rooms.get(room["id"]), "temperature", None),
+                }
+                for room in config["rooms"]
+            },
         }
 
     async def _update_forecast(self, now: datetime, weather: str | None) -> None:
@@ -1126,7 +1147,9 @@ class WaermeregieManager:
                 "param": "hard_stop_above_k",
                 "value": p["hard_stop_above_k"],
                 "unit": "K",
-                "text": f"Sofort aus, wenn das Haus {p['hard_stop_above_k']:g} K über Ziel ist"
+                "text": (
+                    f"Sofort aus, wenn das Haus {p['hard_stop_above_k']:g} K über Ziel ist"
+                ).replace(".", ",")
                 if p["hard_stop_above_k"]
                 else "Sofort aus bei deutlich zu warmem Haus: abgeschaltet",
                 "warning": "Mit einem höheren Wert oder 0 heizt der Ofen weiter, auch wenn das "
@@ -1184,6 +1207,17 @@ class WaermeregieManager:
                 "burning": stove.get("burning"),
             },
         )
+        # Lernwerte der Regeln (nur Rückmeldungen fürs ganze Haus)
+        if room is None:
+            self.state["rules"], learned = rules.learn_feedback(
+                self.config["rules"],
+                self.state.get("rules"),
+                kind,
+                {"outdoor_c": house.get("outdoor_c"), "wind_kmh": self._last_wind},
+                now,
+            )
+            for text in learned:
+                self._add_log(now, text, False)
         label = {"cold": "zu kalt", "ok": "passt", "warm": "zu warm"}[kind]
         where = f"Raum {rooms[room]['name']}" if room else "ganzes Haus"
         by = f" ({source})" if source else ""

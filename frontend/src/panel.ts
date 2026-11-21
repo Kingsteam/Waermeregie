@@ -13,7 +13,7 @@ import "./tabs/schedule";
 import "./tabs/scenes";
 import "./tabs/house";
 import "./tabs/rules";
-import { ruleProblems, templateLimits } from "./tabs/rules";
+import { conditionLimits, ruleProblems, templateLimits } from "./tabs/rules";
 import { invalidParameters } from "./tabs/house";
 import type { Config, Defaults, Hass, HistoryPoint, Mode, Status } from "./types";
 import { clone, errorMessage, formatStamp, normalizeConfig, pickLang, sameData, quietValid, sortLogNewestFirst, validateSlots, WEEK_KEYS } from "./util";
@@ -54,7 +54,7 @@ export function draftProblems(c: Config, defaults: Defaults | null): number {
   for (const k of WEEK_KEYS) if (!c.week[k] || !dayIds.includes(c.week[k] as string)) n++;
   n += invalidParameters(c, defaults).length;
   if (c.notifications && !quietValid(c.notifications)) n++;
-  n += ruleProblems(c.rules, templateLimits(defaults));
+  n += ruleProblems(c.rules, templateLimits(defaults), conditionLimits(defaults));
   return n;
 }
 
