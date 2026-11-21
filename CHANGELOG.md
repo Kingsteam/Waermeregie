@@ -4,6 +4,14 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-21
+### Hinzugefügt
+- **KI-Berater** (freiwillig): Unter „Ofen & Haus“ → Umgebung kannst du eine KI-Aufgabe aus Home Assistant eintragen (z. B. OpenAI). Im Reiter „Regeln“ gibt es dann „KI um Vorschläge fragen“. Die KI bekommt deine verstellbaren Werte mit ihren Grenzen, den Zeitplan, die Regeln und die Rückmeldungen der letzten vier Wochen mit den Messwerten dazu. Sie darf Werte ändern und neue Regeln vorschlagen.
+- **Du entscheidest:** Jeder Vorschlag erscheint als Karte mit Begründung zum Annehmen, Anpassen oder Ablehnen. Von selbst wird nichts übernommen. Neue Regeln der KI laufen nach dem Annehmen zuerst einen Tag im Probelauf.
+- **Strenge Prüfung:** Die Antwort der KI gilt als nicht vertrauenswürdig. Durch kommt nur, was auf der Liste der verstellbaren Werte steht, in den Grenzen liegt und nicht zu weit springt (Ziele höchstens 1 K, Uhrzeiten höchstens 1 Stunde, höchstens 5 Änderungen und 2 neue Regeln je Anfrage). Schutzregeln, Geräte und Türschlösser kann die KI nie anfassen.
+- **Anonym:** Räume heißen im Paket „Raum A“, „Raum B“; Personen, Geräte und Adressen stehen nicht drin. Mit „Zeigen, was geschickt wird“ siehst du das Paket vorher, ohne dass etwas gesendet wird. Gesendet wird nur, wenn du fragst.
+- Dienst `waermeregie.ai_suggest` für Automationen (z. B. einmal pro Woche). Auch dann werden nur Vorschläge angelegt.
+
 ## [0.13.0] - 2026-11-21
 ### Hinzugefügt
 - **Eigene Regeln** (Etappe 3): Im Reiter „Regeln“ gibt es „+ Eigene Regel“. Du gibst ihr einen Namen und stellst bis zu fünf Bedingungen aus Auswahllisten zusammen, die alle gelten müssen: Personen, Türschloss, Außentemperatur, Wind, Raumtemperatur, Kesselwasser, Uhrzeit, Tagesart. Als Wirkung: Szene wechseln, Ziele um höchstens 2 K heben oder senken, früher beginnen. Unter der Regel steht der fertige Satz in Klartext.

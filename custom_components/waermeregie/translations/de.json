@@ -225,6 +225,10 @@
           "description": "Kennung des Raums (wie in der Wärmeregie). Leer = ganzes Haus."
         }
       }
+    },
+    "ai_suggest": {
+      "name": "KI um Vorschläge fragen",
+      "description": "Schickt eine anonyme Zusammenfassung der Einstellungen und Rückmeldungen an die in der Wärmeregie eingetragene KI. Vorschläge erscheinen in der Wärmeregie; geändert wird erst, wenn du einen annimmst."
     }
   }
 }

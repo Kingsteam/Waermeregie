@@ -225,6 +225,10 @@
           "description": "Room id (as in Wärmeregie). Empty = whole house."
         }
       }
+    },
+    "ai_suggest": {
+      "name": "Ask the AI for suggestions",
+      "description": "Sends an anonymous summary of settings and feedback to the AI set up in Wärmeregie. Suggestions appear in Wärmeregie; nothing is changed until you accept one."
     }
   }
 }

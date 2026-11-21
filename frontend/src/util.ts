@@ -368,6 +368,7 @@ export function normalizeConfig(raw: Partial<Config> | null | undefined): Config
     workday: c.workday ?? null,
     persons: c.persons ?? [],
     pet: c.pet ?? null,
+    ai_task: c.ai_task ?? null,
     notify: c.notify ?? [],
     notifications: { ...DEFAULT_NOTIFICATIONS, ...(c.notifications ?? {}) },
     rules: c.rules ?? [],

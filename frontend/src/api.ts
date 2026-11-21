@@ -29,6 +29,10 @@ export const sendFeedback = (hass: Hass, kind: FeedbackKind, room: string | null
 export const answerSuggestion = (hass: Hass, id: string, action: "accept" | "dismiss", value?: string | number) =>
   hass.callWS<Status>({ type: "waermeregie/suggestion", suggestion: id, action, ...(value !== undefined ? { value } : {}) });
 
+/** KI um Vorschläge fragen (sendet das anonyme Paket) bzw. das Paket nur ansehen. */
+export const askAi = (hass: Hass) => hass.callWS<Status>({ type: "waermeregie/ai_suggest" });
+export const previewAi = (hass: Hass) => hass.callWS<{ package: unknown }>({ type: "waermeregie/ai_preview" });
+
 /** Verlauf für die Grafik. Fehlt der Befehl (ältere Version), wird abgelehnt. */
 export const loadHistory = (hass: Hass, hours = 24) =>
   hass.callWS<{ points: HistoryPoint[] }>({ type: "waermeregie/history", hours }).then((r) => (Array.isArray(r?.points) ? r.points : []));

@@ -68,6 +68,7 @@ def default_config() -> dict[str, Any]:
         "workday": None,
         "persons": [],
         "pet": None,
+        "ai_task": None,
         "notify": [],
         "notifications": dict(DEFAULT_NOTIFICATIONS),
         "warmup_scene": None,
@@ -419,6 +420,7 @@ def validate(raw: Any) -> dict[str, Any]:
         cfg.get("persons"), ("person", "device_tracker", "binary_sensor"), "Personen"
     )
     out["pet"] = _entity(cfg.get("pet"), ("binary_sensor", "device_tracker", "person"), "Haustier")
+    out["ai_task"] = _entity(cfg.get("ai_task"), ("ai_task",), "KI-Berater")
     notify = cfg.get("notify") or []
     if not isinstance(notify, list) or not all(
         isinstance(n, str) and n.startswith("notify.") for n in notify

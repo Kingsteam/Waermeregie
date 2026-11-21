@@ -153,8 +153,14 @@ export class WaermeregiePanel extends LitElement {
     }
   };
 
+  /** Ein angenommener Vorschlag hat die Einstellungen geändert: neu laden (außer bei offenem Entwurf). */
+  private _reload = () => {
+    if (!this._dirty) void this._load();
+  };
+
   override connectedCallback() {
     super.connectedCallback();
+    this.addEventListener("wr-reload", this._reload);
     window.addEventListener("beforeunload", this._beforeUnload);
     if (this.hass) this._ensureData();
     this._historyTimer = window.setInterval(() => void this._loadHistory(), 10 * 60 * 1000);
@@ -383,8 +389,10 @@ export class WaermeregiePanel extends LitElement {
             .defaults=${common.defaults}
             .lang=${common.lang}
             .status=${this._status}
+            .dirty=${this._dirty}
             ?readonly=${ro}
             @config-changed=${onChange}
+            @wr-status=${(e: CustomEvent<Status>) => (this._status = e.detail)}
           ></wr-rules-editor>`;
       case "house":
         return html`${adminHint}${this._renderModeSwitch()}<wr-house-editor

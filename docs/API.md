@@ -167,6 +167,9 @@ Grenzen (aus `const.py`, werden beim Speichern geprüft): siehe `defaults.limits
 
 - `waermeregie/feedback` (alle): `{kind: "cold"|"ok"|"warm", room?: string}` → Status. Ohne `room` gilt es fürs ganze Haus.
 - `waermeregie/suggestion` (Verwalter): `{suggestion: id, action: "accept"|"dismiss", value?: string|number}` → Status. `value` ersetzt den vorgeschlagenen Wert (Uhrzeit `HH:MM` oder Temperatur).
+- `waermeregie/ai_suggest` (Verwalter): `{}` → Status. Fragt die in `config.ai_task` eingetragene KI (Dienst `ai_task.generate_data`), prüft die Antwort (`advisor.vet`) und legt Vorschläge der Art `ai_change` (`item`, `from`, `to`, `min`, `max`) und `ai_rule` (`rule`) an. Übernommen wird nichts.
+- `waermeregie/ai_preview` (Verwalter): `{}` → `{package}`: das anonyme Paket, ohne zu senden.
+- Status `feedback.ai`: `{available, busy, t, summary, dropped, error}`.
 - Status `feedback`: `{"suggestions": [{"id", "type": "slot_earlier"|"target_up"|"target_down", "text", "count", "room", "scene", "day_type", "from", "to"}], "last": {...}}`. Ein Vorschlag wirkt erst nach `accept`.
 - Status `overrides.room_boost`: je Raum-ID `{"delta", "until"}` (Sofortwirkung einer Rückmeldung im Raum).
 

@@ -1,6 +1,6 @@
 # Regeln (Konzept, Stand 21.11.2026)
 
-Entwurf, mit dem Besitzer abgestimmt. Etappe 1 (Rückmeldungen und Vorschläge) ist seit 0.11.0 gebaut, Etappe 2 (Regeln aus Vorlagen) seit 0.12.0. Etappe 3 (freie Regeln, Lernwerte) seit 0.13.0. Offen: Puffer.
+Entwurf, mit dem Besitzer abgestimmt. Etappe 1 (Rückmeldungen und Vorschläge) ist seit 0.11.0 gebaut, Etappe 2 (Regeln aus Vorlagen) seit 0.12.0. Etappe 3 (freie Regeln, Lernwerte) seit 0.13.0. Der KI-Berater (Vorschläge eines Sprachmodells über die KI-Schnittstelle von Home Assistant, streng geprüft, nur auf Annehmen) ist seit 0.14.0 gebaut. Offen: Puffer.
 
 ## Hierarchie
 

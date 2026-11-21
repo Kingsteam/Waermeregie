@@ -252,6 +252,13 @@ export class WrHouseEditor extends EditorBase {
             onChange: (x, v) => (x.weather = v as string | null),
           })}
           ${this._picker({
+            label: "house.ai_task",
+            hint: "house.ai_task_hint",
+            domains: ["ai_task"],
+            value: c.ai_task ?? null,
+            onChange: (x, v) => (x.ai_task = v as string | null),
+          })}
+          ${this._picker({
             label: "house.outdoor_sensor",
             hint: "house.outdoor_sensor_hint",
             domains: ["sensor"],

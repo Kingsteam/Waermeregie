@@ -49,7 +49,7 @@ def _num(value: float) -> str:
 
 
 def empty() -> dict[str, Any]:
-    return {"entries": [], "dismissed": {}}
+    return {"entries": [], "dismissed": {}, "ai": None}
 
 
 def ensure(data: dict | None) -> dict[str, Any]:
@@ -57,6 +57,7 @@ def ensure(data: dict | None) -> dict[str, Any]:
     if isinstance(data, dict):
         base["entries"] = list(data.get("entries") or [])
         base["dismissed"] = dict(data.get("dismissed") or {})
+        base["ai"] = data.get("ai") if isinstance(data.get("ai"), dict) else None
     return base
 
 

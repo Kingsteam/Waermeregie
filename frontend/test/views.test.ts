@@ -38,6 +38,13 @@ describe("adjustValue (Vorschlag anpassen)", () => {
     expect(adjustValue(temp, "")).toBeNull();
     expect(adjustValue(temp, "40")).toBeNull();
   });
+  it("KI-Vorschlag: Zahl in den Grenzen des Vorschlags, Uhrzeit, neue Regel gar nicht", () => {
+    const ai: Suggestion = { id: "ai|x", type: "ai_change", text: "", count: 0, room: null, from: 30, to: 40, min: 20, max: 60 };
+    expect(adjustValue(ai, "45")).toBe(45);
+    expect(adjustValue(ai, "90")).toBeNull();
+    expect(adjustValue({ ...ai, from: "06:00", to: "05:30" }, "5:45")).toBe("05:45");
+    expect(adjustValue({ ...ai, type: "ai_rule" }, "1")).toBeNull();
+  });
 });
 
 import { newRule, ruleProblems, templateLimits } from "../src/tabs/rules";

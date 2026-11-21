@@ -92,4 +92,5 @@ feedback:
     room:
       selector:
         text:
+ai_suggest:
 cancel_warmup:
