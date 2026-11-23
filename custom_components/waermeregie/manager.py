@@ -73,6 +73,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 SIGNAL_UPDATE = f"{DOMAIN}_update"
 AI_TIMEOUT_S = 120
+EMPTY_STOCK_KG = 1.0  # darunter gilt der Behälter als leer
 BAD_STATES = (STATE_UNAVAILABLE, STATE_UNKNOWN, None)
 
 
@@ -1482,21 +1483,43 @@ class WaermeregieManager:
         if not 0 < amount <= float(params["pellet_capacity_kg"]):
             raise model.ConfigError("Nachfüllmenge muss größer 0 und höchstens der Behälter sein")
         self.pellets = pellets.update(self.pellets, now, self.pellets["last_burning"])
+        was_empty = self._pellets_ran_out()
         self.pellets = pellets.refill(self.pellets, now, amount, params)
         self._add_log(now, f"Pellets nachgefüllt: {amount:g} kg", False)
+        if was_empty:
+            self._end_empty_pause(now)
         return await self.async_evaluate()
+
+    def _pellets_ran_out(self) -> bool:
+        """Behälter (fast) leer: der Ofen ist mangels Pellets ausgegangen."""
+        left = pellets.estimate(self.pellets, self.config["parameters"])
+        return left is not None and left < EMPTY_STOCK_KG
+
+    def _end_empty_pause(self, now: datetime) -> None:
+        """Ging der Ofen aus, weil der Behälter leer war, war das kein Takten: die Pause
+        nach dem Blockende fällt nach dem Nachfüllen weg."""
+        last_stop = self.state.get("last_stop")
+        pause = timedelta(minutes=self.config["parameters"]["min_pause_min"])
+        if last_stop and now - dt_util.parse_datetime(last_stop) < pause:
+            self.state["last_stop"] = None
+            self._add_log(
+                now, "Pause gegen Takten aufgehoben: der Ofen war wegen leerem Behälter aus", False
+            )
 
     async def async_pellets_set(self, kg: float, from_empty: bool = False) -> dict:
         now = dt_util.now()
         if not 0 <= kg <= float(self.config["parameters"]["pellet_capacity_kg"]):
             raise model.ConfigError("Vorrat muss zwischen 0 und dem Fassungsvermögen liegen")
         self.pellets = pellets.update(self.pellets, now, self.pellets["last_burning"])
+        was_empty = self._pellets_ran_out()
         self.pellets = pellets.set_stock(self.pellets, now, kg, from_empty)
         self._add_log(
             now,
             f"Pelletvorrat gesetzt: {kg:g} kg" + (" (Behälter war leer)" if from_empty else ""),
             False,
         )
+        if (was_empty or from_empty) and kg >= EMPTY_STOCK_KG:
+            self._end_empty_pause(now)
         return await self.async_evaluate()
 
     async def async_pellets_empty(self) -> dict:

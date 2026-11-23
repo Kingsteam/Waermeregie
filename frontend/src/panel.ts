@@ -16,7 +16,7 @@ import "./tabs/rules";
 import { conditionLimits, ruleProblems, templateLimits } from "./tabs/rules";
 import { invalidParameters } from "./tabs/house";
 import type { Config, Defaults, Hass, HistoryPoint, Mode, Status } from "./types";
-import { clone, errorMessage, formatStamp, normalizeConfig, pickLang, sameData, quietValid, sortLogNewestFirst, validateSlots, WEEK_KEYS } from "./util";
+import { clone, errorMessage, formatNumber, formatStamp, normalizeConfig, pickLang, sameData, quietValid, sortLogNewestFirst, validateSlots, WEEK_KEYS } from "./util";
 import { renderShadowBanner, type ViewCtx } from "./views";
 
 type Tab = "overview" | "rooms" | "schedule" | "scenes" | "rules" | "house" | "log";
@@ -74,6 +74,7 @@ export class WaermeregiePanel extends LitElement {
     _saveMsg: { state: true },
     _busy: { state: true },
     _actionError: { state: true },
+    _refillNote: { state: true },
     _modeConfirm: { state: true },
     _history: { state: true },
   };
@@ -92,6 +93,8 @@ export class WaermeregiePanel extends LitElement {
   declare _saveMsg: { ok: boolean; text: string } | null;
   declare _busy: boolean;
   declare _actionError: string | null;
+  declare _refillNote: string | null;
+  private _refillTimer: number | undefined;
   declare _modeConfirm: Mode | null;
   /** Verlauf für die Grafik; null = nicht verfügbar */
   declare _history: HistoryPoint[] | null;
@@ -114,6 +117,7 @@ export class WaermeregiePanel extends LitElement {
     this._saveMsg = null;
     this._busy = false;
     this._actionError = null;
+    this._refillNote = null;
     this._modeConfirm = null;
     this._history = null;
   }
@@ -254,6 +258,17 @@ export class WaermeregiePanel extends LitElement {
     } finally {
       this._busy = false;
     }
+  }
+
+  private async _refill() {
+    await this._action(async () => {
+      const s = await pelletsRefill(this.hass);
+      const kg = s?.pellets?.stock_kg;
+      this._refillNote = this._t("pellets.refill_done_kg", { kg: kg == null ? "?" : formatNumber(kg, this._lang, 1) });
+      window.clearTimeout(this._refillTimer);
+      this._refillTimer = window.setTimeout(() => (this._refillNote = null), 8000);
+      return s;
+    });
   }
 
   private async _changeMode(mode: Mode) {
@@ -477,7 +492,8 @@ export class WaermeregiePanel extends LitElement {
             </div>`
           : nothing}
         <div class="mid">
-          ${renderPellets(ctx, () => this._action(() => pelletsRefill(this.hass)))}
+          ${renderPellets(ctx, () => void this._refill())}
+          ${this._refillNote ? html`<div class="banner info" role="status" style="margin-top:8px">${this._refillNote}</div>` : nothing}
           ${renderStoveCard(ctx)}
         </div>
         <h3 style="margin:4px 0 -6px">${t("rooms.title")}</h3>

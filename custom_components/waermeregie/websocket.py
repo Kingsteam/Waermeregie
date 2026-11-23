@@ -33,6 +33,7 @@ def async_register(hass: HomeAssistant) -> None:
         ws_history,
         ws_feedback,
         ws_ai_suggest,
+        ws_pellets_refill,
         ws_ai_preview,
         ws_suggestion,
         ws_learn_reset,
@@ -209,6 +210,21 @@ async def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
         return _not_loaded(connection, msg)
     await mgr.async_backfill_history()
     connection.send_result(msg["id"], {"points": mgr.history_points(msg["hours"])})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/pellets/refill",
+        vol.Optional("kg"): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=100)),
+    }
+)
+@websocket_api.async_response
+async def ws_pellets_refill(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Sack nachgefüllt: liefert den neuen Status, damit die Seite gleich den vollen Tank zeigt."""
+    if not (mgr := _manager(hass)):
+        return _not_loaded(connection, msg)
+    await _run(connection, msg, mgr.async_pellets_refill(msg.get("kg")))
 
 
 @websocket_api.require_admin
