@@ -79,9 +79,22 @@ def test_dump_on_warm_room_counts_from_room_temperature():
     """Ein Thermostat öffnet nur über der Raumtemperatur: Zusatz ab dort."""
     cfg = sample_config(mode="active")
     now = at(16, "18:00")
-    r = run(cfg, engine.empty_state(), obs(now, wz=24.0, sz=19.0, stove=_stove(80.0)))
-    # Wohnzimmer 3 K über Ziel: halber Zusatz 1 K, ab 24 °C -> 25 °C
-    assert _radiators(r)["climate.heizung_wohnzimmer"] == 25.0
+    r = run(cfg, engine.empty_state(), obs(now, wz=22.5, sz=19.0, stove=_stove(80.0)))
+    # Wohnzimmer 1,5 K über Ziel: Zusatz 1,5 K, ab 22,5 °C -> 24 °C
+    assert _radiators(r)["climate.heizung_wohnzimmer"] == 24.0
+
+
+def test_dump_skips_rooms_far_above_target_until_near_overheat():
+    """23.11.2026: Wärme soll in Räume, die sie brauchen, nicht in schon zu warme."""
+    cfg = sample_config(mode="active")
+    now = at(16, "18:00")
+    r = run(cfg, engine.empty_state(), obs(now, wz=24.0, sz=17.0, stove=_stove(80.0)))
+    radiators = _radiators(r)
+    assert radiators["climate.heizung_wohnzimmer"] == 21.0  # 3 K über Ziel: kein Zusatz
+    assert radiators["climate.heizung_schlafzimmer"] > 19.0  # kalter Raum bekommt Wärme
+    # kurz vor dem Kesselschutz nimmt jeder Raum ab
+    r = run(cfg, engine.empty_state(), obs(now, wz=24.0, sz=17.0, stove=_stove(86.0)))
+    assert _radiators(r)["climate.heizung_wohnzimmer"] > 24.0
 
 
 def test_dump_hysteresis_until_end_temperature():

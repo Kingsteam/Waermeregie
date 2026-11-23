@@ -36,6 +36,7 @@ from .const import (
 )
 
 PRESENCE_SETBACK_K = 1.5  # leerer Raum: so viel kühler
+DUMP_MAX_OVER_K = 2.0  # Wärmeabfuhr dreht einen Raum, der so viel über Ziel ist, nicht weiter auf
 
 
 @dataclass
@@ -109,6 +110,7 @@ def empty_state() -> dict[str, Any]:
         "boost": None,  # {"delta": k, "until": iso}
         "room_boost": {},  # je Raum-ID {"delta": k, "until": iso} (Rückmeldung zu kalt/zu warm)
         "block_start": None,
+        "block_warmup": False,  # Block wurde wegen Aufheizen / "Mir ist kalt" gestartet
         "last_stop": None,
         "starts": [],  # iso-Zeitpunkte der Starts (letzte 2 Tage)
         "radiators": {},  # zuletzt gesetzter Sollwert je Heizkörper
@@ -597,6 +599,20 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             stop_reason = f"Haus deutlich zu warm ({deficit_txt})"
             if state.get("block_manual"):
                 notices.append(f"Der von Hand gestartete Ofen wurde ausgeschaltet: {deficit_txt}.")
+        elif (
+            reached
+            and not warmup_active
+            and not frost_need
+            and elapsed >= PARAMETER_LIMITS["min_burn_min"][0]
+            and (state.get("block_warmup") or (water is not None and water >= p["dump_start_c"]))
+        ):
+            # 23.11.2026: Start wegen "Mir ist kalt", das 7 min später ablief; der Block lief
+            # trotzdem die volle Mindestbrenndauer, Haus 2 K über Ziel, Wasser 82 °C
+            stop_reason = (
+                f"Ziel erreicht, Aufheizen ist vorbei ({deficit_txt})"
+                if state.get("block_warmup")
+                else f"Ziel erreicht, Kessel schon heiß ({_fmt_c(water)} °C, {deficit_txt})"
+            )
         elif elapsed >= p["min_burn_min"]:
             if reached:
                 stop_reason = f"Ziel erreicht ({deficit_txt})"
@@ -610,6 +626,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             reason = f"Heizblock beendet: {stop_reason}"
             state["block_start"] = None
             state["block_manual"] = False
+            state["block_warmup"] = False
             # endet der Block, während der Ofen selbst abgeschaltet hat (oder gar nicht
             # brennt, obwohl das Wasser heiß ist), zündet er später womöglich von selbst
             hot_idle = (
@@ -747,6 +764,7 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
             state["start_cmd"] = now.isoformat()
             state["reignite_watch"] = None
             state["block_manual"] = False
+            state["block_warmup"] = warmup_active
             if warmup_start:
                 warmup["started"] = True
             starts_today += 1
@@ -813,6 +831,14 @@ def evaluate(config: dict, state: dict, obs: Observation) -> Result:
                 # Ein Thermostat öffnet nur über der gemessenen Raumtemperatur: der Zusatz
                 # zählt deshalb ab dem Ziel oder, wenn der Raum schon wärmer ist, ab dort
                 base = max(rs["target"], rs["temperature"] or rs["target"])
+                too_hot_room = (
+                    rs["temperature"] is not None
+                    and rs["temperature"] >= rs["target"] + DUMP_MAX_OVER_K
+                )
+                if too_hot_room and (water is None or water < OVERHEAT_C - 5):
+                    # die Wärme soll in Räume, die sie brauchen (23.11.2026: Studio 25 °C
+                    # bei Ziel 21,5 °C wurde weiter aufgedreht)
+                    extra = 0.0
                 if extra > 0:
                     setpoint = max(setpoint, fuzzy.round_half(base + extra))
         rs["dump_extra_k"] = extra
