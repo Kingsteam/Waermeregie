@@ -4,6 +4,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.14.5] - 2026-11-23
+### Geändert
+- **Weniger Überschießen** (Abend des 23.11.: Haus 2 K über Ziel, Kessel 82 °C):
+  - Wurde der Ofen wegen „Mir ist kalt“ oder Aufheizen gestartet und ist das vorbei, endet der Block, sobald das normale Ziel erreicht ist, frühestens nach 30 Minuten statt erst nach der vollen Mindestbrenndauer.
+  - Ist das Ziel erreicht und der Kessel schon über der Abfuhr-Schwelle, endet jeder Block ebenso früher. Die Restwärme im Kessel reicht noch eine Weile.
+  - Die Wärmeabfuhr dreht Räume, die schon 2 K oder mehr über ihrem Ziel sind, nicht weiter auf. Die Wärme geht in die Räume, die sie brauchen. Kurz vor dem Kesselschutz nimmt weiter jeder Raum ab.
+
 ## [0.14.4] - 2026-11-23
 ### Behoben
 - **Nachfüllen nach leerem Behälter:** Ging der Ofen aus, weil keine Pellets mehr da waren, galt danach trotzdem eine Stunde „Pause gegen Takten“. Das war kein Takten: Nach dem Nachfüllen fällt diese Pause jetzt weg, und der Ofen darf gleich wieder starten, wenn Wärme gebraucht wird. War noch genug im Behälter, bleibt die Pause wie bisher.

@@ -764,6 +764,8 @@ def test_block_end_during_self_off_then_reignition_is_switched_off():
     """08:09 selbst abgeschaltet, 08:32 Ziel erreicht, 08:48 und 09:52 zündet er selbst."""
     cfg = sample_config(mode="active")
     cfg["parameters"]["hard_stop_above_k"] = 0  # wie am 20.11.: Block läuft bis 08:32
+    # früheres Ende bei heißem Kessel (0.14.5) aus: hier geht es um den Ablauf vom 20.11.
+    cfg["parameters"]["dump_start_c"] = 85
     start = at(16, "07:01")
     state = {
         **engine.empty_state(),
@@ -1007,3 +1009,44 @@ def test_activity_sentences_for_start_and_stop():
     # ohne Ereignis keine Nachricht
     r = run(cfg, r.state, obs(at(16, "08:06"), wz=22.0, sz=20.0))
     assert r.activity == []
+
+
+# --- Weniger Überschießen (23.11.2026) -------------------------------------------------
+
+
+def test_block_started_by_cold_ends_early_once_warmup_is_over_and_house_warm():
+    """Start wegen "Mir ist kalt", das bald abläuft: nicht die volle Mindestbrenndauer."""
+    cfg = sample_config(mode="active")
+    cfg["parameters"]["hard_stop_above_k"] = 0  # nur die neue Regel prüfen
+    now = at(16, "18:00")  # Komfort 21 / 19
+    state = {**engine.empty_state(), "warmup": _cold(now, minutes=10)}
+    r = run(cfg, state, obs(now, wz=20.5, sz=18.8, stove=_idle(30.0)))
+    assert ("stove_start",) in r.actions
+    assert r.state["block_warmup"] is True
+    # "Mir ist kalt" vorbei, Haus über Ziel, aber noch keine 30 min: weiter
+    r = run(cfg, r.state, obs(now + timedelta(minutes=20), wz=21.6, sz=19.6, stove=_burning(50)))
+    assert r.state["block_start"] is not None
+    # nach 30 min: Block endet, obwohl die Mindestbrenndauer (90 min) noch läuft
+    r = run(cfg, r.state, obs(now + timedelta(minutes=31), wz=21.6, sz=19.6, stove=_burning(52)))
+    assert r.state["block_start"] is None
+    assert ("stove_stop",) in r.actions
+    assert any("Aufheizen ist vorbei" in t for t in r.log)
+    assert r.state["block_warmup"] is False
+
+
+def test_normal_block_ends_early_when_water_hot_and_target_reached():
+    cfg = sample_config(mode="active")
+    cfg["parameters"]["hard_stop_above_k"] = 0
+    now = at(16, "18:00")
+    state = {**engine.empty_state(), "block_start": now.isoformat(), "starts": [now.isoformat()]}
+    # Ziel erreicht, Wasser noch kühl: Mindestbrenndauer gilt weiter
+    r = run(cfg, state, obs(now + timedelta(minutes=40), wz=21.6, sz=19.6, stove=_burning(60)))
+    assert r.state["block_start"] is not None
+    # Wasser über der Abfuhr-Schwelle: Block endet
+    r = run(cfg, r.state, obs(now + timedelta(minutes=45), wz=21.6, sz=19.6, stove=_burning(72)))
+    assert r.state["block_start"] is None
+    assert any("Kessel schon heiß" in t for t in r.log)
+    # Ziel noch nicht erreicht: heißes Wasser allein beendet nichts
+    state = {**engine.empty_state(), "block_start": now.isoformat(), "starts": [now.isoformat()]}
+    r = run(cfg, state, obs(now + timedelta(minutes=45), wz=20.6, sz=18.6, stove=_burning(75)))
+    assert r.state["block_start"] is not None
