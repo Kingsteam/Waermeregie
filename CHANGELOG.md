@@ -4,6 +4,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.14.4] - 2026-11-23
+### Behoben
+- **Nachfüllen nach leerem Behälter:** Ging der Ofen aus, weil keine Pellets mehr da waren, galt danach trotzdem eine Stunde „Pause gegen Takten“. Das war kein Takten: Nach dem Nachfüllen fällt diese Pause jetzt weg, und der Ofen darf gleich wieder starten, wenn Wärme gebraucht wird. War noch genug im Behälter, bleibt die Pause wie bisher.
+- **Knopf „Sack nachgefüllt“:** Die Seite zeigt sofort den neuen Füllstand und eine Bestätigung („jetzt etwa 15 kg im Behälter“). Vorher passierte sichtbar nichts.
+
 ## [0.14.3] - 2026-11-21
 ### Behoben
 - **Ausgeschaltete Heizkörper:** Steht ein Heizkörperthermostat auf „Aus“, nimmt er keinen Sollwert an. Die Wärmeregie hat ihm trotzdem nur die Temperatur geschickt, er blieb zu. Der Ofen fand dann keine Abnahme für die Wärme und schaltete schnell selbst ab; auch Kesselschutz und Wärmeabfuhr konnten die Heizkörper so nicht öffnen. Jetzt schaltet die Wärmeregie einen ausgeschalteten Heizkörper beim Setzen wieder auf Heizen und schreibt das ins Protokoll. Soll ein Heizkörper bewusst aus bleiben, pausiere ihn in der Wärmeregie (Raum-Seite).

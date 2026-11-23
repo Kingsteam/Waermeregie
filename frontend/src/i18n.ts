@@ -567,6 +567,7 @@ export const de = {
   "pellets.estimate": "Verbrauch noch geschätzt",
   "pellets.refill": "Sack nachgefüllt",
   "pellets.refill_done": "Ein Sack wurde dazugezählt.",
+  "pellets.refill_done_kg": "Gemerkt: ein Sack ist dazugezählt, jetzt etwa {kg} kg im Behälter.",
   "pellets.aria": "Pelletbehälter {pct} Prozent voll",
 
   "details.title": "Details",
@@ -1183,6 +1184,7 @@ export const en: Partial<Record<I18nKey, string>> = {
   "pellets.estimate": "Consumption still estimated",
   "pellets.refill": "Bag refilled",
   "pellets.refill_done": "One bag was added.",
+  "pellets.refill_done_kg": "Noted: one bag added, now about {kg} kg in the hopper.",
   "pellets.aria": "Pellet hopper {pct} percent full",
 
   "details.title": "Details",

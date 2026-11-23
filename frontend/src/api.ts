@@ -37,12 +37,8 @@ export const previewAi = (hass: Hass) => hass.callWS<{ package: unknown }>({ typ
 export const loadHistory = (hass: Hass, hours = 24) =>
   hass.callWS<{ points: HistoryPoint[] }>({ type: "waermeregie/history", hours }).then((r) => (Array.isArray(r?.points) ? r.points : []));
 
-/** Ein Sack Pellets nachgefüllt (Dienst, kein WebSocket-Befehl). */
-export async function pelletsRefill(hass: Hass): Promise<Status | null> {
-  if (!hass.callService) throw new Error("callService fehlt");
-  await hass.callService("waermeregie", "pellets_refill", {});
-  return null;
-}
+/** Ein Sack Pellets nachgefüllt; liefert den neuen Status (voller Tank sofort sichtbar). */
+export const pelletsRefill = (hass: Hass) => hass.callWS<Status>({ type: "waermeregie/pellets/refill" });
 
 export const resetLearning = (hass: Hass) => hass.callWS<Status>({ type: "waermeregie/learn/reset" });
 export const setMode = (hass: Hass, mode: Mode) => hass.callWS<Status>({ type: "waermeregie/mode", mode });

@@ -1239,3 +1239,25 @@ async def test_radiator_switched_off_is_switched_on_again(
     assert len([c for c in temp_calls if c.data["entity_id"] == "climate.heizung_wohnzimmer"]) == (
         count + 1
     )
+
+
+async def test_refill_after_running_empty_ends_pause_and_ws_returns_status(
+    hass: HomeAssistant, setup, hass_ws_client
+) -> None:
+    """Ofen ging aus, weil der Behälter leer war: Nachfüllen hebt die Pause gegen Takten auf."""
+    client, _ = await _configured(hass, hass_ws_client)
+    mgr = hass.data[DOMAIN]
+    now = dt_util.now()
+    await mgr.async_pellets_set(0)  # Behälter leer
+    mgr.state["last_stop"] = (now - timedelta(minutes=20)).isoformat()
+    await client.send_json_auto_id({"type": f"{DOMAIN}/pellets/refill"})
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    assert msg["result"]["pellets"]["stock_kg"] == 15  # gleich sichtbar
+    assert mgr.state["last_stop"] is None
+    assert any("Pause gegen Takten aufgehoben" in e["text"] for e in mgr.status["log"])
+    # war noch genug drin, bleibt die Pause (dann war es echtes Takten)
+    mgr.state["last_stop"] = (dt_util.now() - timedelta(minutes=20)).isoformat()
+    await client.send_json_auto_id({"type": f"{DOMAIN}/pellets/refill", "kg": 5})
+    assert (await client.receive_json())["success"]
+    assert mgr.state["last_stop"] is not None
