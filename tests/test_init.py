@@ -1261,3 +1261,23 @@ async def test_refill_after_running_empty_ends_pause_and_ws_returns_status(
     await client.send_json_auto_id({"type": f"{DOMAIN}/pellets/refill", "kg": 5})
     assert (await client.receive_json())["success"]
     assert mgr.state["last_stop"] is not None
+
+
+async def test_refill_allowed_for_everyone_and_adds_full_bag(
+    hass: HomeAssistant, setup, hass_ws_client, hass_read_only_access_token
+) -> None:
+    """Küchen-Tablet ohne Verwalterrechte: ein Sack kommt immer ganz dazu, auch über voll."""
+    await _configured(hass, hass_ws_client)
+    mgr = hass.data[DOMAIN]
+    capacity = float(mgr.config["parameters"]["pellet_capacity_kg"])
+    await mgr.async_pellets_set(capacity - 5)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/pellets/refill"})
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    bag = float(mgr.config["parameters"]["pellet_bag_kg"])
+    assert msg["result"]["pellets"]["stock_kg"] == capacity - 5 + bag
+    assert msg["result"]["pellets"]["fill_pct"] == 100
+    # Einstellungen bleiben Verwaltern vorbehalten
+    await client.send_json_auto_id({"type": f"{DOMAIN}/config/save", "config": {}})
+    assert not (await client.receive_json())["success"]

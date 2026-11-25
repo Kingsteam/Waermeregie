@@ -136,11 +136,14 @@ def forecast(state: dict, params: dict, now: datetime) -> dict[str, Any]:
 
 
 def refill(state: dict, now: datetime, kg: float, params: dict) -> dict:
-    """Nachgefüllt: Vorrat = Schätzung + kg (höchstens Fassungsvermögen)."""
+    """Nachgefüllt: Vorrat = Schätzung + kg.
+
+    Nicht beim Fassungsvermögen gekappt: ein Sack kommt immer ganz dazu (der Behälter hat
+    etwas Luft nach oben, die Schätzung davor ist ungenau). Die Anzeige in % bleibt bei 100."""
     st = {**empty(), **state}
     before = estimate(st, params)
     base = before if before is not None else 0.0
-    st["stock_kg"] = round(min(float(params["pellet_capacity_kg"]), base + kg), 1)
+    st["stock_kg"] = round(base + kg, 1)
     st["burn_s"] = 0.0
     if st["fill_kg"] is not None:
         st["fill_kg"] = round(st["fill_kg"] + kg, 1)

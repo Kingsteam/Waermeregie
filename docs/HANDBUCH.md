@@ -103,7 +103,7 @@ Hast du in Home Assistant eine KI eingerichtet (z. B. OpenAI), kannst du sie unt
 ## Pelletvorrat
 Die Wärmeregie zählt mit, wie lange der Ofen brennt, und schätzt daraus, wie viel noch im Behälter ist und wann er leer sein wird. Die Messung läuft auch im Schattenbetrieb.
 
-- **Nach dem Nachfüllen** den Knopf **„Sack Pellets nachgefüllt“** drücken (zählt einen Sack laut Einstellung dazu, höchstens bis der Behälter voll ist). Andere Mengen: Dienst `waermeregie.pellets_refill` mit `kg`.
+- **Nach dem Nachfüllen** den Knopf **„Sack Pellets nachgefüllt“** drücken (zählt immer einen ganzen Sack laut Einstellung dazu, auch über „voll“ hinaus; geht für jeden Benutzer, auch auf der Dashboard-Karte). Andere Mengen: Dienst `waermeregie.pellets_refill` mit `kg`.
 - **Ist der Behälter leer**, den Knopf **„Pelletbehälter war leer“** drücken. Daraus lernt die Wärmeregie den echten Verbrauch pro Brennstunde (eingefüllte kg seit dem letzten „leer“ geteilt durch die Brennstunden). Meldet der Ofen eine Störung, während die Schätzung fast bei null ist, wird das automatisch als „leer“ gewertet.
 - **Erstmals einrichten:** Dienst `waermeregie.pellets_set` mit dem aktuellen Vorrat in kg; `from_empty: true`, wenn der Behälter davor leer war (dann wird ab dieser Füllung gelernt).
 - **Erinnerung:** Unterschreitet die Schätzung die Schwelle (Standard 5 kg), kommt einmal pro Füllung eine Nachricht.

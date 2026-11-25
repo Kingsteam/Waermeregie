@@ -1380,6 +1380,9 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
       <ha-icon icon="mdi:grain"></ha-icon>
       <div class="bar" role="img" aria-label=${r(`pellets.aria`,{pct:String(c??0)})}><i style="width:${c??0}%"></i></div>
       <span>${d} kg${f?A` · ${r(`pellets.until`,{time:f})}`:N}</span>
+      ${t?A`<button class="mini-refill" ?disabled=${e.busy} title=${r(`pellets.refill`)} @click=${t}>
+            <ha-icon icon="mdi:sack"></ha-icon>${r(`pellets.refill`)}
+          </button>`:N}
     </div>`:A`<div class="card pellets ${u?`low`:``}">
     <h3>${r(`pellets.title`)}</h3>
     <div class="prow">
@@ -1391,7 +1394,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
         ${s.rate_learned?N:A`<div class="hint">${r(`pellets.estimate`)}</div>`}
       </div>
     </div>
-    ${t?A`<button ?disabled=${!e.isAdmin||e.busy} title=${e.isAdmin?``:r(`not_admin`)} @click=${t}>
+    ${t?A`<button ?disabled=${e.busy} @click=${t}>
           <ha-icon icon="mdi:sack"></ha-icon>${r(`pellets.refill`)}
         </button>`:N}
   </div>`}var un={de:[`So`,`Mo`,`Di`,`Mi`,`Do`,`Fr`,`Sa`],en:[`Sun`,`Mon`,`Tue`,`Wed`,`Thu`,`Fri`,`Sat`]};function dn(e,t,n){let r=/^(\d{4})-(\d{2})-(\d{2})/.exec(e),i=t?/^(\d{4})-(\d{2})-(\d{2})/.exec(t):null;if(!r)return G(e,t,n);let a=Date.UTC(+r[1],r[2]-1,+r[3]),o=i?Date.UTC(+i[1],i[2]-1,+i[3]):null,s=o===null?null:Math.round((a-o)/864e5);return s===0?W(e):s!==null&&s>0&&s<7?`${un[n.startsWith(`de`)?`de`:`en`][new Date(a).getUTCDay()]} ${W(e)}`:G(e,t,n)}function fn(e){let{t,status:n,lang:r}=e,i=n?.stove;if(!i)return A`<div class="card"><h3>${t(`stove.title`)}</h3><div class="muted">${t(`stove.no_status`)}</div></div>`;let a=n?.day_type?e.config?.day_types.find(e=>e.id===n.day_type?.id):void 0,o=r.startsWith(`de`)?`de-DE`:`en-US`;return A`<div class="card stove ${i.burning?`burning`:``}">
@@ -1536,6 +1539,12 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
     display: block;
     height: 100%;
     background: #b07d3c;
+  }
+  .pellet-mini .mini-refill {
+    flex: none;
+    font-size: 13px;
+    padding: 4px 10px;
+    min-height: 32px;
   }
   .pellet-mini.low .bar i {
     background: var(--wr-warn);

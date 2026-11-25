@@ -4,6 +4,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.14.6] - 2026-11-25
+### Geändert
+- **„Sack nachgefüllt“ zählt immer einen ganzen Sack dazu**, auch wenn der Vorrat damit rechnerisch über dem Fassungsvermögen liegt (der Behälter hat etwas Luft, die Schätzung davor ist ungenau). Die Anzeige bleibt bei 100 %. Von Hand gesetzter Vorrat darf bis zum doppelten Fassungsvermögen gehen.
+- **Den Knopf darf jeder Benutzer drücken**, nicht nur Verwalter (wie die Rückmeldungen). Am Küchen-Tablet war er bisher ausgegraut und der Befehl wurde abgelehnt.
+- Die Dashboard-Karte hat jetzt neben dem Pellet-Balken einen Knopf „Sack nachgefüllt“ mit Bestätigung.
+
 ## [0.14.5] - 2026-11-23
 ### Geändert
 - **Weniger Überschießen** (Abend des 23.11.: Haus 2 K über Ziel, Kessel 82 °C):
