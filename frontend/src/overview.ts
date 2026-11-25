@@ -137,12 +137,12 @@ export function renderStoveCard(ctx: ViewCtx): TemplateResult {
   if (!st) return html`<div class="card"><h3>${t("stove.title")}</h3><div class="muted">${t("stove.no_status")}</div></div>`;
   const dayType = status?.day_type ? ctx.config?.day_types.find((d) => d.id === status.day_type?.id) : undefined;
   const loc = lang.startsWith("de") ? "de-DE" : "en-US";
-  return html`<div class="card stove ${st.burning ? "burning" : ""}">
+  return html`<div class="card stove ${st.burning ? "burning" : ""} ${st.available === false ? "unreachable" : ""}">
     <div class="row">
       <ha-icon class="flame" icon=${st.burning ? "mdi:fire" : "mdi:fireplace-off"}></ha-icon>
       <h3 style="margin:0">${t("stove.title")}</h3>
       <span class="spacer"></span>
-      ${!st.available ? html`<span class="badge warn">${t("stove.unavailable")}</span>` : nothing}
+      ${!st.available ? html`<span class="badge unreachable">${t("stove.unavailable")}</span>` : nothing}
       ${st.error ? html`<span class="badge err">${t("stove.error_short")}</span>` : nothing}
       <span class="badge ${st.burning ? "heat" : ""}">${st.burning ? t("stove.burning") : t("stove.not_burning")}</span>
     </div>
@@ -193,9 +193,11 @@ export function renderRoomTiles(ctx: ViewCtx, filter?: string[] | null): Templat
   return html`<div class="tiles">
     ${rooms.map((r) => {
       const missing = r.sensors_missing ?? 0;
-      return html`<div class="tile ${roomClass(r)}">
+      // kein Messwert: gestrichelt und in Worten, nie leer oder wie "aus"
+      const gone = r.temperature === null || r.temperature === undefined;
+      return html`<div class="tile ${roomClass(r)} ${gone ? "unreachable" : ""}">
         <div class="tname">${r.name}</div>
-        <div class="ttemp">${formatTemp(r.temperature, lang)}</div>
+        <div class="ttemp">${gone ? html`<span class="tgone">${t("dev.unavailable")}</span>` : formatTemp(r.temperature, lang)}</div>
         <div class="tsub">
           <span>${t("room.target")} ${formatNumber(r.target, lang, 1)}°</span>
           <span class="ticons">
@@ -255,7 +257,7 @@ export const overviewStyles = css`
     gap: 8px;
     align-items: flex-start;
     padding: 8px 12px;
-    border-radius: 10px;
+    border-radius: 8px;
     background: color-mix(in srgb, var(--wr-warn) 14%, transparent);
     font-size: 13px;
   }
@@ -301,7 +303,7 @@ export const overviewStyles = css`
   .pellet-mini .bar {
     flex: 1;
     height: 8px;
-    border-radius: 4px;
+    border-radius: 8px;
     background: var(--wr-input-bg);
     overflow: hidden;
     min-width: 40px;
@@ -309,13 +311,13 @@ export const overviewStyles = css`
   .pellet-mini .bar i {
     display: block;
     height: 100%;
-    background: #b07d3c;
+    background: var(--brown-color, var(--wr-heat));
   }
   .pellet-mini .mini-refill {
     flex: none;
     font-size: 13px;
     padding: 4px 10px;
-    min-height: 32px;
+    min-height: var(--wr-touch, 44px);
   }
   .pellet-mini.low .bar i {
     background: var(--wr-warn);
@@ -325,7 +327,7 @@ export const overviewStyles = css`
   }
   details.more summary {
     cursor: pointer;
-    color: var(--wr-primary);
+    color: var(--wr-text);
     font-weight: 500;
     padding: 4px 0;
   }
@@ -336,9 +338,9 @@ export const overviewStyles = css`
   }
   .tile {
     background: var(--wr-card);
-    border: 1px solid var(--wr-div);
+    border: 2px solid var(--wr-border);
     border-left: 4px solid var(--wr-div);
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 8px 10px;
     min-width: 0;
   }
@@ -357,6 +359,11 @@ export const overviewStyles = css`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .tgone {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--wr-text2);
   }
   .ttemp {
     font-size: 22px;

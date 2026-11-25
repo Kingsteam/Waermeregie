@@ -227,7 +227,7 @@ export class WrFeedback extends LitElement {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        min-height: 40px;
+        min-height: var(--wr-touch, 44px);
         flex: 1 1 0;
         min-width: 0;
         padding-left: 6px;
@@ -260,12 +260,12 @@ export class WrFeedback extends LitElement {
         gap: 10px;
         padding: 12px;
         margin-bottom: 12px;
-        border: 1px solid var(--wr-primary);
+        border: 2px solid var(--wr-accent);
         border-radius: var(--wr-radius);
-        background: color-mix(in srgb, var(--wr-primary) 8%, transparent);
+        background: color-mix(in srgb, var(--wr-accent) 8%, transparent);
       }
       .sugg > ha-icon {
-        color: var(--wr-primary);
+        color: var(--wr-accent);
         flex: none;
       }
       .stext {

@@ -340,12 +340,22 @@ function stableStringify(v: unknown): string {
     .join(",")}}`;
 }
 
-/** Feste Farbpalette für Szenen (Index = Position in config.scenes). */
-const SCENE_COLORS = ["#e8590c", "#1c7ed6", "#2f9e44", "#7048e8", "#0c8599", "#f08c00", "#c2255c", "#5c940d", "#868e96"];
+/** Farbfolge für Szenen aus dem Theme (Index = Position in config.scenes); keine festen Farben. */
+const SCENE_COLORS = [
+  "var(--orange-color)",
+  "var(--blue-color)",
+  "var(--green-color)",
+  "var(--purple-color)",
+  "var(--teal-color)",
+  "var(--amber-color)",
+  "var(--pink-color)",
+  "var(--lime-color)",
+];
+const SCENE_NONE = "var(--state-inactive-color, var(--disabled-text-color))";
 
 export function sceneColor(sceneId: string, sceneIds: string[]): string {
   const i = sceneIds.indexOf(sceneId);
-  return i < 0 ? "#868e96" : SCENE_COLORS[i % SCENE_COLORS.length];
+  return i < 0 ? SCENE_NONE : SCENE_COLORS[i % SCENE_COLORS.length];
 }
 
 /** Leere, gültige Grundstruktur einer Config (falls der Server Felder weglässt). */

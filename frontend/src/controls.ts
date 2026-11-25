@@ -311,7 +311,7 @@ export class WrControls extends LitElement {
         justify-content: center;
         gap: 4px;
         min-height: 64px;
-        border-radius: 14px;
+        border-radius: 8px;
         padding: 8px 6px;
         text-align: center;
         background: var(--wr-input-bg);
@@ -364,9 +364,9 @@ export class WrControls extends LitElement {
         align-items: center;
         gap: 6px;
         font-size: 13px;
-        border-radius: 16px;
+        border-radius: 999px;
         padding: 2px 2px 2px 10px;
-        background: rgba(127, 127, 127, 0.15);
+        background: var(--wr-bg2);
       }
       .pill.heat {
         background: color-mix(in srgb, var(--wr-heat) 18%, transparent);
@@ -375,8 +375,8 @@ export class WrControls extends LitElement {
         --mdc-icon-size: 16px;
       }
       .pill button.x {
-        min-height: 26px;
-        min-width: 26px;
+        min-height: 32px;
+        min-width: 32px;
         padding: 0;
         justify-content: center;
         border: 0;
@@ -391,13 +391,14 @@ export class WrControls extends LitElement {
         color: var(--wr-text);
       }
       dialog::backdrop {
-        background: rgba(0, 0, 0, 0.45);
+        background: color-mix(in srgb, var(--wr-bg) 72%, transparent);
       }
       .sheet {
         background: var(--wr-card);
-        border-radius: 16px;
+        border: 2px solid var(--wr-border);
+        border-radius: 12px;
         padding: 16px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 16px color-mix(in srgb, var(--wr-text) 22%, transparent);
       }
       .sheet .head {
         display: flex;
@@ -440,7 +441,7 @@ export class WrControls extends LitElement {
         gap: 8px;
         flex-wrap: wrap;
         padding: 8px 10px;
-        border-radius: 10px;
+        border-radius: 8px;
         background: color-mix(in srgb, var(--wr-heat) 12%, transparent);
         margin-bottom: 4px;
       }
@@ -451,7 +452,7 @@ export class WrControls extends LitElement {
       }
       .list .item {
         justify-content: flex-start;
-        border-radius: 10px;
+        border-radius: 8px;
         border-color: transparent;
         min-height: 44px;
         text-align: left;

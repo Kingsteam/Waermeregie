@@ -143,7 +143,7 @@ export class WaermeregieCard extends LitElement {
     } finally {
       this._busy = false;
       window.clearTimeout(this._refillTimer);
-      this._refillTimer = window.setTimeout(() => (this._refillNote = null), 8000);
+      this._refillTimer = window.setTimeout(() => (this._refillNote = null), 4000);
     }
   }
 
@@ -200,7 +200,7 @@ export class WaermeregieCard extends LitElement {
                   ></wr-feedback>`}
               ${c.chart !== false && this._history?.length ? renderTrendChart(this._history, t, this._lang, { height: 90, legend: false }) : nothing}
               ${c.show_pellets === false ? nothing : renderPellets(ctx, () => void this._refill(), { compact: true })}
-              ${this._refillNote ? html`<div class="refill-note" role="status">${this._refillNote}</div>` : nothing}
+              ${this._refillNote ? html`<div class="toast inline" role="status"><ha-icon icon="mdi:check"></ha-icon>${this._refillNote}</div>` : nothing}
               ${c.show_rooms === false ? nothing : renderRoomTiles(ctx, c.rooms)}
             `}
       </div>
@@ -216,15 +216,12 @@ export class WaermeregieCard extends LitElement {
     css`
       :host {
         display: block;
+        /* Karte hängt an Wand-Tablets: Trefferflächen 56 px (GUI-Konzept) */
+        --wr-touch: 56px;
       }
       ha-card {
         display: block;
         overflow: hidden;
-      }
-      .refill-note {
-        margin-top: 6px;
-        font-size: 13px;
-        color: var(--wr-text2);
       }
       .wrap {
         padding: 16px;

@@ -1,21 +1,29 @@
 import { css } from "lit";
 
-// Gemeinsame Gestaltung. Nur HA-Variablen mit Fallbacks; Wärme = orange, Kälte/Öffnung = blau.
+// Gemeinsame Gestaltung nach dem GUI-Konzept des Hauses: nur Theme-Variablen (keine festen
+// Farben), Rahmen 2 px, Radius 8, Raster 8 px, Trefferflächen mind. 44 px (Karten 56 px).
+// Farbgruppen: Wärme = orange, Kälte/Fenster = blau; Rot nur für Fehler und Gefahr.
 export const baseStyles = css`
   :host {
-    --wr-heat: var(--state-climate-heat-color, #e8590c);
-    --wr-cold: var(--state-climate-cool-color, #1c7ed6);
-    --wr-ok: var(--success-color, #2f9e44);
-    --wr-warn: var(--warning-color, #f08c00);
-    --wr-err: var(--error-color, #e03131);
-    --wr-primary: var(--primary-color, #03a9f4);
-    --wr-text: var(--primary-text-color, #212121);
-    --wr-text2: var(--secondary-text-color, #727272);
-    --wr-card: var(--card-background-color, var(--ha-card-background, #fff));
-    --wr-bg: var(--primary-background-color, #fafafa);
-    --wr-div: var(--divider-color, rgba(0, 0, 0, 0.12));
-    --wr-radius: var(--ha-card-border-radius, 12px);
-    --wr-input-bg: var(--input-fill-color, var(--secondary-background-color, rgba(127, 127, 127, 0.08)));
+    --wr-heat: var(--state-climate-heat-color, var(--orange-color));
+    --wr-cold: var(--state-climate-cool-color, var(--blue-color));
+    --wr-ok: var(--success-color);
+    --wr-warn: var(--warning-color);
+    --wr-err: var(--error-color);
+    --wr-info: var(--info-color, var(--primary-color));
+    --wr-primary: var(--primary-color);
+    --wr-accent: var(--accent-color, var(--primary-color));
+    --wr-text: var(--primary-text-color);
+    --wr-text2: var(--secondary-text-color);
+    --wr-inactive: var(--state-inactive-color, var(--disabled-text-color));
+    --wr-card: var(--card-background-color, var(--ha-card-background));
+    --wr-bg: var(--primary-background-color);
+    --wr-bg2: var(--secondary-background-color);
+    --wr-div: var(--divider-color);
+    --wr-border: var(--ha-card-border-color, var(--divider-color));
+    --wr-radius: 8px;
+    --wr-input-bg: var(--input-fill-color, var(--secondary-background-color));
+    --wr-hover: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
     color: var(--wr-text);
     font-family: var(--paper-font-body1_-_font-family, var(--ha-font-family-body, Roboto, system-ui, sans-serif));
     font-size: 14px;
@@ -31,7 +39,7 @@ export const baseStyles = css`
     font-weight: 500;
   }
   h2 {
-    font-size: 18px;
+    font-size: 20px;
   }
   h3 {
     font-size: 16px;
@@ -42,7 +50,7 @@ export const baseStyles = css`
   .card {
     background: var(--wr-card);
     border-radius: var(--wr-radius);
-    border: 1px solid var(--wr-div);
+    border: 2px solid var(--wr-border);
     box-shadow: var(--ha-card-box-shadow, none);
     padding: 16px;
     min-width: 0;
@@ -72,31 +80,31 @@ export const baseStyles = css`
   button {
     font: inherit;
     cursor: pointer;
-    border-radius: 18px;
-    border: 1px solid var(--wr-div);
+    border-radius: 8px;
+    border: 2px solid var(--wr-border);
     background: transparent;
     color: var(--wr-text);
     padding: 6px 14px;
-    min-height: 36px;
+    min-height: var(--wr-touch, 44px);
     display: inline-flex;
     align-items: center;
     gap: 6px;
   }
   button:hover:not([disabled]) {
-    background: rgba(127, 127, 127, 0.12);
+    background: var(--wr-hover);
   }
   button[disabled] {
     cursor: default;
     opacity: 0.5;
   }
+  /* gefüllt = Tinte: höchstens eine Hauptaktion je Ansicht */
   button.primary {
-    background: var(--wr-primary);
-    border-color: var(--wr-primary);
-    color: var(--text-primary-color, #fff);
+    background: var(--wr-text);
+    border-color: var(--wr-text);
+    color: var(--wr-card);
   }
   button.primary:hover:not([disabled]) {
-    filter: brightness(1.08);
-    background: var(--wr-primary);
+    background: color-mix(in srgb, var(--wr-text) 88%, var(--wr-card));
   }
   button.danger {
     color: var(--wr-err);
@@ -104,18 +112,18 @@ export const baseStyles = css`
   }
   button.danger.solid {
     background: var(--wr-err);
-    color: #fff;
+    color: var(--text-primary-color);
   }
   button.icon {
     padding: 4px;
-    min-width: 36px;
+    min-width: var(--wr-touch, 44px);
     justify-content: center;
     border-color: transparent;
   }
   button:focus-visible,
   input:focus-visible,
   select:focus-visible {
-    outline: 2px solid var(--wr-primary);
+    outline: 2px solid var(--wr-accent);
     outline-offset: 1px;
   }
   ha-icon {
@@ -127,10 +135,10 @@ export const baseStyles = css`
     font: inherit;
     color: var(--wr-text);
     background: var(--wr-input-bg);
-    border: 1px solid var(--wr-div);
+    border: 2px solid var(--wr-border);
     border-radius: 8px;
     padding: 7px 10px;
-    min-height: 38px;
+    min-height: 44px;
     width: 100%;
     min-width: 0;
   }
@@ -160,54 +168,54 @@ export const baseStyles = css`
     flex-wrap: wrap;
     gap: 8px;
   }
+  /* Chips: rund; gewählt = Akzent-Rahmen, Fläche leicht getönt */
   .chip {
-    border-radius: 18px;
-    border: 1px solid var(--wr-div);
-    padding: 6px 12px;
+    border-radius: 999px;
+    border: 2px solid var(--wr-border);
+    padding: 4px 14px;
     background: transparent;
   }
   .chip.selected {
-    background: var(--wr-heat);
+    background: color-mix(in srgb, var(--wr-heat) 15%, transparent);
     border-color: var(--wr-heat);
-    color: #fff;
   }
   .chip.auto.selected {
-    background: var(--wr-primary);
-    border-color: var(--wr-primary);
+    background: color-mix(in srgb, var(--wr-accent) 15%, transparent);
+    border-color: var(--wr-accent);
   }
   .badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    border-radius: 10px;
+    border-radius: 999px;
     padding: 1px 8px;
-    background: rgba(127, 127, 127, 0.15);
+    background: var(--wr-bg2);
     white-space: nowrap;
   }
   .badge.heat {
-    background: var(--wr-heat);
-    color: #fff;
+    background: color-mix(in srgb, var(--wr-heat) 18%, transparent);
+    box-shadow: inset 0 0 0 1px var(--wr-heat);
   }
   .badge.cold {
-    background: var(--wr-cold);
-    color: #fff;
+    background: color-mix(in srgb, var(--wr-cold) 18%, transparent);
+    box-shadow: inset 0 0 0 1px var(--wr-cold);
   }
   .badge.warn {
-    background: var(--wr-warn);
-    color: #fff;
+    background: color-mix(in srgb, var(--wr-warn) 18%, transparent);
+    box-shadow: inset 0 0 0 1px var(--wr-warn);
   }
   .badge.err {
-    background: var(--wr-err);
-    color: #fff;
+    background: color-mix(in srgb, var(--wr-err) 18%, transparent);
+    box-shadow: inset 0 0 0 1px var(--wr-err);
   }
   .alert.stove_error ha-icon,
   .alert.error ha-icon {
     color: var(--wr-err);
   }
   .badge.ok {
-    background: var(--wr-ok);
-    color: #fff;
+    background: color-mix(in srgb, var(--wr-ok) 18%, transparent);
+    box-shadow: inset 0 0 0 1px var(--wr-ok);
   }
   .banner {
     border-radius: var(--wr-radius);
@@ -215,7 +223,7 @@ export const baseStyles = css`
     display: flex;
     gap: 12px;
     align-items: flex-start;
-    border: 1px solid;
+    border: 2px solid;
   }
   .banner.shadow {
     border-color: var(--wr-warn);
@@ -226,8 +234,8 @@ export const baseStyles = css`
     background: color-mix(in srgb, var(--wr-err) 12%, transparent);
   }
   .banner.info {
-    border-color: var(--wr-primary);
-    background: color-mix(in srgb, var(--wr-primary) 10%, transparent);
+    border-color: var(--wr-info);
+    background: color-mix(in srgb, var(--wr-info) 10%, transparent);
   }
   .banner strong {
     display: block;
@@ -237,14 +245,21 @@ export const baseStyles = css`
     font-size: 12px;
   }
   .confirm {
-    border: 1px solid var(--wr-err);
-    border-radius: 10px;
+    border: 2px solid var(--wr-err);
+    border-radius: 8px;
     padding: 12px;
     margin-top: 8px;
     background: color-mix(in srgb, var(--wr-err) 8%, transparent);
   }
+  /* Fußzeile von Rückfragen: rechtsbündig, "Abbrechen" als Textknopf links der Hauptaktion */
   .confirm .row {
     margin-top: 8px;
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+  }
+  .confirm .row button:not(.danger):not(.primary),
+  button.text {
+    border-color: transparent;
   }
   .stove .phase {
     font-size: 18px;
@@ -292,7 +307,7 @@ export const baseStyles = css`
     gap: 8px;
     align-items: flex-start;
     padding: 6px 0;
-    border-bottom: 1px solid var(--wr-div);
+    border-bottom: 2px solid var(--wr-div);
   }
   .alert:last-child {
     border-bottom: 0;
@@ -306,10 +321,10 @@ export const baseStyles = css`
   /* Tageszeitleiste */
   .timeline {
     position: relative;
-    height: 22px;
-    border-radius: 6px;
+    height: 24px;
+    border-radius: 8px;
     overflow: hidden;
-    background: rgba(127, 127, 127, 0.15);
+    background: var(--wr-bg2);
   }
   .timeline .seg {
     position: absolute;
@@ -318,14 +333,14 @@ export const baseStyles = css`
     border-right: 1px solid var(--wr-card);
   }
   .timeline .seg span {
-    color: #fff;
+    color: var(--wr-text);
     font-size: 11px;
     padding: 0 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     display: block;
-    line-height: 22px;
+    line-height: 24px;
   }
   .timeline .now {
     position: absolute;
@@ -355,5 +370,51 @@ export const baseStyles = css`
     border-radius: 2px;
     margin-right: 4px;
     vertical-align: -1px;
+  }
+  /* Gerät oder Ofen nicht erreichbar: gestrichelter Rahmen, Symbol grau, nie leer */
+  .unreachable {
+    border-style: dashed !important;
+    border-color: var(--wr-inactive) !important;
+  }
+  .unreachable ha-icon {
+    color: var(--wr-inactive) !important;
+  }
+  .badge.unreachable {
+    background: transparent;
+    box-shadow: none;
+    border: 2px dashed var(--wr-inactive);
+    color: var(--wr-text2);
+  }
+  /* kurze Bestätigung als Leiste unten (4 s) */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(16px + var(--wr-toast-offset, 0px));
+    transform: translateX(-50%);
+    z-index: 8;
+    max-width: min(560px, calc(100vw - 32px));
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--wr-text);
+    color: var(--wr-card);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toast.inline {
+    position: static;
+    transform: none;
+    max-width: none;
+    margin-top: 8px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .toast {
+      animation: wr-toast-in 150ms ease-out;
+    }
+  }
+  @keyframes wr-toast-in {
+    from {
+      opacity: 0;
+    }
   }
 `;

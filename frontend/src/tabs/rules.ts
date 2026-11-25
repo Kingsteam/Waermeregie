@@ -623,7 +623,7 @@ export class WrRulesEditor extends EditorBase {
         overflow: auto;
         padding: 10px;
         font-size: 12px;
-        border: 1px solid var(--wr-border);
+        border: 2px solid var(--wr-border);
         border-radius: var(--wr-radius);
         white-space: pre-wrap;
         word-break: break-word;
@@ -676,8 +676,8 @@ export class WrRulesEditor extends EditorBase {
       }
       .lchip.on {
         border-style: solid;
-        border-color: var(--wr-primary);
-        background: color-mix(in srgb, var(--wr-primary) 14%, transparent);
+        border-color: var(--wr-accent);
+        background: color-mix(in srgb, var(--wr-accent) 14%, transparent);
         color: var(--wr-text);
       }
       .lb {
@@ -706,7 +706,7 @@ export class WrRulesEditor extends EditorBase {
         align-items: center;
         gap: 6px 8px;
         padding: 6px 10px;
-        border: 1px solid var(--wr-div);
+        border: 2px solid var(--wr-border);
         border-radius: 8px;
       }
       .crow select,
@@ -768,7 +768,7 @@ export class WrRulesEditor extends EditorBase {
         border-radius: 999px;
         font-size: 12.5px;
         white-space: nowrap;
-        border: 1px solid var(--wr-div);
+        border: 2px solid var(--wr-border);
       }
       .pill.act {
         background: color-mix(in srgb, var(--wr-heat) 14%, transparent);
@@ -776,8 +776,8 @@ export class WrRulesEditor extends EditorBase {
         color: var(--wr-text);
       }
       .pill.try {
-        background: color-mix(in srgb, var(--wr-primary) 14%, transparent);
-        border-color: var(--wr-primary);
+        background: color-mix(in srgb, var(--wr-accent) 14%, transparent);
+        border-color: var(--wr-accent);
         color: var(--wr-text);
       }
       .row {
@@ -809,8 +809,8 @@ export class WrRulesEditor extends EditorBase {
         min-width: 180px;
       }
       .warnbox {
-        border: 1px solid var(--wr-err);
-        border-radius: 10px;
+        border: 2px solid var(--wr-err);
+        border-radius: 8px;
         margin: 0 14px 12px;
         padding: 12px 14px;
         display: flex;

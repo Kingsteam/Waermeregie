@@ -189,7 +189,9 @@ export class WrHistory extends LitElement {
     :host {
       display: block;
       position: relative;
-      /* Feste Farbfolge der Räume (geprüft auf Unterscheidbarkeit, hell) */
+      /* Feste Farbfolge der Räume (geprüft auf Unterscheidbarkeit, hell). Bewusste Ausnahme vom
+         GUI-Konzept (nur Theme-Farben), vom Besitzer freigegeben: 8 Linien brauchen 8 klar
+         unterscheidbare Farben, die das Theme nicht hat. */
       --s1: #2a78d6;
       --s2: #eb6834;
       --s3: #1baf7a;
@@ -324,7 +326,7 @@ export class WrHistory extends LitElement {
       font-size: 12px;
       color: var(--wr-text);
       background: none;
-      border: 1px solid var(--wr-div);
+      border: 2px solid var(--wr-border);
       border-radius: 999px;
       padding: 5px 10px;
       min-height: 30px;
@@ -338,7 +340,7 @@ export class WrHistory extends LitElement {
       opacity: 0.3;
     }
     .chip:focus-visible {
-      outline: 2px solid var(--wr-primary);
+      outline: 2px solid var(--wr-accent);
       outline-offset: 2px;
     }
     .legend {
@@ -375,11 +377,11 @@ export class WrHistory extends LitElement {
       min-width: 150px;
       padding: 8px 10px;
       border-radius: 8px;
-      border: 1px solid var(--wr-div);
+      border: 2px solid var(--wr-border);
       background: var(--wr-card);
       color: var(--wr-text);
       font-size: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+      box-shadow: 0 2px 8px color-mix(in srgb, var(--wr-text) 18%, transparent);
       pointer-events: none;
     }
     .tip.left {

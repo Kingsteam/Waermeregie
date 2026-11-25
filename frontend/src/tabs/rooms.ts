@@ -413,7 +413,7 @@ export class WrRoomsEditor extends EditorBase {
         margin-top: 16px;
       }
       button.small {
-        min-height: 30px;
+        min-height: var(--wr-touch, 44px);
         padding: 2px 10px;
         font-size: 13px;
       }
@@ -429,8 +429,8 @@ export class WrRoomsEditor extends EditorBase {
         margin-top: 8px;
       }
       .group {
-        border: 1px solid var(--wr-div);
-        border-radius: 10px;
+        border: 2px solid var(--wr-border);
+        border-radius: 8px;
         overflow: hidden;
       }
       .ghead {
@@ -453,10 +453,10 @@ export class WrRoomsEditor extends EditorBase {
         gap: 8px;
         padding: 2px 4px 2px 10px;
         border-top: 1px solid var(--wr-div);
-        min-height: 40px;
+        min-height: 44px;
       }
       .dnote {
-        color: var(--warning-color, #ff9800);
+        color: var(--wr-warn);
         font-size: 0.8em;
         font-weight: 500;
       }
@@ -467,8 +467,10 @@ export class WrRoomsEditor extends EditorBase {
         flex: none;
         background: var(--wr-ok);
       }
+      /* nicht erreichbar: Punkt gestrichelt und grau, Wert sagt es in Worten */
       .dev.unavail .dot {
-        background: var(--wr-warn);
+        background: transparent;
+        border: 2px dashed var(--wr-inactive);
       }
       .dev.paused .dot {
         background: var(--wr-text2);
@@ -495,7 +497,7 @@ export class WrRoomsEditor extends EditorBase {
         font-size: 13px;
       }
       .dev.unavail:not(.paused) .dval {
-        color: var(--wr-warn);
+        color: var(--wr-text2);
       }
       input.w {
         width: 58px;
@@ -522,7 +524,7 @@ export class WrRoomsEditor extends EditorBase {
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        border: 1px solid var(--wr-div);
+        border: 2px solid var(--wr-border);
         border-radius: 8px;
         padding: 6px 8px;
       }

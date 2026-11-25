@@ -249,8 +249,8 @@ export class WrEntityPicker extends LitElement {
         align-items: center;
         gap: 2px;
         max-width: 100%;
-        border: 1px solid var(--wr-div);
-        border-radius: 10px;
+        border: 2px solid var(--wr-border);
+        border-radius: 8px;
         padding: 2px 2px 2px 10px;
         background: var(--wr-input-bg);
       }
@@ -271,8 +271,8 @@ export class WrEntityPicker extends LitElement {
         overflow-wrap: anywhere;
       }
       button.x {
-        min-height: 30px;
-        min-width: 30px;
+        min-height: 40px;
+        min-width: 40px;
       }
       button.x ha-icon {
         --mdc-icon-size: 16px;
@@ -287,9 +287,9 @@ export class WrEntityPicker extends LitElement {
         right: 0;
         top: calc(100% + 2px);
         background: var(--wr-card);
-        border: 1px solid var(--wr-div);
+        border: 2px solid var(--wr-border);
         border-radius: 8px;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--wr-text) 18%, transparent);
         max-height: 280px;
         overflow-y: auto;
       }
@@ -318,7 +318,7 @@ export class WrEntityPicker extends LitElement {
         cursor: pointer;
       }
       li.active {
-        background: color-mix(in srgb, var(--wr-primary) 16%, transparent);
+        background: color-mix(in srgb, var(--wr-accent) 16%, transparent);
       }
       li.empty {
         cursor: default;

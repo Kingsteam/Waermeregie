@@ -605,7 +605,7 @@ export class WrHouseEditor extends EditorBase {
       }
       details.sect {
         background: var(--wr-card);
-        border: 1px solid var(--wr-div);
+        border: 2px solid var(--wr-border);
         border-radius: var(--wr-radius);
         padding: 0 16px;
       }
@@ -631,7 +631,7 @@ export class WrHouseEditor extends EditorBase {
         border-right: 2px solid var(--wr-text2);
         border-bottom: 2px solid var(--wr-text2);
         transform: rotate(45deg);
-        transition: transform 0.2s;
+        transition: transform 0.15s;
         flex: none;
       }
       details.sect[open] > summary::after {
