@@ -83,6 +83,11 @@ export function renderPellets(ctx: ViewCtx, onRefill: (() => void) | null, opts:
       <ha-icon icon="mdi:grain"></ha-icon>
       <div class="bar" role="img" aria-label=${t("pellets.aria", { pct: String(fill ?? 0) })}><i style="width:${fill ?? 0}%"></i></div>
       <span>${kg} kg${until ? html` · ${t("pellets.until", { time: until })}` : nothing}</span>
+      ${onRefill
+        ? html`<button class="mini-refill" ?disabled=${ctx.busy} title=${t("pellets.refill")} @click=${onRefill}>
+            <ha-icon icon="mdi:sack"></ha-icon>${t("pellets.refill")}
+          </button>`
+        : nothing}
     </div>`;
   }
   return html`<div class="card pellets ${low ? "low" : ""}">
@@ -97,7 +102,7 @@ export function renderPellets(ctx: ViewCtx, onRefill: (() => void) | null, opts:
       </div>
     </div>
     ${onRefill
-      ? html`<button ?disabled=${!ctx.isAdmin || ctx.busy} title=${ctx.isAdmin ? "" : t("not_admin")} @click=${onRefill}>
+      ? html`<button ?disabled=${ctx.busy} @click=${onRefill}>
           <ha-icon icon="mdi:sack"></ha-icon>${t("pellets.refill")}
         </button>`
       : nothing}
@@ -305,6 +310,12 @@ export const overviewStyles = css`
     display: block;
     height: 100%;
     background: #b07d3c;
+  }
+  .pellet-mini .mini-refill {
+    flex: none;
+    font-size: 13px;
+    padding: 4px 10px;
+    min-height: 32px;
   }
   .pellet-mini.low .bar i {
     background: var(--wr-warn);

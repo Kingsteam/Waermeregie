@@ -39,14 +39,15 @@ def test_off_time_and_gaps_do_not_count():
     assert P.estimate(st, PARAMS) == 15
 
 
-def test_refill_adds_bag_capped_at_capacity():
+def test_refill_always_adds_full_bag():
     st = P.set_stock(P.empty(), T0, 15, from_empty=True)
     st, t = burn(st, T0, 4)  # 9 kg übrig
     st = P.refill(st, t, 15, PARAMS)
     assert st["stock_kg"] == 24.0
     st = P.refill(st, t, 15, PARAMS)
-    assert st["stock_kg"] == 26.0  # mehr passt nicht hinein
+    assert st["stock_kg"] == 39.0  # ein Sack kommt immer ganz dazu (Behälter hat Luft)
     assert st["fill_kg"] == 45.0
+    assert P.forecast(st, PARAMS, t)["fill_pct"] == 100
     assert st["refills"][-1]["estimate_before"] == 24.0
 
 

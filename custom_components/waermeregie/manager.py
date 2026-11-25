@@ -74,6 +74,7 @@ _LOGGER = logging.getLogger(__name__)
 SIGNAL_UPDATE = f"{DOMAIN}_update"
 AI_TIMEOUT_S = 120
 EMPTY_STOCK_KG = 1.0  # darunter gilt der Behälter als leer
+OVERFILL_FACTOR = 2.0  # Vorrat darf rechnerisch bis zum Doppelten des Fassungsvermögens gehen
 BAD_STATES = (STATE_UNAVAILABLE, STATE_UNKNOWN, None)
 
 
@@ -1480,8 +1481,8 @@ class WaermeregieManager:
         now = dt_util.now()
         params = self.config["parameters"]
         amount = float(kg if kg is not None else params["pellet_bag_kg"])
-        if not 0 < amount <= float(params["pellet_capacity_kg"]):
-            raise model.ConfigError("Nachfüllmenge muss größer 0 und höchstens der Behälter sein")
+        if not 0 < amount <= float(params["pellet_capacity_kg"]) * OVERFILL_FACTOR:
+            raise model.ConfigError("Nachfüllmenge ist nicht plausibel")
         self.pellets = pellets.update(self.pellets, now, self.pellets["last_burning"])
         was_empty = self._pellets_ran_out()
         self.pellets = pellets.refill(self.pellets, now, amount, params)
@@ -1508,8 +1509,9 @@ class WaermeregieManager:
 
     async def async_pellets_set(self, kg: float, from_empty: bool = False) -> dict:
         now = dt_util.now()
-        if not 0 <= kg <= float(self.config["parameters"]["pellet_capacity_kg"]):
-            raise model.ConfigError("Vorrat muss zwischen 0 und dem Fassungsvermögen liegen")
+        limit = float(self.config["parameters"]["pellet_capacity_kg"]) * OVERFILL_FACTOR
+        if not 0 <= kg <= limit:
+            raise model.ConfigError("Vorrat ist nicht plausibel (zu groß für den Behälter)")
         self.pellets = pellets.update(self.pellets, now, self.pellets["last_burning"])
         was_empty = self._pellets_ran_out()
         self.pellets = pellets.set_stock(self.pellets, now, kg, from_empty)

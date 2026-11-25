@@ -1,6 +1,6 @@
 // <waermeregie-card>: kompakte Lovelace-Karte (Haus-Kopf, Knöpfe, Verlauf, Pellets, Räume).
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
-import { loadConfig, loadHistory, subscribeStatus } from "./api";
+import { loadConfig, loadHistory, pelletsRefill, subscribeStatus } from "./api";
 import { defineControls } from "./controls";
 import { defineFeedback } from "./feedback";
 import { WaermeregieFeedbackCard } from "./feedback-card";
@@ -9,7 +9,7 @@ import { overviewStyles, renderAlertStrip, renderHeroHead, renderPellets, render
 import { translator, type Lang } from "./i18n";
 import { baseStyles } from "./styles";
 import type { Config, Hass, HistoryPoint, Status } from "./types";
-import { errorMessage, normalizeConfig, pickLang } from "./util";
+import { errorMessage, formatNumber, normalizeConfig, pickLang } from "./util";
 import { renderShadowBanner, type ViewCtx } from "./views";
 
 export interface CardConfig {
@@ -36,6 +36,7 @@ export class WaermeregieCard extends LitElement {
     _wrConfig: { state: true },
     _error: { state: true },
     _busy: { state: true },
+    _refillNote: { state: true },
     _history: { state: true },
   };
 
@@ -45,6 +46,8 @@ export class WaermeregieCard extends LitElement {
   declare _wrConfig: Config | null;
   declare _error: string | null;
   declare _busy: boolean;
+  declare _refillNote: string | null;
+  private _refillTimer: number | undefined;
   declare _history: HistoryPoint[] | null;
   private _historyTimer: number | undefined;
 
@@ -59,6 +62,7 @@ export class WaermeregieCard extends LitElement {
     this._wrConfig = null;
     this._error = null;
     this._busy = false;
+    this._refillNote = null;
     this._history = null;
   }
 
@@ -90,6 +94,7 @@ export class WaermeregieCard extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.clearInterval(this._historyTimer);
+    window.clearTimeout(this._refillTimer);
     this._unsub?.();
     this._unsub = null;
     this._connection = null;
@@ -120,6 +125,25 @@ export class WaermeregieCard extends LitElement {
         .then((r) => (this._wrConfig = normalizeConfig(r.config)))
         .catch((e) => (this._error = errorMessage(e)))
         .finally(() => (this._configLoading = false));
+    }
+  }
+
+  /** „Sack nachgefüllt“ direkt auf dem Tablet; darf jeder Benutzer (auch ohne Verwalterrechte). */
+  private async _refill() {
+    if (this._busy) return;
+    this._busy = true;
+    const t = translator(this._lang);
+    try {
+      const s = await pelletsRefill(this.hass);
+      if (s && typeof s === "object" && "mode" in s) this._status = s;
+      const kg = s?.pellets?.stock_kg;
+      this._refillNote = t("pellets.refill_done_kg", { kg: kg == null ? "?" : formatNumber(kg, this._lang, 1) });
+    } catch (e) {
+      this._refillNote = errorMessage(e);
+    } finally {
+      this._busy = false;
+      window.clearTimeout(this._refillTimer);
+      this._refillTimer = window.setTimeout(() => (this._refillNote = null), 8000);
     }
   }
 
@@ -175,7 +199,8 @@ export class WaermeregieCard extends LitElement {
                     @wr-status=${(e: CustomEvent<Status>) => (this._status = e.detail)}
                   ></wr-feedback>`}
               ${c.chart !== false && this._history?.length ? renderTrendChart(this._history, t, this._lang, { height: 90, legend: false }) : nothing}
-              ${c.show_pellets === false ? nothing : renderPellets(ctx, null, { compact: true })}
+              ${c.show_pellets === false ? nothing : renderPellets(ctx, () => void this._refill(), { compact: true })}
+              ${this._refillNote ? html`<div class="refill-note" role="status">${this._refillNote}</div>` : nothing}
               ${c.show_rooms === false ? nothing : renderRoomTiles(ctx, c.rooms)}
             `}
       </div>
@@ -195,6 +220,11 @@ export class WaermeregieCard extends LitElement {
       ha-card {
         display: block;
         overflow: hidden;
+      }
+      .refill-note {
+        margin-top: 6px;
+        font-size: 13px;
+        color: var(--wr-text2);
       }
       .wrap {
         padding: 16px;

@@ -212,7 +212,6 @@ async def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
     connection.send_result(msg["id"], {"points": mgr.history_points(msg["hours"])})
 
 
-@websocket_api.require_admin
 @websocket_api.websocket_command(
     {
         vol.Required("type"): f"{DOMAIN}/pellets/refill",
@@ -221,7 +220,8 @@ async def ws_history(hass: HomeAssistant, connection, msg: dict) -> None:
 )
 @websocket_api.async_response
 async def ws_pellets_refill(hass: HomeAssistant, connection, msg: dict) -> None:
-    """Sack nachgefüllt: liefert den neuen Status, damit die Seite gleich den vollen Tank zeigt."""
+    """Sack nachgefüllt: darf jeder im Haus (wie Rückmeldungen), z. B. am Küchen-Tablet.
+    Liefert den neuen Status, damit die Seite gleich den vollen Tank zeigt."""
     if not (mgr := _manager(hass)):
         return _not_loaded(connection, msg)
     await _run(connection, msg, mgr.async_pellets_refill(msg.get("kg")))
