@@ -31,8 +31,8 @@ describe("Geräte im Raum", () => {
   it("zeigt Werte und erkennt nicht verfügbare", () => {
     expect(deviceValue(states["sensor.t"], "temperature_sensors", t, "de")).toBe("20,4 °C");
     expect(deviceValue(states["binary_sensor.kontakt"], "openings", t, "de")).toBe("offen");
-    expect(deviceValue(states["binary_sensor.alarm"], "openings", t, "de")).toBe("nicht verfügbar");
-    expect(deviceValue(undefined, "presence", t, "de")).toBe("nicht verfügbar");
+    expect(deviceValue(states["binary_sensor.alarm"], "openings", t, "de")).toBe("nicht erreichbar");
+    expect(deviceValue(undefined, "presence", t, "de")).toBe("nicht erreichbar");
     expect(deviceValue(states["climate.hk"], "radiators", t, "de")).toBe("21,5 °C → 22,0 °C");
     expect(unavailableDevices(room(), states)).toEqual(["binary_sensor.alarm"]);
   });

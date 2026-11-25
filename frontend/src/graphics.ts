@@ -47,7 +47,6 @@ export const artStyles = css`
   }
   .house-art .glow {
     fill: transparent;
-    transition: fill 0.6s;
   }
   .house-art.warm .glow {
     fill: color-mix(in srgb, var(--wr-heat) 10%, transparent);
@@ -68,14 +67,12 @@ export const artStyles = css`
   }
   .house-art .flame {
     opacity: 0;
-    transition: opacity 0.4s;
-    transform-origin: 50px 75px;
   }
   .house-art .f1 {
     fill: var(--wr-heat);
   }
   .house-art .f2 {
-    fill: #ffd43b;
+    fill: var(--amber-color, var(--wr-warn));
   }
   .house-art .smoke {
     fill: color-mix(in srgb, currentColor 45%, transparent);
@@ -85,44 +82,13 @@ export const artStyles = css`
     color: var(--wr-heat);
   }
   .house-art.burning .window {
-    fill: #3b1d0e;
+    fill: color-mix(in srgb, var(--wr-heat) 35%, var(--wr-text));
   }
   .house-art.burning .flame,
   .house-art.burning .smoke {
     opacity: 1;
   }
-  @media (prefers-reduced-motion: no-preference) {
-    .house-art.burning .flame {
-      animation: wr-flicker 1.3s ease-in-out infinite alternate;
-    }
-    .house-art.burning .smoke {
-      animation: wr-smoke 3s ease-in infinite;
-    }
-  }
-  @keyframes wr-flicker {
-    0% {
-      transform: scale(1, 1);
-    }
-    50% {
-      transform: scale(0.92, 1.08);
-    }
-    100% {
-      transform: scale(1.05, 0.95);
-    }
-  }
-  @keyframes wr-smoke {
-    0% {
-      opacity: 0;
-      transform: translateY(4px);
-    }
-    40% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-      transform: translateY(-6px);
-    }
-  }
+  /* keine Dauer-Animation (GUI-Konzept): Flamme und Rauch stehen still */
 `;
 
 /** Temperaturverlauf; nichts, wenn keine Daten. */
@@ -311,14 +277,13 @@ export const tankStyles = css`
     stroke-width: 3;
   }
   .tank .fill {
-    fill: #b07d3c;
-    transition: all 0.6s;
+    fill: var(--brown-color, var(--wr-heat));
   }
   .tank.low .fill {
     fill: var(--wr-warn);
   }
   .tank .grains ellipse {
-    fill: #8a5a24;
+    fill: color-mix(in srgb, var(--brown-color, var(--wr-heat)) 70%, var(--wr-text));
   }
   .tank text {
     font-size: 17px;

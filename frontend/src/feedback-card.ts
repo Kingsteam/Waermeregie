@@ -17,8 +17,8 @@ export interface FeedbackCardConfig {
   source?: string;
 }
 
-/** So lange bleibt die Bestätigung stehen (ms). */
-export const NOTE_MS = 6000;
+/** So lange bleibt die Bestätigung stehen (ms; GUI-Konzept: 4 s). */
+export const NOTE_MS = 4000;
 
 const KINDS: { kind: FeedbackKind; icon: string }[] = [
   { kind: "cold", icon: "mdi:snowflake" },
@@ -116,7 +116,7 @@ export class WaermeregieFeedbackCard extends LitElement {
               </button>`,
           )}
         </div>
-        ${note ? html`<div class="note" role="status"><ha-icon icon="mdi:check"></ha-icon> ${note}</div>` : nothing}
+        ${note ? html`<div class="toast inline" role="status"><ha-icon icon="mdi:check"></ha-icon>${note}</div>` : nothing}
         ${this._error ? html`<div class="note err" role="alert">${this._error}</div>` : nothing}
       </div>
     </ha-card>`;
@@ -175,19 +175,11 @@ export class WaermeregieFeedbackCard extends LitElement {
         color: var(--wr-heat);
       }
       .fb.on {
-        border-color: var(--wr-primary);
-        background: color-mix(in srgb, var(--wr-primary) 14%, transparent);
+        border-color: var(--wr-accent);
+        background: color-mix(in srgb, var(--wr-accent) 15%, transparent);
       }
-      .note {
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .note ha-icon {
-        --mdc-icon-size: 18px;
-        color: var(--wr-ok);
-        flex: none;
+      .toast {
+        margin-top: 0;
       }
       .note.err {
         color: var(--wr-err);

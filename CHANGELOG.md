@@ -4,6 +4,24 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-25
+### Geändert
+- **Oberfläche nach dem GUI-Konzept des Hauses:**
+  - Nur noch Farben aus dem Theme. Einzige Ausnahme sind die 8 Linienfarben im Verlauf, sonst wären die Räume nicht unterscheidbar.
+  - Rahmen 2 px, Ecken 8 (Dialoge 12).
+  - Auswahl und Fokus in der Akzentfarbe, Hauptknopf gefüllt in Schriftfarbe.
+- **Panel:**
+  - Links eine schmale Seitenleiste mit 6 Bereichen, „Ofen & Haus“ als Einstellungen zuletzt. Schmal (unter 870 px) wird sie zur Leiste unten.
+  - Das Protokoll steht jetzt unten in der Übersicht, die letzten 8 Einträge, auf Wunsch alle. Alte Links auf „Protokoll“ führen zur Übersicht.
+- **„Nicht erreichbar“ ist überall gleich zu erkennen:**
+  - Ofen und Räume ohne Messwert bekommen einen gestrichelten Rahmen, graue Symbole und den Text „nicht erreichbar“.
+  - Geräte in der Raum-Liste zeigen einen gestrichelten grauen Punkt.
+- **Größere Knöpfe:** mindestens 44 px, auf den Dashboard-Karten 56 px für Wand-Tablets.
+- **Kurze Bestätigungen** wie „Sack nachgefüllt“ oder Rückmeldungen stehen 4 Sekunden als Leiste unten.
+- **Bei Rückfragen** steht „Abbrechen“ als Textknopf links der Hauptaktion.
+- **Die Flamme im Hausbild steht still** (keine Dauer-Animation mehr).
+- **Ein neuer Test** findet feste Farben und Dauer-Animationen im Quelltext.
+
 ## [0.14.6] - 2026-11-25
 ### Geändert
 - **„Sack nachgefüllt“ zählt immer einen ganzen Sack dazu**, auch wenn der Vorrat damit rechnerisch über dem Fassungsvermögen liegt (der Behälter hat etwas Luft, die Schätzung davor ist ungenau). Die Anzeige bleibt bei 100 %. Von Hand gesetzter Vorrat darf bis zum doppelten Fassungsvermögen gehen.

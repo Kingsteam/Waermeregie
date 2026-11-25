@@ -122,12 +122,12 @@ export function renderStove(ctx: ViewCtx, opts: { timeline?: boolean; compact?: 
   const phaseIcon =
     st.phase === "block" ? "mdi:fire" : st.phase === "pause" ? "mdi:pause-circle-outline" : st.phase === "blocked" ? "mdi:fire-off" : "mdi:fireplace-off";
   const dayType = status?.day_type ? ctx.config?.day_types.find((d) => d.id === status.day_type?.id) : undefined;
-  return html`<div class="card stove ${st.burning ? "burning" : ""}">
+  return html`<div class="card stove ${st.burning ? "burning" : ""} ${st.available === false ? "unreachable" : ""}">
     <div class="row">
       <ha-icon class="flame" icon=${st.burning ? "mdi:fire" : phaseIcon}></ha-icon>
       <h3 style="margin:0">${t("stove.title")}</h3>
       <span class="spacer"></span>
-      ${!st.available ? html`<span class="badge warn">${t("stove.unavailable")}</span>` : nothing}
+      ${!st.available ? html`<span class="badge unreachable">${t("stove.unavailable")}</span>` : nothing}
       ${st.error ? html`<span class="badge err">${t("stove.error_short")}</span>` : nothing}
       <span class="badge ${st.burning ? "heat" : ""}">${st.burning ? t("stove.burning") : t("stove.not_burning")}</span>
     </div>

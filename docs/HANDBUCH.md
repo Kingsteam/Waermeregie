@@ -88,7 +88,7 @@ Auf dem Handy:
 ![Handy](bilder/handy.png)
 
 ## KI-Berater (freiwillig)
-Hast du in Home Assistant eine KI eingerichtet (z. B. OpenAI), kannst du sie unter *Ofen & Haus → Umgebung → KI-Berater* eintragen. Im Reiter *Regeln* gibt es dann den Knopf **KI um Vorschläge fragen**.
+Hast du in Home Assistant eine KI eingerichtet (z. B. OpenAI), kannst du sie unter *Ofen & Haus → Umgebung → KI-Berater* eintragen. Im Bereich *Regeln* (Seitenleiste links) gibt es dann den Knopf **KI um Vorschläge fragen**.
 
 - Die KI bekommt deine verstellbaren Werte mit Grenzen, den Zeitplan, die Regeln und deine Rückmeldungen der letzten vier Wochen. Räume heißen dabei „Raum A“, „Raum B“; Personen, Geräte und Adressen gehen nicht mit. Mit **Zeigen, was geschickt wird** siehst du das Paket vorher.
 - Sie darf Werte ändern und neue Regeln vorschlagen. Jeder Vorschlag erscheint als Karte: Annehmen, Anpassen oder Nein danke. Von selbst ändert sich nichts.
@@ -112,7 +112,7 @@ Die Wärmeregie zählt mit, wie lange der Ofen brennt, und schätzt daraus, wie 
 Die Schätzung ist anfangs grob (Startwert 1,5 kg/h) und wird mit jedem leeren Behälter genauer.
 
 ## Schattenbetrieb und aktiver Betrieb
-- **Schattenbetrieb** (ab Werk): nichts wird geschaltet. Im **Protokoll** steht, was die Wärmeregie getan hätte (orange markiert). Empfehlung: 2–3 Wochen beobachten.
+- **Schattenbetrieb** (ab Werk): nichts wird geschaltet. Im **Protokoll** (unten in der Übersicht) steht, was die Wärmeregie getan hätte (orange markiert). Empfehlung: 2–3 Wochen beobachten.
 
 ![Protokoll](bilder/protokoll.png)
 - **Aktiver Betrieb:** im Panel unter *Ofen & Haus* ganz oben umschalten (mit Bestätigung) oder Schalter *Steuerung aktiv*. Dann übernimmt die Wärmeregie die Steuerung: Ofen ein/aus mit Block-Sollwert, Leistungsstufe, Heizkörper-Sollwerte, und sie schaltet Chrono und Eco des Ofens aus, damit nur eine Stelle steuert.

@@ -236,7 +236,7 @@ export const de = {
   "dev.pause": "Pausieren",
   "dev.resume": "Wieder verwenden",
   "dev.paused": "pausiert",
-  "dev.unavailable": "nicht verfügbar",
+  "dev.unavailable": "nicht erreichbar",
   "dev.add": "Gerät hinzufügen",
   "dev.open": "offen",
   "dev.closed": "zu",
@@ -452,6 +452,8 @@ export const de = {
 
   "log.title": "Protokoll",
   "log.empty": "Noch keine Einträge.",
+  "log.all": "Alle {n} Einträge zeigen",
+  "log.less": "Weniger zeigen",
   "log.shadow": "Schatten",
   "log.shadow_hint": "Nur berechnet, nicht geschaltet",
 
@@ -853,7 +855,7 @@ export const en: Partial<Record<I18nKey, string>> = {
   "dev.pause": "Pause",
   "dev.resume": "Use again",
   "dev.paused": "paused",
-  "dev.unavailable": "unavailable",
+  "dev.unavailable": "not reachable",
   "dev.add": "Add device",
   "dev.open": "open",
   "dev.closed": "closed",
@@ -1069,6 +1071,8 @@ export const en: Partial<Record<I18nKey, string>> = {
 
   "log.title": "Log",
   "log.empty": "No entries yet.",
+  "log.all": "Show all {n} entries",
+  "log.less": "Show fewer",
   "log.shadow": "Shadow",
   "log.shadow_hint": "Only calculated, not switched",
 

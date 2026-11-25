@@ -19,7 +19,7 @@ import type { Config, Defaults, Hass, HistoryPoint, Mode, Status } from "./types
 import { clone, errorMessage, formatNumber, formatStamp, normalizeConfig, pickLang, sameData, quietValid, sortLogNewestFirst, validateSlots, WEEK_KEYS } from "./util";
 import { renderShadowBanner, type ViewCtx } from "./views";
 
-type Tab = "overview" | "rooms" | "schedule" | "scenes" | "rules" | "house" | "log";
+type Tab = "overview" | "rooms" | "schedule" | "scenes" | "rules" | "house";
 const TABS: { id: Tab; icon: string }[] = [
   { id: "overview", icon: "mdi:view-dashboard-outline" },
   { id: "rooms", icon: "mdi:floor-plan" },
@@ -27,8 +27,11 @@ const TABS: { id: Tab; icon: string }[] = [
   { id: "scenes", icon: "mdi:palette-outline" },
   { id: "rules", icon: "mdi:format-list-checks" },
   { id: "house", icon: "mdi:fireplace" },
-  { id: "log", icon: "mdi:format-list-bulleted" },
 ];
+/** So viele Protokolleinträge zeigt die Übersicht, bevor „Alle zeigen“ nötig ist. */
+const LOG_SHORT = 8;
+/** Kurze Bestätigungen stehen so lange als Leiste unten (GUI-Konzept: 4 s). */
+const TOAST_MS = 4000;
 const EDITOR_TABS: Tab[] = ["rooms", "schedule", "scenes", "rules", "house"];
 /** Welche Teile der Einstellungen zu welchem Reiter gehören („rest“ = alles andere). */
 const TAB_KEYS: Partial<Record<Tab, (keyof Config)[] | "rest">> = {
@@ -75,6 +78,7 @@ export class WaermeregiePanel extends LitElement {
     _busy: { state: true },
     _actionError: { state: true },
     _refillNote: { state: true },
+    _logAll: { state: true },
     _modeConfirm: { state: true },
     _history: { state: true },
   };
@@ -94,6 +98,7 @@ export class WaermeregiePanel extends LitElement {
   declare _busy: boolean;
   declare _actionError: string | null;
   declare _refillNote: string | null;
+  declare _logAll: boolean;
   private _refillTimer: number | undefined;
   declare _modeConfirm: Mode | null;
   /** Verlauf für die Grafik; null = nicht verfügbar */
@@ -118,6 +123,7 @@ export class WaermeregiePanel extends LitElement {
     this._busy = false;
     this._actionError = null;
     this._refillNote = null;
+    this._logAll = false;
     this._modeConfirm = null;
     this._history = null;
   }
@@ -181,7 +187,9 @@ export class WaermeregiePanel extends LitElement {
 
   protected override willUpdate(changed: PropertyValues) {
     if (changed.has("route") && this.route?.path) {
-      const p = this.route.path.replace(/^\//, "").split("/")[0] as Tab;
+      const raw = this.route.path.replace(/^\//, "").split("/")[0];
+      // alte Lesezeichen auf „log“: das Protokoll steht jetzt in der Übersicht
+      const p = (raw === "log" ? "overview" : raw) as Tab;
       if (TABS.some((t) => t.id === p) && p !== this._tab) this._tab = p;
     }
     if (changed.has("hass") && this.hass) this._ensureData();
@@ -266,7 +274,7 @@ export class WaermeregiePanel extends LitElement {
       const kg = s?.pellets?.stock_kg;
       this._refillNote = this._t("pellets.refill_done_kg", { kg: kg == null ? "?" : formatNumber(kg, this._lang, 1) });
       window.clearTimeout(this._refillTimer);
-      this._refillTimer = window.setTimeout(() => (this._refillNote = null), 8000);
+      this._refillTimer = window.setTimeout(() => (this._refillNote = null), TOAST_MS);
       return s;
     });
   }
@@ -328,21 +336,27 @@ export class WaermeregiePanel extends LitElement {
           : nothing}
         ${this._dirty ? html`<span class="badge warn" title=${t("editor.unsaved")}>●</span>` : nothing}
       </div>
-      <nav class="tabs" role="tablist">
-        ${TABS.map(
-          (tab) => html`<button
-            role="tab"
-            aria-selected=${this._tab === tab.id}
-            class="tab ${this._tab === tab.id ? "active" : ""}"
-            @click=${() => this._selectTab(tab.id)}
-          >
-            <ha-icon icon=${tab.icon}></ha-icon><span>${t(`tab.${tab.id}` as I18nKey)}</span>
-            ${EDITOR_TABS.includes(tab.id) && this._tabDirty(tab.id) ? html`<i class="dot" aria-hidden="true"></i>` : nothing}
-          </button>`,
-        )}
-      </nav>
-      <main>${this._renderBody()}</main>
-      ${EDITOR_TABS.includes(this._tab) && this._draft ? this._renderSaveBar() : nothing}
+      <div class="body">
+        <nav class="rail" aria-label=${t("title")}>
+          ${TABS.map(
+            (tab) => html`<button
+              class="dest ${this._tab === tab.id ? "active" : ""}"
+              aria-current=${this._tab === tab.id ? "page" : "false"}
+              @click=${() => this._selectTab(tab.id)}
+            >
+              <span class="ic"><ha-icon icon=${tab.icon}></ha-icon>${EDITOR_TABS.includes(tab.id) && this._tabDirty(tab.id)
+                  ? html`<i class="dot" aria-hidden="true"></i>`
+                  : nothing}</span>
+              <span class="lab">${t(`tab.${tab.id}` as I18nKey)}</span>
+            </button>`,
+          )}
+        </nav>
+        <div class="content">
+          <main>${this._renderBody()}</main>
+          ${EDITOR_TABS.includes(this._tab) && this._draft ? this._renderSaveBar() : nothing}
+        </div>
+      </div>
+      ${this._refillNote ? html`<div class="toast" role="status"><ha-icon icon="mdi:check"></ha-icon>${this._refillNote}</div>` : nothing}
     `;
   }
 
@@ -420,8 +434,6 @@ export class WaermeregiePanel extends LitElement {
             @config-changed=${onChange}
             @wr-status=${(e: CustomEvent<Status>) => (this._status = e.detail)}
           ></wr-house-editor>`;
-      case "log":
-        return this._renderLog();
     }
   }
 
@@ -493,11 +505,11 @@ export class WaermeregiePanel extends LitElement {
           : nothing}
         <div class="mid">
           ${renderPellets(ctx, () => void this._refill())}
-          ${this._refillNote ? html`<div class="banner info" role="status" style="margin-top:8px">${this._refillNote}</div>` : nothing}
           ${renderStoveCard(ctx)}
         </div>
         <h3 style="margin:4px 0 -6px">${t("rooms.title")}</h3>
         ${renderRoomTiles(ctx)}
+        ${this._renderLog()}
       </div>
     `;
   }
@@ -542,8 +554,9 @@ export class WaermeregiePanel extends LitElement {
 
   private _renderLog() {
     const t = this._t;
-    const entries = sortLogNewestFirst(this._status?.log);
-    if (!entries.length) return html`<div class="card muted">${t("log.empty")}</div>`;
+    const all = sortLogNewestFirst(this._status?.log);
+    if (!all.length) return html`<div class="card"><h3>${t("log.title")}</h3><div class="muted">${t("log.empty")}</div></div>`;
+    const entries = this._logAll ? all : all.slice(0, LOG_SHORT);
     return html`<div class="card">
       <h3>${t("log.title")}</h3>
       <ol class="log">
@@ -555,6 +568,13 @@ export class WaermeregiePanel extends LitElement {
           </li>`,
         )}
       </ol>
+      ${all.length > LOG_SHORT
+        ? html`<button class="text more-log" @click=${() => (this._logAll = !this._logAll)}>
+            <ha-icon icon=${this._logAll ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>${this._logAll
+              ? t("log.less")
+              : t("log.all", { n: String(all.length) })}
+          </button>`
+        : nothing}
     </div>`;
   }
 
@@ -600,9 +620,9 @@ export class WaermeregiePanel extends LitElement {
         gap: 8px;
         height: var(--header-height, 56px);
         padding: 0 16px;
-        background: var(--app-header-background-color, var(--wr-card));
-        color: var(--app-header-text-color, var(--wr-text));
-        border-bottom: 1px solid var(--wr-div);
+        background: var(--wr-bg);
+        color: var(--wr-text);
+        border-bottom: 2px solid var(--wr-div);
       }
       .toolbar .title {
         font-size: 20px;
@@ -615,34 +635,103 @@ export class WaermeregiePanel extends LitElement {
         color: inherit;
         margin-left: -8px;
       }
-      .tabs {
+      /* Navigation: links eine schmale Seitenleiste, schmal (< 870 px) unten */
+      .body {
+        flex: 1;
         display: flex;
-        gap: 2px;
-        padding: 0 8px;
-        overflow-x: auto;
-        background: var(--wr-card);
-        border-bottom: 1px solid var(--wr-div);
-        scrollbar-width: thin;
+        min-height: 0;
       }
-      .tab {
-        border: 0;
-        border-bottom: 3px solid transparent;
-        border-radius: 0;
-        padding: 10px 12px;
-        white-space: nowrap;
+      .rail {
+        flex: none;
+        width: 88px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 8px 4px;
+        border-right: 2px solid var(--wr-div);
+        position: sticky;
+        top: 0;
+        height: calc(100vh - var(--header-height, 56px));
+        overflow-y: auto;
+      }
+      .dest {
+        flex-direction: column;
+        gap: 4px;
+        border: 2px solid transparent;
+        padding: 8px 4px;
+        min-height: 56px;
+        font-size: 12px;
+        line-height: 1.2;
+        text-align: center;
         color: var(--wr-text2);
+        justify-content: center;
+      }
+      .dest .ic {
         position: relative;
+        display: inline-flex;
       }
-      .tab.active {
+      .dest.active {
+        color: var(--wr-text);
+        border-color: var(--wr-accent);
+        background: color-mix(in srgb, var(--wr-accent) 15%, transparent);
+      }
+      .dest.active ha-icon {
         color: var(--wr-heat);
-        border-bottom-color: var(--wr-heat);
       }
-      .tab .dot {
-        width: 7px;
-        height: 7px;
+      .dest .dot {
+        position: absolute;
+        top: -2px;
+        right: -6px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         background: var(--wr-warn);
-        display: inline-block;
+      }
+      .content {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .more-log {
+        margin-top: 8px;
+      }
+      @media (max-width: 870px) {
+        .rail {
+          position: fixed;
+          top: auto;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: auto;
+          height: auto;
+          overflow: visible;
+          flex-direction: row;
+          gap: 0;
+          padding: 4px;
+          border-right: 0;
+          border-top: 2px solid var(--wr-div);
+          background: var(--wr-bg);
+          z-index: 6;
+        }
+        .dest {
+          flex: 1 1 0;
+          min-width: 0;
+          padding: 6px 2px;
+        }
+        .dest .lab {
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .content {
+          padding-bottom: 72px;
+        }
+        :host {
+          --wr-toast-offset: 72px;
+          --wr-savebar-bottom: 72px;
+        }
       }
       main {
         flex: 1;
@@ -653,10 +742,7 @@ export class WaermeregiePanel extends LitElement {
       }
       @media (max-width: 480px) {
         main {
-          padding: 12px 8px;
-        }
-        .tab {
-          padding: 10px 8px;
+          padding: 12px;
         }
       }
       .stack {
@@ -696,8 +782,8 @@ export class WaermeregiePanel extends LitElement {
       }
       .seg {
         display: flex;
-        border: 1px solid var(--wr-div);
-        border-radius: 20px;
+        border: 2px solid var(--wr-border);
+        border-radius: 8px;
         overflow: hidden;
       }
       .seg button {
@@ -707,12 +793,13 @@ export class WaermeregiePanel extends LitElement {
         justify-content: center;
       }
       .seg button.on.shadow {
-        background: var(--wr-warn);
-        color: #fff;
+        background: color-mix(in srgb, var(--wr-warn) 18%, transparent);
       }
       .seg button.on.active {
-        background: var(--wr-ok);
-        color: #fff;
+        background: color-mix(in srgb, var(--wr-ok) 18%, transparent);
+      }
+      .seg button.on ha-icon {
+        color: var(--wr-text);
       }
       .log {
         list-style: none;
@@ -746,7 +833,7 @@ export class WaermeregiePanel extends LitElement {
       }
       .savebar {
         position: sticky;
-        bottom: 0;
+        bottom: var(--wr-savebar-bottom, 0);
         z-index: 4;
         display: flex;
         flex-wrap: wrap;
